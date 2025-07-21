@@ -1,0 +1,83 @@
+.services-section {
+  margin: var(--spacing-md, 1.5rem) 0;
+}
+
+.services-container {
+  display: flex;
+  justify-content: space-evenly;
+
+  max-width: 1200px;
+  margin: 0 auto; /* This centers the container */
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  border-radius: var(--radius-md, 1rem);
+    box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
+  gap: 1rem;
+}
+
+.service-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 1rem);
+  padding: var(--spacing-xs, 1.5rem) var(--spacing-xs, 1rem);
+  min-width: 250px;
+  flex: 1 1 250px; /* Makes it responsive */
+}
+
+.service-title {
+  font-family: var(--font-family-heading, "Poppins", sans-serif);
+  font-size: var(--font-size-xs, 1rem);
+  font-weight:600;
+  color: var(--text-primary, #333333);
+  /* margin-bottom: var(--spacing-sm, 0.5rem); */
+  /* line-height: 1.4; */
+}
+
+
+.service-description {
+  font-size: var(--font-size-xs, 0.875rem);
+
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .services-section {
+    padding: var(--spacing-xl, 2rem) 0;
+  }
+
+  .services-container {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 var(--spacing-md, 1rem);
+  }
+
+  .service-card {
+    padding: var(--spacing-lg, 1.5rem) var(--spacing-md, 1rem);
+  }
+
+  .service-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: var(--spacing-md, 1rem);
+  }
+
+  .service-icon i {
+    font-size: 1.5rem;
+    
+  }
+
+  .service-title {
+    font-size: var(--font-size-md, 1rem);
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 480px) {
+  .services-container {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 var(--spacing-sm, 0.5rem);
+  }
+}

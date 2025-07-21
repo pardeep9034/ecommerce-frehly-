@@ -1,20 +1,37 @@
-import { useState } from 'react'
-import Navbar from './components/common/navbar.jsx'
-
-import React from 'react'
-// import { BrowserRouter as Router, Route, Routes } from 'react-router-dom'
-
-
+// App.js
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/common/navbar';
+// import Footer from './components/Layout/Footer';
+import Home from './pages/home';
+// import Products from './pages/Products';
+// import ProductDetail from './pages/ProductDetail';
+// import Cart from './pages/Cart';
+// import Login from './pages/Login';
+// import Register from './pages/Register';
+// import Profile from './pages/Profile';
+// import Checkout from './pages/Checkout
+import './styles/app.css';
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
+    <Router>
+      <div className="App">
         <Navbar />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            {/* <Route path="/products" element={<Products />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/checkout" element={<Checkout />} /> */}
+          </Routes>
+        </main>
+        {/* <Footer /> */}
       </div>
-    </>
-  )
+    </Router>
+  );
 }
 
-export default App 
+export default App;
