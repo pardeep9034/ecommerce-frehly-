@@ -4,6 +4,11 @@ import OfferdServices from '../components/common/offerdServices'
 import { PopularCategories } from '../components/common/popularCate'
 import { PopularProducts } from '../components/common/popularProducts'
 import { OfferSection } from '../components/common/offerSection'
+import { HotDeals } from '../components/common/hotDeals'
+import { OfferBanner } from '../components/common/offerBanner'
+import { Testimonial } from '../components/common/testimonial'
+import { Footer } from '../components/common/footer'
+
 
 const home = () => {
   return (
@@ -13,6 +18,10 @@ const home = () => {
       <PopularCategories/>
       <PopularProducts/>
       <OfferSection/>
+      <HotDeals/>
+      <OfferBanner/>
+      <Testimonial/>
+      <Footer/>
 
       {/* Add more components as needed */}
     </div>

@@ -1,0 +1,261 @@
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+}
+
+/* Container */
+.signup-container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Card */
+.signup-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Header */
+.signup-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.signup-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.signup-subtitle {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+/* Form */
+.signup-form {
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  background-color: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input.error {
+  border-color: #ef4444;
+}
+
+.form-input.error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+/* Buttons */
+.signup-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.signup-btn:active {
+  transform: translateY(1px);
+}
+
+.signup-btn {
+  background-color: #3b82f6;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.signup-btn:hover {
+  background-color: #2563eb;
+}
+
+.signup-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.bsignup-btn {
+  background-color: #6b7280;
+  color: white;
+}
+
+.bsignup-btn:hover {
+  background-color: #4b5563;
+}
+
+.signup-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+}
+
+/* Footer */
+.signup-footer {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.link {
+  color: #3b82f6;
+  text-decoration: none;
+  transition: color 0.15s ease-in-out;
+}
+
+.link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Success state */
+.success-card {
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 3rem;
+  color: #10b981;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.success-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin-bottom: 1rem;
+}
+
+.success-text {
+  color: #64748b;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .signup-container {
+    padding: 0.5rem;
+  }
+  
+  .signup-card {
+    padding: 1.5rem;
+    max-width: 100%;
+  }
+  
+  .signup-title {
+    font-size: 1.5rem;
+  }
+  
+  .form-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  .signup-card {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .signup-title {
+    font-size: 1.25rem;
+  }
+  
+  .btn {
+    padding: 0.875rem 1rem;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .btn,
+  .link {
+    transition: none;
+  }
+}
+
+/* Focus visible for better keyboard navigation */
+.btn:focus-visible,
+.form-input:focus-visible,
+.link:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .signup-card {
+    border: 2px solid #000;
+  }
+  
+  .form-input {
+    border: 2px solid #000;
+  }
+  
+  .btn-primary {
+    background-color: #000;
+    border: 2px solid #000;
+  }
+}

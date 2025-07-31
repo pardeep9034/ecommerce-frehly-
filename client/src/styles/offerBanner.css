@@ -1,0 +1,56 @@
+.offer-banner{
+
+    height: 200px;
+    border-radius: 0.375rem;
+    max-width: 1200px;
+    margin: 20px auto;
+  
+    background-image: url(/736ac341802327b2806c879e76b9b8612d16e984.jpg);
+    background-size: cover;
+    background-position: center;
+        display: flex;
+    text-align: end;
+    flex-direction: column;
+   align-items: end;
+    padding-right: 100px;
+}
+.offer{
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #ffffff;
+
+    
+}
+.offer-banner h2 {
+    color: #ffffff;
+
+    font-size: .8rem;
+    text-transform: uppercase;
+   
+}
+.offer-banner h3 {
+    color: #fcc900;
+    font-size: 2rem;
+    font-weight: 800;
+}
+.offer-banner p {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+  
+}
+.offer-banner button {
+    background-color: #fcc900;
+    color: #000000;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
