@@ -1,54 +1,109 @@
 import React from 'react'
 import '../../styles/hotDeals.css';
+import ProductDetailCard from './productDetails ';
 
 export const HotDeals = () => {
     const deals = [
         {
             id: 1,
-            name:"apple",
-            price:"$2.99/lb",
-            imageUrl: "path/to/apple-image.jpg"
+           name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         }
         ,
         {
             id: 2,
-            name:"banana",
-            price:"$1.99/lb",
-            imageUrl: "path/to/banana-image.jpg"
+            name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         },
         {
             id: 3,
-            name:"orange",
-            price:"$3.49/lb",
-            imageUrl: "path/to/orange-image.jpg"
+           name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         }
         ,
         {
             id: 4,
-            name:"grapes",
-            price:"$4.99/lb",
-            imageUrl: "path/to/grapes-image.jpg"
+            name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         }
         ,
         {
             id: 5,
-            name:"mango",
-            price:"$5.99/lb",
-            imageUrl: "path/to/mango-image.jpg"
+            name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         },
         {
             id: 6,
-            name:"kiwi",
-            price:"$6.99/lb",
-            imageUrl: "path/to/kiwi-image.jpg"
+           name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         },
         {
             id: 7,
-            name:"pineapple",
-            price:"$7.99/lb",
-            imageUrl: "path/to/pineapple-image.jpg"
+           name: "Chinese Cabbage",
+    rating: 4,
+    price: 17.28,
+    oldPrice: 24.00,
+    status: "In Stock",
+    image: "/sale.png", // Replace with your image path
+    description:
+      "Chinese cabbage (Napa cabbage) is a leafy vegetable used in many Asian cuisines. It's rich in vitamins, low-calorie, and perfect for healthy diets.",
+    category: "Vegetables",
+    tags: ["Vegetables", "Healthy", "Chinese", "Cabbage", "Green Cabbage"],
         }
     ]
+const [selectedProduct, setSelectedProduct] = React.useState(null);
+    const handleSelectProduct = (product) => {
+        // Logic to handle product selection
+        console.log("Selected Product:", product);
+    }
   return (
    <div className="hot-deals-container">
         <div className="hot-deals-header">
@@ -57,13 +112,18 @@ export const HotDeals = () => {
         </div>
         <div className="hot-deals">
             {deals.map((deal) => (
-                <div key={deal.id} className="deal-card">
-                    <img src={deal.imageUrl} alt={deal.name} />
+                <div key={deal.id} className="deal-card" onClick={() => handleSelectProduct(deal)}>
+                    
+                  <div className="image">  <img src={deal.image} alt={deal.name} /></div>
                     <h3>{deal.name}</h3>
                     <p>{deal.price}</p>
+                    <p>review {deal.rating}</p>
                 </div>
             ))}
         </div>
+       {selectedProduct && (
+        <ProductDetailCard product={selectedProduct} />
+       )}
    </div>
    
   )

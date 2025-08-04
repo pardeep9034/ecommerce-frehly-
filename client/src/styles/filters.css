@@ -25,5 +25,37 @@
 .filter2{
     display: flex;
     justify-content: space-evenly;
+
     gap: 16px;
+}
+.filter-result{
+    display: flex;
+    text-transform: capitalize;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+ margin: 10px 0;
+ padding: 10px 0;
+
+    gap: 10px;
+   
+}
+.filter-result ul{
+  display:flex;
+font-size: var(font-size-md);
+    font-weight: 600; 
+  gap: 20px;
+}
+.close-button{
+    font-size: var(font-size-lg);
+  font-weight: 300;
+  /* padding-left: 5px; */
+  /* color: var(--primary-red); */
+  cursor: pointer;
+}
+.clear-all{
+    font-size: var(font-size-lg, 1.125rem);
+  font-weight: 300;
+  padding-left: 5px;
+  color: red;
+  cursor: pointer;
 }
