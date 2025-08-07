@@ -1,0 +1,19 @@
+{
+  "name": "veggie-ecommerce",
+  "version": "1.0.0",
+  "description": "Vegetable E-commerce Microservices Platform",
+  "scripts": {
+    "dev": "docker-compose up --build",
+    "start": "docker-compose up",
+    "stop": "docker-compose down",
+    "install-all": "npm install && cd services/auth-service && npm install",
+    "test": "cd services/auth-service && npm test"
+  },
+  "workspaces": [
+    "services/*"
+  ],
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^2.0.0"
+  }
+}
