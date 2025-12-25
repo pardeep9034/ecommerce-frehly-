@@ -1,6 +1,8 @@
 // services/auth-service/src/middleware/validation.js
-const Joi = require('joi');
-const ResponseUtil = require('../utils/response');
+// const Joi = require('joi');
+import Joi from 'joi';
+// const ResponseUtil = require('../utils/response');
+import ResponseUtil from '../utils/response.js';
 
 // Validation schemas
 const schemas = {
@@ -44,5 +46,6 @@ const validate = (schema) => {
     next();
   };
 };
-
-module.exports = { validate };
+// 
+// module.exports = { validate };
+export { validate };

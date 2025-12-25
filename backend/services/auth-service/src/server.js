@@ -1,6 +1,8 @@
 // services/auth-service/src/server.js
-const app = require('./app');
-const { initializeModels } = require('./models');
+// const app = require('./app');
+import app from './app.js';
+// const { initializeModels } = require('./models');
+import { initializeModels } from './models/index.js';
 
 const PORT = process.env.PORT || 3001;
 

@@ -1,5 +1,6 @@
 // services/auth-service/src/utils/jwt.js
-const jwt = require('jsonwebtoken');
+// const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 class JWTUtil {
   generateToken(payload) {
@@ -27,4 +28,5 @@ class JWTUtil {
   }
 }
 
-module.exports = new JWTUtil();
+// module.exports = new JWTUtil();
+export default new JWTUtil();

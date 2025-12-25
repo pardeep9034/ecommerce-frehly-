@@ -1,7 +1,10 @@
 // services/auth-service/src/services/authService.js
-const { db } = require('../models');
-const JWTUtil = require('../utils/jwt');
-const crypto = require('crypto');
+// const { db } = require('../models');
+import { db } from '../models/index.js';
+// const JWTUtil = require('../utils/jwt');
+import JWTUtil from '../utils/jwt.js';
+// const crypto = require('crypto');
+import crypto from 'crypto';
 
 class AuthService {
   async register(userData) {
@@ -180,4 +183,5 @@ class AuthService {
   }
 }
 
-module.exports = new AuthService();
+// module.exports = new AuthService();
+export default new AuthService();

@@ -46,4 +46,5 @@ class ResponseUtil {
   }
 }
 
-module.exports = new ResponseUtil();
+// module.exports = new ResponseUtil();
+export default new ResponseUtil();

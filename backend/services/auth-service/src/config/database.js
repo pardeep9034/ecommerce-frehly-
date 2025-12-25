@@ -1,5 +1,8 @@
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+// const { Sequelize } = require('sequelize');
+import { Sequelize } from 'sequelize';
+// require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 class Database {
   constructor() {
@@ -38,6 +41,9 @@ class Database {
 }
 }
 const dbInstance = new Database();
-module.exports = {
+// module.exports = {
+//   connect: () => dbInstance.connect()
+// };
+export default {
   connect: () => dbInstance.connect()
 };

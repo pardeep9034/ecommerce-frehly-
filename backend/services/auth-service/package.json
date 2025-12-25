@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "Authentication service for Veggie E-commerce",
   "main": "src/server.js",
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest",
     "migrate": "node migrations/migrate.js"
+  
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

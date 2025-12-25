@@ -1,8 +1,12 @@
 // services/auth-service/src/routes/auth.js
-const express = require('express');
-const AuthController = require('../controllers/authController');
-const { validate } = require('../middleware/validation');
-const { authenticateToken } = require('../middleware/auth');
+// const express = require('express');
+import express from 'express';
+// const AuthController = require('../controllers/authController');
+import AuthController from '../controllers/authController.js';
+// const { validate } = require('../middleware/validation');
+import { validate } from '../middleware/validation.js';
+// const { authenticateToken } = require('../middleware/auth');
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -26,4 +30,5 @@ router.get('/health', (req, res) => {
   });
 });
 
-module.exports = router;
+// module.exports = router;
+export default router;

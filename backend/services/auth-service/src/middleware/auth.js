@@ -1,7 +1,10 @@
 // services/auth-service/src/middleware/auth.js
-const JWTUtil = require('../utils/jwt');
-const ResponseUtil = require('../utils/response');
-const { db } = require('../models');
+// const JWTUtil = require('../utils/jwt');
+import JWTUtil from '../utils/jwt.js';
+// const ResponseUtil = require('../utils/response');
+import ResponseUtil from '../utils/response.js';
+// const { db } = require('../models');
+import { db } from '../models/index.js';
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -45,7 +48,4 @@ const requireRole = (roles) => {
   };
 };
 
-module.exports = {
-  authenticateToken,
-  requireRole
-};
+export { authenticateToken, requireRole };

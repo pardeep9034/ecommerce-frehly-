@@ -1,6 +1,8 @@
 // services/auth-service/src/controllers/authController.js
-const AuthService = require('../services/authService');
-const ResponseUtil = require('../utils/response');
+// const AuthService = require('../services/authService');
+import AuthService from '../services/authService.js';
+// const ResponseUtil = require('../utils/response');
+import ResponseUtil from '../utils/response.js';
 
 class AuthController {
   async register(req, res) {
@@ -105,4 +107,5 @@ class AuthController {
   }
 }
 
-module.exports = new AuthController();
+// module.exports = new AuthController();
+export default new AuthController();

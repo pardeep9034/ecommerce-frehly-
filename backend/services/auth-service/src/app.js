@@ -1,12 +1,22 @@
 // services/auth-service/src/app.js
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+// const express = require('express');
+// const cors = require('cors');
+// const helmet = require('helmet');
+// const rateLimit = require('express-rate-limit');
+// require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const authRoutes = require('./routes/auth');
-const ResponseUtil = require('./utils/response');
+
+
+// const authRoutes = require('./routes/auth');
+// const ResponseUtil = require('./utils/response');
+import authRoutes from './routes/auth.js';
+import ResponseUtil from './utils/response.js';
 
 const app = express();
 
@@ -89,4 +99,5 @@ app.use((error, req, res, next) => {
   );
 });
 
-module.exports = app;
+// module.exports = app;
+export default app;
