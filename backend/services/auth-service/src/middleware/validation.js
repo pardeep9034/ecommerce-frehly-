@@ -6,6 +6,12 @@ import ResponseUtil from '../utils/response.js';
 
 // Validation schemas
 const schemas = {
+  signUp: Joi.object({
+  phone: Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .required()
+}),
+
   register: Joi.object({
     firstName: Joi.string().min(2).max(50).required(),
     lastName: Joi.string().min(2).max(50).required(),

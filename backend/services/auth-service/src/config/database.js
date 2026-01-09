@@ -28,6 +28,7 @@ class Database {
           } : false
         }
       });
+      
 
       // Test the connection
       await this.sequelize.authenticate();

@@ -1,7 +1,6 @@
-// services/auth-service/src/models/index.js
-// const database = require('../config/database');
+
 import database from '../config/database.js';
-// const UserModel = require('./User');
+
 import UserModel from './User.js';
 
 let db = {};
@@ -17,7 +16,7 @@ async function initializeModels() {
 
   // Sync database (create tables if they don't exist)
   if (process.env.NODE_ENV === 'development') {
-    await sequelize.sync({ alter: true });
+      // await sequelize.sync({ alter: true });
     console.log('✅ Auth Service: Database tables synchronized');
   }
 

@@ -1,10 +1,48 @@
-// services/auth-service/src/controllers/authController.js
-// const AuthService = require('../services/authService');
-import AuthService from '../services/authService.js';
-// const ResponseUtil = require('../utils/response');
+
+import AuthService from './auth.service.js';
+
 import ResponseUtil from '../utils/response.js';
 
 class AuthController {
+  async signup(req,res){
+     
+    try {
+      const result = await AuthService.signup(req.body);
+
+      if (result.success === true) {
+        return ResponseUtil.success(res,result.data,result.message,201)
+      } else {
+       
+        return ResponseUtil.error(res,result.message,400)
+      }
+
+    } catch (error) {
+      // only system-level failure reaches here
+      
+      return ResponseUtil.error(res,"Internal server error",500)
+    }
+  
+      
+  }
+  async verify(req,res){
+    try{
+      const result=await AuthService.verify(req.body);
+      
+
+   if (result.success === true) {
+        return ResponseUtil.success(res,result.data,result.message,201)
+      } else {
+       
+        return ResponseUtil.error(res,result.message,400)
+      }
+
+    } catch (error) {
+      // only system-level failure reaches here
+      
+      return ResponseUtil.error(res,"Internal server error",500)
+    }
+  
+  }
   async register(req, res) {
     try {
       const result = await AuthService.register(req.body);

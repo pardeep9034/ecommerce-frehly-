@@ -1,6 +1,4 @@
-// const { DataTypes } = require('sequelize');
 import { DataTypes } from 'sequelize';
-// const bcrypt = require('bcryptjs');
 import bcrypt from 'bcryptjs';
 
 export default (sequelize) => {
@@ -10,109 +8,178 @@ export default (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    firstName: {
-      type: DataTypes.STRING,
-      allowNull: false,
+
+    first_name: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
       validate: {
         len: [2, 50],
-        notEmpty: true
+        notEmpty: false
       }
     },
-    lastName: {
-      type: DataTypes.STRING,
-      allowNull: false,
+
+    last_name: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
       validate: {
         len: [2, 50],
-        notEmpty: true
+        notEmpty: false
       }
     },
+
     email: {
       type: DataTypes.STRING,
       unique: true,
-      allowNull: false,
+      allowNull: true,
       validate: {
-        isEmail: true,
-        notEmpty: true
+        isEmail: true
       }
     },
+
+    phone: {
+      type: DataTypes.STRING(15),
+      unique: true,
+      allowNull: false,
+      validate: {
+        isNumeric: true,
+        len: [10, 15]
+      }
+    },
+
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       validate: {
         len: [6, 100],
-        notEmpty: true
+        notEmpty: false
       }
     },
+
+    otp_hash: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+
+    otp_type: {
+      type: DataTypes.ENUM('signup', 'email_verify', 'forgot_password'),
+      allowNull: true
+    },
+
+    otp_expiry: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+
+    otp_attempts: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+
+    otp_send_count: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+
+    last_otp_sent_at: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+
     role: {
       type: DataTypes.ENUM('customer', 'admin', 'vendor'),
       defaultValue: 'customer'
     },
-    isActive: {
+
+    refresh_token: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+
+    refresh_token_expiry: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+
+    is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
     },
-    emailVerified: {
+
+    phone_verified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
     },
-    emailVerificationToken: {
-      type: DataTypes.STRING,
-      allowNull: true
+
+    email_verified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     },
-    passwordResetToken: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    passwordResetExpires: {
+
+    last_login_at: {
       type: DataTypes.DATE,
       allowNull: true
     },
-    lastLoginAt: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    loginAttempts: {
+
+    login_attempts: {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    lockUntil: {
+
+    lock_until: {
       type: DataTypes.DATE,
       allowNull: true
     }
+    ,
+      deleted_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+
   }, {
     tableName: 'auth_users',
     timestamps: true,
-    paranoid: true, // Soft delete
+    paranoid: true,
+     deletedAt: 'deleted_at',
+
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {
-          user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+          user.password = await bcrypt.hash(
+            user.password,
+            parseInt(process.env.BCRYPT_ROUNDS, 10) || 12
+          );
         }
       },
+
       beforeUpdate: async (user) => {
         if (user.changed('password')) {
-          user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+          user.password = await bcrypt.hash(
+            user.password,
+            parseInt(process.env.BCRYPT_ROUNDS, 10) || 12
+          );
         }
       }
     }
   });
 
-  // Instance methods
-  User.prototype.comparePassword = async function(candidatePassword) {
+  /* ======================
+     Instance Methods
+  ====================== */
+
+  User.prototype.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
   };
 
-  User.prototype.isLocked = function() {
-    return !!(this.lockUntil && this.lockUntil > Date.now());
+  User.prototype.isLocked = function () {
+    return this.lock_until && this.lock_until > new Date();
   };
 
-  User.prototype.toJSON = function() {
+  User.prototype.toJSON = function () {
     const values = { ...this.get() };
     delete values.password;
-    delete values.emailVerificationToken;
-    delete values.passwordResetToken;
-    delete values.loginAttempts;
-    delete values.lockUntil;
+    delete values.refresh_token;
+    delete values.login_attempts;
+    delete values.lock_until;
     return values;
   };
 

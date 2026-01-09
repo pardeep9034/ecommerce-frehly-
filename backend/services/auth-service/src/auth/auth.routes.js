@@ -2,7 +2,7 @@
 // const express = require('express');
 import express from 'express';
 // const AuthController = require('../controllers/authController');
-import AuthController from '../controllers/authController.js';
+import AuthController from './auth.controller.js';
 // const { validate } = require('../middleware/validation');
 import { validate } from '../middleware/validation.js';
 // const { authenticateToken } = require('../middleware/auth');
@@ -11,6 +11,8 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // Public routes
+router.post("/signup",validate('signUp'),AuthController.signup);
+router.post("/signup/verify",AuthController.verify);
 router.post('/register', validate('register'), AuthController.register);
 router.post('/login', validate('login'), AuthController.login);
 router.post('/refresh-token', AuthController.refreshToken);
