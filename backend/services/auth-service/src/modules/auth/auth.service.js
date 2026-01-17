@@ -1,6 +1,6 @@
-import { db } from "../models/index.js";
+import { db } from "../../models/index.js";
 
-import JWTUtil from "../utils/jwt.js";
+import JWTUtil from "../../utils/jwt.js";
 
 import crypto from "crypto";
 import {
@@ -8,64 +8,66 @@ import {
   hashOtp,
   getOtpExpiry,
   decodeOtp,
-} from "../helpers/otp.js";
+} from "../../helpers/otp.js";
+import UserRepository from "../user/user.repository.js";
+import OtpService from "../otp/otp.service.js";
+import AuthValidation from "./auth.validation.js";
+import TokenService from "../token/token.service.js";
+
 
 
 class AuthService {
 async signup(data) {
+
     try {
 
-        const { phone } = data;
-
         /* ================= VALIDATION ================= */
-        if (phone) {
+        const validationResult = AuthValidation.validateSignup(data);
+
+        if (validationResult.valid === true) {
+
+            const { phone } = validationResult.sanitizedData;
 
             /* ================= USER CHECK ================= */
-            const existingUser = await db.User.findOne({
-                where: { phone }
-            });
+            const existingUser = await UserRepository.findByPhone(phone);
 
             if (!existingUser) {
 
-                /* ================= OTP GENERATION ================= */
-                const otp = generateOtp();
-                const otpHash = hashOtp(otp);
-                const otpExpiry = getOtpExpiry();
+                const otpPayload = OtpService.createSignupOtp();
 
-                /* ================= USER CREATE ================= */
-                const newUser = await db.User.create({
+                const user = await UserRepository.create({
                     phone,
-                    otp_hash: otpHash,
+                    otp_hash: otpPayload.hash,
                     otp_type: "signup",
-                    otp_expiry: otpExpiry,
-                    last_otp_sent_at: new Date(),
-                    otp_send_count: 1
+                    otp_expiry: otpPayload.expiry,
+                    otp_send_count: 1,
+                    last_otp_sent_at: new Date()
                 });
 
-                if (newUser) {
-
-                    /* ================= SEND OTP ================= */
-                    // await OtpService.send({ phone, otp });
+                if (user) {
 
                     return {
                         success: true,
+                        statusCode: 201,
                         message: "Signup successful. OTP sent.",
                         data: {
-                            user_id: newUser.id,
-                            otp // dev only
+                            user_id: user.id,
+                            otp: otpPayload.otp // dev only
                         }
                     };
 
                 } else {
                     return {
                         success: false,
-                        message: "Failed to create user"
+                        statusCode: 500,
+                        message: "User creation failed"
                     };
                 }
 
             } else {
                 return {
                     success: false,
+                    statusCode: 409,
                     message: "User already exists"
                 };
             }
@@ -73,98 +75,126 @@ async signup(data) {
         } else {
             return {
                 success: false,
-                message: "Phone number is required"
+                statusCode: 400,
+                message: validationResult.message
             };
         }
 
     } catch (error) {
-        console.error("AUTH SIGNUP SERVICE ERROR →", error);
         return {
             success: false,
-            message: error.message || "Signup failed"
+            statusCode: 500,
+            message: "Signup failed"
         };
     }
+
 }
+
 
 
 async verify(data) {
-  const { id, otp } = data;
 
-  // Validate id
-  if (id) {
+    try {
 
-    // Validate otp
-    if (otp) {
+        /* ================= VALIDATION ================= */
+        const validationResult = AuthValidation.validateVerifyOtp(data);
 
-      // Find user
-      const user = await db.User.findOne({
-        where: { id }
-      });
+        if (validationResult.valid === true) {
 
-      if (user) {
+            const { phone, otp } = validationResult.sanitizedData;
 
-        // Check OTP expiry
-        if (user.otp_expiry && new Date() <= user.otp_expiry) {
+            /* ================= USER CHECK ================= */
+            const user = await UserRepository.findByPhone(phone);
 
-          // Hash input OTP
-          const otpHash = hashOtp(otp);
+            if (user) {
 
-          // Compare hashes
-          if (otpHash === user.otp_hash) {
+                if (user.otp_type === "signup") {
 
-            // Update user after successful verification
-            await db.User.update(
-              {
-                otp_hash: null,
-                otp_expiry: null,
-                is_verified: true,
-              },
-              {
-                where: { id }
-              }
-            );
+                    /* ================= OTP EXPIRY CHECK ================= */
+                    if (user.otp_expiry && new Date(user.otp_expiry) > new Date()) {
 
-            return {
-              success: true,
-              data: user,
-              message: "OTP verified successfully",
-            };
+                        /* ================= OTP MATCH ================= */
+                        const isOtpValid = OtpService.compareOtp(
+                            otp,
+                            user.otp_hash
+                        );
 
-          } else {
-            return {
-              success: false,
-              message: "Invalid OTP",
-            };
-          }
+                        if (isOtpValid === true) {
+
+                            /* ================= USER UPDATE ================= */
+                            await UserRepository.updateById(user.id, {
+                                is_verified: true,
+                                otp_hash: null,
+                                otp_type: null,
+                                otp_expiry: null,
+                                otp_send_count: 0
+                            });
+
+                            /* ================= TOKEN ================= */
+                            const token = TokenService.generateAccessToken({
+                                user_id: user.id,
+                                phone: user.phone
+                            });
+
+                            return {
+                                success: true,
+                                statusCode: 200,
+                                message: "OTP verified successfully",
+                                data: {
+                                    token
+                                }
+                            };
+
+                        } else {
+                            return {
+                                success: false,
+                                statusCode: 400,
+                                message: "Invalid OTP"
+                            };
+                        }
+
+                    } else {
+                        return {
+                            success: false,
+                            statusCode: 400,
+                            message: "OTP expired"
+                        };
+                    }
+
+                } else {
+                    return {
+                        success: false,
+                        statusCode: 400,
+                        message: "Invalid OTP type"
+                    };
+                }
+
+            } else {
+                return {
+                    success: false,
+                    statusCode: 404,
+                    message: "User not found"
+                };
+            }
 
         } else {
-          return {
-            success: false,
-            message: "OTP expired",
-          };
+            return {
+                success: false,
+                statusCode: 400,
+                message: validationResult.message
+            };
         }
 
-      } else {
+    } catch (error) {
         return {
-          success: false,
-          message: "User not found",
+            success: false,
+            statusCode: 500,
+            message: "OTP verification failed"
         };
-      }
-
-    } else {
-      return {
-        success: false,
-        message: "OTP not found",
-      };
     }
 
-  } else {
-    return {
-      success: false,
-      message: "ID not found",
-    };
-  }
 }
+
 
 
   async register(userData) {

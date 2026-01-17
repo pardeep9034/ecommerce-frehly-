@@ -1,7 +1,7 @@
 
 import AuthService from './auth.service.js';
 
-import ResponseUtil from '../utils/response.js';
+import ResponseUtil from '../../utils/response.js';
 
 class AuthController {
   async signup(req,res){

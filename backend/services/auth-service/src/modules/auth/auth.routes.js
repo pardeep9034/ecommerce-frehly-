@@ -4,9 +4,9 @@ import express from 'express';
 // const AuthController = require('../controllers/authController');
 import AuthController from './auth.controller.js';
 // const { validate } = require('../middleware/validation');
-import { validate } from '../middleware/validation.js';
+import { validate } from '../../middleware/validation.js';
 // const { authenticateToken } = require('../middleware/auth');
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../../middleware/auth.js';
 
 const router = express.Router();
 
