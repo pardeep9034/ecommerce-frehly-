@@ -1,21 +1,48 @@
-import { db } from "../../models/index.js";
-const { User } = db;
+import initializeModels from "../../models/index.js";
+
 class UserRepository {
+
     async findByPhone(phone) {
+
         if (phone) {
-            return await User.findOne({ where: { phone } });
+
+            const db = await initializeModels();
+
+            return await db.User.findOne({
+                where: { phone }
+            });
+
         } else {
             return null;
         }
+
     }
 
     async create(payload) {
+
         if (payload) {
-            return await User.create(payload);
+
+            const db = await initializeModels();
+
+            return await db.User.create(payload);
+
         } else {
             return null;
         }
+
     }
+    async updateById(id, payload) {
+
+    if (id && payload) {
+        const db = await initializeModels();
+        return await db.User.update(payload, { where: { id } });
+    } else {
+        return null;
+    }
+
+}
+
+
 }
 
 export default new UserRepository();

@@ -11,7 +11,7 @@ import { authenticateToken } from '../../middleware/auth.js';
 const router = express.Router();
 
 // Public routes
-router.post("/signup",validate('signUp'),AuthController.signup);
+router.post("/signup",AuthController.signup);
 router.post("/signup/verify",AuthController.verify);
 router.post('/register', validate('register'), AuthController.register);
 router.post('/login', validate('login'), AuthController.login);

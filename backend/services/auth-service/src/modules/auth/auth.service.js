@@ -1,23 +1,21 @@
-import { db } from "../../models/index.js";
+import initializeModels  from "../../models/index.js";
 
 import JWTUtil from "../../utils/jwt.js";
 
 import crypto from "crypto";
-import {
-  generateOtp,
-  hashOtp,
-  getOtpExpiry,
-  decodeOtp,
-} from "../../helpers/otp.js";
+
 import UserRepository from "../user/user.repository.js";
 import OtpService from "../otp/otp.service.js";
 import AuthValidation from "./auth.validation.js";
 import TokenService from "../token/token.service.js";
+import response from "../../utils/response.js";
 
 
+const db = initializeModels();
 
 class AuthService {
 async signup(data) {
+
 
     try {
 
@@ -27,6 +25,7 @@ async signup(data) {
         if (validationResult.valid === true) {
 
             const { phone } = validationResult.sanitizedData;
+            console.log("Phone number for signup:", phone);
 
             /* ================= USER CHECK ================= */
             const existingUser = await UserRepository.findByPhone(phone);
@@ -81,12 +80,15 @@ async signup(data) {
         }
 
     } catch (error) {
-        return {
-            success: false,
-            statusCode: 500,
-            message: "Signup failed"
-        };
-    }
+
+    console.error("SIGNUP ERROR →", error);
+
+    return {
+        success: false,
+        statusCode: 500,
+        message: error.message || "Signup failed"
+    };
+}
 
 }
 
@@ -123,7 +125,7 @@ async verify(data) {
 
                             /* ================= USER UPDATE ================= */
                             await UserRepository.updateById(user.id, {
-                                is_verified: true,
+                                phone_verified: true,
                                 otp_hash: null,
                                 otp_type: null,
                                 otp_expiry: null,
@@ -131,17 +133,26 @@ async verify(data) {
                             });
 
                             /* ================= TOKEN ================= */
-                            const token = TokenService.generateAccessToken({
+                            const token = TokenService.generateToken({
                                 user_id: user.id,
                                 phone: user.phone
                             });
+                            const refreshToken=TokenService.generateRefreshToken();
+
+                            await UserRepository.updateById(user.id,{
+                              refresh_token:refreshToken,
+                              refresh_token_expiry:TokenService.getRefreshTokenExpiry()
+
+                            })
 
                             return {
                                 success: true,
                                 statusCode: 200,
                                 message: "OTP verified successfully",
                                 data: {
-                                    token
+                                    token,
+                                    refreshToken
+
                                 }
                             };
 

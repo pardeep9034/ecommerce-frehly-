@@ -1,27 +1,28 @@
+import database from "../config/database.js";
+import UserModel from "./User.js";
+import RefreshTokenModel from "./RefreshToken.js"
 
-import database from '../config/database.js';
 
-import UserModel from './User.js';
-
-let db = {};
+let sequelize;
+let db;
 
 async function initializeModels() {
-  const sequelize = await database.connect();
-  
-  // Initialize models
-  db.User = UserModel(sequelize);
-  db.sequelize = sequelize;
-  // db.Sequelize = require('sequelize');
-  db.Sequelize = database.Sequelize;
 
-  // Sync database (create tables if they don't exist)
-  if (process.env.NODE_ENV === 'development') {
-      // await sequelize.sync({ alter: true });
-    console.log('✅ Auth Service: Database tables synchronized');
-  }
+    if (!db) {
 
-  return db;
+        sequelize = await database.connect();
+
+        db = {
+            sequelize,
+            Sequelize: database.Sequelize,
+            User: UserModel(sequelize),
+            RefreshToken: RefreshTokenModel(sequelize)
+        };
+
+        console.log("✅ Auth Service: Models initialized");
+    }
+
+    return db;
 }
 
-// module.exports = { db, initializeModels };
-export { db, initializeModels };
+export default initializeModels;

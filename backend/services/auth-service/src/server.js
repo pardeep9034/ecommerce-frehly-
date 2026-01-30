@@ -2,7 +2,7 @@
 // const app = require('./app');
 import app from './app.js';
 // const { initializeModels } = require('./models');
-import { initializeModels } from './models/index.js';
+import  initializeModels  from './models/index.js';
 
 const PORT = process.env.PORT || 3001;
 

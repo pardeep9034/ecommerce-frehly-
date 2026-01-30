@@ -4,7 +4,8 @@ import JWTUtil from '../utils/jwt.js';
 // const ResponseUtil = require('../utils/response');
 import ResponseUtil from '../utils/response.js';
 // const { db } = require('../models');
-import { db } from '../models/index.js';
+import initializeModels  from '../models/index.js';
+const db = initializeModels();
 
 const authenticateToken = async (req, res, next) => {
   try {
