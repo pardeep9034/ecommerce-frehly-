@@ -1,339 +1,459 @@
-import initializeModels  from "../../models/index.js";
+import initializeModels from "../../models/index.js";
 
 import JWTUtil from "../../utils/jwt.js";
 
 import crypto from "crypto";
 
-import UserRepository from "../user/user.repository.js";
+import UserRepository from "../repository/user.repository.js";
+import RefreshTokenRepository from "../repository/refreshToken.repository.js";
 import OtpService from "../otp/otp.service.js";
 import AuthValidation from "./auth.validation.js";
 import TokenService from "../token/token.service.js";
-import response from "../../utils/response.js";
-
 
 const db = initializeModels();
 
 class AuthService {
-async signup(data) {
-
-
+  async signup(data) {
     try {
+      /* ================= VALIDATION ================= */
+      const validationResult = AuthValidation.validateSignup(data);
 
-        /* ================= VALIDATION ================= */
-        const validationResult = AuthValidation.validateSignup(data);
+      if (validationResult.valid === true) {
+        const { phone } = validationResult.sanitizedData;
+        console.log("Phone number for signup:", phone);
 
-        if (validationResult.valid === true) {
+        /* ================= USER CHECK ================= */
+        const existingUser = await UserRepository.findByPhone(phone);
 
-            const { phone } = validationResult.sanitizedData;
-            console.log("Phone number for signup:", phone);
+        if (!existingUser) {
+          const otpPayload = OtpService.createSignupOtp();
 
-            /* ================= USER CHECK ================= */
-            const existingUser = await UserRepository.findByPhone(phone);
+          const user = await UserRepository.create({
+            phone,
+            otp_hash: otpPayload.hash,
+            otp_type: "signup",
+            otp_expiry: otpPayload.expiry,
+            otp_send_count: 1,
+            last_otp_sent_at: new Date(),
+          });
 
-            if (!existingUser) {
-
-                const otpPayload = OtpService.createSignupOtp();
-
-                const user = await UserRepository.create({
-                    phone,
-                    otp_hash: otpPayload.hash,
-                    otp_type: "signup",
-                    otp_expiry: otpPayload.expiry,
-                    otp_send_count: 1,
-                    last_otp_sent_at: new Date()
-                });
-
-                if (user) {
-
-                    return {
-                        success: true,
-                        statusCode: 201,
-                        message: "Signup successful. OTP sent.",
-                        data: {
-                            user_id: user.id,
-                            otp: otpPayload.otp // dev only
-                        }
-                    };
-
-                } else {
-                    return {
-                        success: false,
-                        statusCode: 500,
-                        message: "User creation failed"
-                    };
-                }
-
-            } else {
-                return {
-                    success: false,
-                    statusCode: 409,
-                    message: "User already exists"
-                };
-            }
-
-        } else {
+          if (user) {
             return {
-                success: false,
-                statusCode: 400,
-                message: validationResult.message
+              success: true,
+              statusCode: 201,
+              message: "Signup successful. OTP sent.",
+              data: {
+                user_id: user.id,
+                otp: otpPayload.otp, // dev only
+              },
             };
+          } else {
+            return {
+              success: false,
+              statusCode: 500,
+              message: "User creation failed",
+            };
+          }
+        } else {
+          return {
+            success: false,
+            statusCode: 409,
+            message: "User already exists",
+          };
         }
-
+      } else {
+        return {
+          success: false,
+          statusCode: 400,
+          message: validationResult.message,
+        };
+      }
     } catch (error) {
+      console.error("SIGNUP ERROR →", error);
 
-    console.error("SIGNUP ERROR →", error);
-
-    return {
+      return {
         success: false,
         statusCode: 500,
-        message: error.message || "Signup failed"
-    };
-}
+        message: error.message || "Signup failed",
+      };
+    }
+  }
 
-}
-
-
-
-async verify(data) {
-
+  async verify(data) {
     try {
+      /* ================= VALIDATION ================= */
+      const validationResult = AuthValidation.validateVerifyOtp(data);
 
-        /* ================= VALIDATION ================= */
-        const validationResult = AuthValidation.validateVerifyOtp(data);
+      if (validationResult.valid === true) {
+        const { phone, otp } = validationResult.sanitizedData;
 
-        if (validationResult.valid === true) {
+        /* ================= USER CHECK ================= */
+        const user = await UserRepository.findByPhone(phone);
 
-            const { phone, otp } = validationResult.sanitizedData;
+        if (user) {
+          if (user.otp_type === "signup") {
+            /* ================= OTP EXPIRY CHECK ================= */
+            if (user.otp_expiry && new Date(user.otp_expiry) > new Date()) {
+              /* ================= OTP MATCH ================= */
+              const isOtpValid = OtpService.compareOtp(otp, user.otp_hash);
 
-            /* ================= USER CHECK ================= */
-            const user = await UserRepository.findByPhone(phone);
+              if (isOtpValid === true) {
+                /* ================= USER UPDATE ================= */
+                await UserRepository.updateById(user.id, {
+                  phone_verified: true,
+                  otp_hash: null,
+                  otp_type: null,
+                  otp_expiry: null,
+                  otp_send_count: 0,
+                });
 
-            if (user) {
+                /* ================= TOKEN ================= */
+                const accessToken = TokenService.generateAccessToken({
+                  user_id: user.id,
+                  phone: user.phone,
+                });
+                const refreshToken = TokenService.generateRefreshToken();
+                await RefreshTokenRepository.create({
+                  user_id: user.id,
+                  token_hash: TokenService.hashRefreshToken(refreshToken),
+                  expires_at: TokenService.getRefreshTokenExpiry(),
+                });
 
-                if (user.otp_type === "signup") {
-
-                    /* ================= OTP EXPIRY CHECK ================= */
-                    if (user.otp_expiry && new Date(user.otp_expiry) > new Date()) {
-
-                        /* ================= OTP MATCH ================= */
-                        const isOtpValid = OtpService.compareOtp(
-                            otp,
-                            user.otp_hash
-                        );
-
-                        if (isOtpValid === true) {
-
-                            /* ================= USER UPDATE ================= */
-                            await UserRepository.updateById(user.id, {
-                                phone_verified: true,
-                                otp_hash: null,
-                                otp_type: null,
-                                otp_expiry: null,
-                                otp_send_count: 0
-                            });
-
-                            /* ================= TOKEN ================= */
-                            const token = TokenService.generateToken({
-                                user_id: user.id,
-                                phone: user.phone
-                            });
-                            const refreshToken=TokenService.generateRefreshToken();
-
-                            await UserRepository.updateById(user.id,{
-                              refresh_token:refreshToken,
-                              refresh_token_expiry:TokenService.getRefreshTokenExpiry()
-
-                            })
-
-                            return {
-                                success: true,
-                                statusCode: 200,
-                                message: "OTP verified successfully",
-                                data: {
-                                    token,
-                                    refreshToken
-
-                                }
-                            };
-
-                        } else {
-                            return {
-                                success: false,
-                                statusCode: 400,
-                                message: "Invalid OTP"
-                            };
-                        }
-
-                    } else {
-                        return {
-                            success: false,
-                            statusCode: 400,
-                            message: "OTP expired"
-                        };
-                    }
-
-                } else {
-                    return {
-                        success: false,
-                        statusCode: 400,
-                        message: "Invalid OTP type"
-                    };
-                }
-
-            } else {
                 return {
-                    success: false,
-                    statusCode: 404,
-                    message: "User not found"
+                  success: true,
+                  statusCode: 200,
+                  message: "OTP verified successfully",
+                  data: {
+                    accessToken,
+                    refreshToken,
+                  },
                 };
-            }
-
-        } else {
-            return {
+              } else {
+                return {
+                  success: false,
+                  statusCode: 400,
+                  message: "Invalid OTP",
+                };
+              }
+            } else {
+              return {
                 success: false,
                 statusCode: 400,
-                message: validationResult.message
+                message: "OTP expired",
+              };
+            }
+          } else {
+            return {
+              success: false,
+              statusCode: 400,
+              message: "Invalid OTP type",
             };
+          }
+        } else {
+          return {
+            success: false,
+            statusCode: 404,
+            message: "User not found",
+          };
+        }
+      } else {
+        return {
+          success: false,
+          statusCode: 400,
+          message: validationResult.message,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        statusCode: 500,
+        message: "OTP verification failed",
+      };
+    }
+  }
+
+ async register(userData) {
+
+  /* ================= VALIDATION ================= */
+  if (userData) {
+
+    if (userData.phone) {
+
+      /* ================= USER CHECK ================= */
+      const existingUser = await UserRepository.findByPhone(userData.phone);
+
+      if (existingUser) {
+
+        /* ================= UPDATE PROFILE (SAFE) ================= */
+        if (
+          userData.first_name ||
+          userData.last_name ||
+          userData.email ||
+          userData.password
+        ) {
+
+          if (userData.first_name) {
+            existingUser.first_name = userData.first_name;
+          }
+
+          if (userData.last_name) {
+            existingUser.last_name = userData.last_name;
+          }
+
+          if (userData.email) {
+            existingUser.email = userData.email;
+          }
+
+          if (userData.password) {
+            existingUser.password = userData.password; // ✅ hook will hash
+          }
+
+          const savedUser = await existingUser.save(); // 🔥 hooks run here
+
+          return {
+            success: true,
+            statusCode: 200,
+            message: "User profile completed successfully",
+            user: savedUser,
+          };
+
+        } else {
+
+          return {
+            success: false,
+            statusCode: 400,
+            message: "No data provided to update",
+          };
         }
 
-    } catch (error) {
+      } else {
+
         return {
-            success: false,
-            statusCode: 500,
-            message: "OTP verification failed"
+          success: false,
+          statusCode: 404,
+          message: "User not found",
         };
+      }
+
+    } else {
+
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Phone number is required",
+      };
     }
 
+  } else {
+
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Invalid request data",
+    };
+  }
+}
+
+
+async login(phone, password) {
+
+  // Validate input
+  if (phone && password) {
+    console.log("--",phone,password)
+
+    // Find user by phone
+    const user = await UserRepository.findByPhone(phone);
+    console.log("--",user);
+
+    if (user) {
+
+      // Check account lock
+      if (user.lock_until && user.lock_until > new Date()) {
+
+        return {
+          success: false,
+          statusCode: 423,
+          message: "Account is temporarily locked due to too many failed login attempts",
+        };
+
+      } else {
+
+        // Compare password
+        const isValidPassword = await user.comparePassword(password);
+        console.log("-------",isValidPassword)
+
+        if (isValidPassword) {
+
+          // Reset login attempts
+          await user.update({
+            login_attempts: 0,
+            lock_until: null,
+            last_login_at: new Date(),
+          });
+
+          // Generate tokens
+          const accessToken = TokenService.generateAccessToken({
+            user_id: user.id,
+            phone: user.phone,
+          });
+
+          const refreshToken = TokenService.generateRefreshToken();
+
+          await RefreshTokenRepository.create({
+            user_id: user.id,
+            token_hash: TokenService.hashRefreshToken(refreshToken),
+            expires_at: TokenService.getRefreshTokenExpiry(),
+          });
+
+          return {
+            success: true,
+            statusCode: 200,
+            message: "Login successful",
+            data: {
+              accessToken,
+              refreshToken,
+            },
+          };
+
+        } else {
+
+          // Invalid password → increment attempts
+          const attempts = user.login_attempts + 1;
+
+          if (attempts >= Number(process.env.MAX_LOGIN_ATTEMPTS)) {
+
+            const lockUntil = new Date(
+              Date.now() + 2 * 60 * 60 * 1000 // 2 hours
+            );
+
+            await user.update({
+              login_attempts: attempts,
+              lock_until: lockUntil,
+            });
+
+          } else {
+
+            await user.update({
+              login_attempts: attempts,
+            });
+
+          }
+
+          return {
+            success: false,
+            statusCode: 401,
+            message: "Invalid phone or password",
+          };
+        }
+      }
+
+    } else {
+
+      return {
+        success: false,
+        statusCode: 401,
+        message: "Invalid phone or password",
+      };
+    }
+
+  } else {
+
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Phone and password are required",
+    };
+  }
 }
 
 
 
-  async register(userData) {
-    try {
-      // Check if user already exists
-      const existingUser = await db.User.findOne({
-        where: { email: userData.email },
-      });
+async refreshToken(refreshToken) {
 
-      if (existingUser) {
-        throw new Error("User already exists with this email");
-      }
+  /* ================= VALIDATION ================= */
+  if (refreshToken) {
 
-      // Create user
-      const user = await db.User.create({
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        password: userData.password,
-        emailVerificationToken: crypto.randomBytes(32).toString("hex"),
-      });
+    /* ================= VERIFY TOKEN ================= */
+    const decoded = TokenService.verifyRefreshToken(refreshToken);
 
-      // Generate tokens
-      const token = JWTUtil.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
+    if (decoded && decoded.user_id) {
 
-      const refreshToken = JWTUtil.generateRefreshToken({
-        id: user.id,
-      });
+      /* ================= USER CHECK ================= */
+      const user = await UserRepository.findById(decoded.user_id);
 
-      return {
-        user,
-        token,
-        refreshToken,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
+      if (user && user.is_active) {
 
-  async login(email, password) {
-    try {
-      // Find user
-      const user = await db.User.findOne({
-        where: { email },
-      });
+        /* ================= TOKEN CHECK ================= */
+        const tokenHash = TokenService.hashRefreshToken(refreshToken);
 
-      if (!user) {
-        throw new Error("Invalid email or password");
-      }
+        const storedToken = await RefreshTokenRepository.findValidToken({
+          user_id: user.id,
+          token_hash: tokenHash,
+        });
 
-      // Check if account is locked
-      if (user.isLocked()) {
-        throw new Error(
-          "Account is temporarily locked due to too many failed login attempts"
-        );
-      }
+        if (storedToken) {
 
-      // Check password
-      const isValidPassword = await user.comparePassword(password);
+          /* ================= ROTATE TOKENS ================= */
+          const newAccessToken = TokenService.generateAccessToken({
+            user_id: user.id,
+            phone: user.phone,
+          });
 
-      if (!isValidPassword) {
-        // Increment login attempts
-        await user.increment("loginAttempts");
+          const newRefreshToken = TokenService.generateRefreshToken();
 
-        // Lock account if too many attempts
-        if (
-          user.loginAttempts + 1 >=
-          parseInt(process.env.MAX_LOGIN_ATTEMPTS)
-        ) {
-          const lockTime = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
-          await user.update({ lockUntil: lockTime });
+          /* ================= UPDATE REFRESH TOKEN ================= */
+          await RefreshTokenRepository.updateById(storedToken.id, {
+            token_hash: TokenService.hashRefreshToken(newRefreshToken),
+            expires_at: TokenService.getRefreshTokenExpiry(),
+          });
+
+          return {
+            success: true,
+            statusCode: 200,
+            message: "Token refreshed successfully",
+            data: {
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+            },
+          };
+
+        } else {
+
+          return {
+            success: false,
+            statusCode: 401,
+            message: "Invalid or expired refresh token",
+          };
         }
 
-        throw new Error("Invalid email or password");
+      } else {
+
+        return {
+          success: false,
+          statusCode: 401,
+          message: "User not found or inactive",
+        };
       }
 
-      // Reset login attempts and update last login
-      await user.update({
-        loginAttempts: 0,
-        lockUntil: null,
-        lastLoginAt: new Date(),
-      });
-
-      // Generate tokens
-      const token = JWTUtil.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-      const refreshToken = JWTUtil.generateRefreshToken({
-        id: user.id,
-      });
+    } else {
 
       return {
-        user,
-        token,
-        refreshToken,
+        success: false,
+        statusCode: 401,
+        message: "Invalid refresh token",
       };
-    } catch (error) {
-      throw error;
     }
+
+  } else {
+
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Refresh token is required",
+    };
   }
+}
 
-  async refreshToken(refreshToken) {
-    try {
-      const decoded = JWTUtil.verifyToken(refreshToken);
-      const user = await db.User.findByPk(decoded.id);
-
-      if (!user || !user.isActive) {
-        throw new Error("Invalid refresh token");
-      }
-
-      const newToken = JWTUtil.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-      return { token: newToken };
-    } catch (error) {
-      throw error;
-    }
-  }
 
   async forgotPassword(email) {
     try {

@@ -1,52 +1,136 @@
-// services/auth-service/src/middleware/auth.js
-// const JWTUtil = require('../utils/jwt');
-import JWTUtil from '../utils/jwt.js';
-// const ResponseUtil = require('../utils/response');
-import ResponseUtil from '../utils/response.js';
-// const { db } = require('../models');
-import initializeModels  from '../models/index.js';
-const db = initializeModels();
+import TokenService from "../modules/token/token.service.js";
+import ResponseUtil from "../utils/response.js";
+import initializeModels from "../models/index.js";
 
 const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-    if (!token) {
-      return ResponseUtil.unauthorized(res, 'Access token required');
+    try {
+
+        /* ================= TOKEN EXTRACTION ================= */
+        if (req.headers && req.headers.authorization) {
+
+            const authHeader = req.headers.authorization;
+            const token = authHeader.split(" ")[1];
+
+            if (token) {
+
+                /* ================= TOKEN VERIFICATION ================= */
+                const decoded = TokenService.verifyAccessToken(token);
+
+                if (decoded && decoded.user_id) {
+
+                    /* ================= USER CHECK ================= */
+                    const db = await initializeModels();
+
+                    const user = await db.User.findByPk(decoded.user_id);
+
+                    if (user) {
+
+                        if (user.is_active === true) {
+
+                            req.user = user;
+                            return next();
+
+                        } else {
+
+                            return ResponseUtil.forbidden(
+                                res,
+                                "Account is deactivated"
+                            );
+
+                        }
+
+                    } else {
+
+                        return ResponseUtil.unauthorized(
+                            res,
+                            "User not found"
+                        );
+
+                    }
+
+                } else {
+
+                    return ResponseUtil.unauthorized(
+                        res,
+                        "Invalid access token payload"
+                    );
+
+                }
+
+            } else {
+
+                return ResponseUtil.unauthorized(
+                    res,
+                    "Access token missing"
+                );
+
+            }
+
+        } else {
+
+            return ResponseUtil.unauthorized(
+                res,
+                "Authorization header missing"
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error("AUTH MIDDLEWARE ERROR →", error);
+
+        return ResponseUtil.unauthorized(
+            res,
+            "Invalid or expired access token"
+        );
+
     }
 
-    const decoded = JWTUtil.verifyToken(token);
-    
-    // Check if user still exists
-    const user = await db.User.findByPk(decoded.id);
-    if (!user) {
-      return ResponseUtil.unauthorized(res, 'User not found');
-    }
-
-    if (!user.isActive) {
-      return ResponseUtil.forbidden(res, 'Account is deactivated');
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    return ResponseUtil.unauthorized(res, 'Invalid or expired token');
-  }
 };
 
 const requireRole = (roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return ResponseUtil.unauthorized(res, 'Authentication required');
-    }
 
-    if (!roles.includes(req.user.role)) {
-      return ResponseUtil.forbidden(res, 'Insufficient permissions');
-    }
+    return (req, res, next) => {
 
-    next();
-  };
+        /* ================= AUTH CHECK ================= */
+        if (req.user) {
+
+            if (roles && Array.isArray(roles)) {
+
+                if (roles.includes(req.user.role)) {
+
+                    return next();
+
+                } else {
+
+                    return ResponseUtil.forbidden(
+                        res,
+                        "Insufficient permissions"
+                    );
+
+                }
+
+            } else {
+
+                return ResponseUtil.forbidden(
+                    res,
+                    "Invalid role configuration"
+                );
+
+            }
+
+        } else {
+
+            return ResponseUtil.unauthorized(
+                res,
+                "Authentication required"
+            );
+
+        }
+
+    };
+
 };
 
 export { authenticateToken, requireRole };

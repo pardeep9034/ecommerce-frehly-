@@ -13,7 +13,7 @@ const router = express.Router();
 // Public routes
 router.post("/signup",AuthController.signup);
 router.post("/signup/verify",AuthController.verify);
-router.post('/register', validate('register'), AuthController.register);
+router.post('/register',authenticateToken, validate('register'), AuthController.register);
 router.post('/login', validate('login'), AuthController.login);
 router.post('/refresh-token', AuthController.refreshToken);
 router.post('/forgot-password', validate('forgotPassword'), AuthController.forgotPassword);

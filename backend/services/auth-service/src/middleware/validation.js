@@ -13,15 +13,20 @@ const schemas = {
 }),
 
   register: Joi.object({
-    firstName: Joi.string().min(2).max(50).required(),
-    lastName: Joi.string().min(2).max(50).required(),
+     phone: Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .required(),
+    first_name: Joi.string().min(2).max(50).required(),
+    last_name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(6).max(100).required(),
-    confirmPassword: Joi.string().valid(Joi.ref('password')).required()
+
   }),
 
   login: Joi.object({
-    email: Joi.string().email().required(),
+    phone:  Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .required(),
     password: Joi.string().required()
   }),
 
@@ -32,7 +37,7 @@ const schemas = {
   resetPassword: Joi.object({
     token: Joi.string().required(),
     password: Joi.string().min(6).max(100).required(),
-    confirmPassword: Joi.string().valid(Joi.ref('password')).required()
+    
   })
 };
 

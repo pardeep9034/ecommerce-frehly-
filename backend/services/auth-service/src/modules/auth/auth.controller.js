@@ -1,98 +1,100 @@
+import AuthService from "./auth.service.js";
 
-import AuthService from './auth.service.js';
-
-import ResponseUtil from '../../utils/response.js';
+import ResponseUtil from "../../utils/response.js";
 
 class AuthController {
-  async signup(req,res){
-     
+  async signup(req, res) {
     try {
       const result = await AuthService.signup(req.body);
 
       if (result.success === true) {
-        return ResponseUtil.success(res,result.data,result.message,201)
+        return ResponseUtil.success(res, result.data, result.message, 201);
       } else {
-       
-        return ResponseUtil.error(res,result.message,400)
+        return ResponseUtil.error(res, result.message, 400);
       }
-
     } catch (error) {
       // only system-level failure reaches here
-      
-      return ResponseUtil.error(res,"Internal server error",500)
+
+      return ResponseUtil.error(res, "Internal server error", 500);
     }
-  
-      
   }
-  async verify(req,res){
-    try{
-      const result=await AuthService.verify(req.body);
-      
+  async verify(req, res) {
+    try {
+      const result = await AuthService.verify(req.body);
 
-   if (result.success === true) {
-        return ResponseUtil.success(res,result.data,result.message,201)
+      if (result.success === true) {
+        return ResponseUtil.success(res, result.data, result.message, 201);
       } else {
-       
-        return ResponseUtil.error(res,result.message,400)
+        return ResponseUtil.error(res, result.message, 400);
       }
-
     } catch (error) {
       // only system-level failure reaches here
-      
-      return ResponseUtil.error(res,"Internal server error",500)
+
+      return ResponseUtil.error(res, "Internal server error", 500);
     }
-  
   }
   async register(req, res) {
     try {
       const result = await AuthService.register(req.body);
-      
-      ResponseUtil.success(res, {
-        user: result.user,
-        token: result.token,
-        refreshToken: result.refreshToken
-      }, 'User registered successfully', 201);
-    } catch (error) {
-      console.error('Register error:', error);
-      
-      if (error.message.includes('already exists')) {
-        return ResponseUtil.error(res, error.message, 400);
+
+      if (result.success === true) {
+        return ResponseUtil.success(
+          res,
+          {
+            user: result.user,
+          },
+          result.message || "User registered successfully",
+          201,
+        );
+      } else {
+        return ResponseUtil.error(
+          res,
+          result.message || "Registration failed",
+          result.statusCode || 400,
+        );
       }
-      
-      ResponseUtil.error(res, 'Registration failed');
+    } catch (error) {
+      console.error("REGISTER CONTROLLER ERROR →", error);
+
+      return ResponseUtil.error(res, "Internal server error", 500);
     }
   }
 
-  async login(req, res) {
-    try {
-      const { email, password } = req.body;
-      const result = await AuthService.login(email, password);
-      
-      ResponseUtil.success(res, {
-        user: result.user,
-        token: result.token,
-        refreshToken: result.refreshToken
-      }, 'Login successful');
-    } catch (error) {
-      console.error('Login error:', error);
-      
-      if (error.message.includes('Invalid') || error.message.includes('locked')) {
-        return ResponseUtil.error(res, error.message, 401);
-      }
-      
-      ResponseUtil.error(res, 'Login failed');
-    }
+async login(req, res) {
+
+  const { phone, password } = req.body;
+
+  const result = await AuthService.login(phone, password);
+
+  if (result && result.success === true) {
+
+    return ResponseUtil.success(
+      res,
+      result.data,
+      result.message,
+      result.statusCode || 200
+    );
+
+  } else {
+
+    return ResponseUtil.error(
+      res,
+      result.message || "Login failed",
+      result.statusCode || 400
+    );
   }
+}
+
 
   async refreshToken(req, res) {
     try {
       const { refreshToken } = req.body;
       const result = await AuthService.refreshToken(refreshToken);
-      
-      ResponseUtil.success(res, result, 'Token refreshed successfully');
+
+      ResponseUtil.success(res, result, "Token refreshed successfully");
     } catch (error) {
-      console.error('Refresh token error:', error);
-      ResponseUtil.error(res, 'Invalid refresh token', 401);
+      console.error("Refresh token error:", error);
+      ResponseUtil.error(res, "Invalid refresh token", 401);
     }
   }
 
@@ -100,11 +102,11 @@ class AuthController {
     try {
       const { email } = req.body;
       const result = await AuthService.forgotPassword(email);
-      
+
       ResponseUtil.success(res, null, result.message);
     } catch (error) {
-      console.error('Forgot password error:', error);
-      ResponseUtil.error(res, 'Failed to process forgot password request');
+      console.error("Forgot password error:", error);
+      ResponseUtil.error(res, "Failed to process forgot password request");
     }
   }
 
@@ -112,35 +114,38 @@ class AuthController {
     try {
       const { token, password } = req.body;
       const result = await AuthService.resetPassword(token, password);
-      
+
       ResponseUtil.success(res, null, result.message);
     } catch (error) {
-      console.error('Reset password error:', error);
-      
-      if (error.message.includes('Invalid') || error.message.includes('expired')) {
+      console.error("Reset password error:", error);
+
+      if (
+        error.message.includes("Invalid") ||
+        error.message.includes("expired")
+      ) {
         return ResponseUtil.error(res, error.message, 400);
       }
-      
-      ResponseUtil.error(res, 'Failed to reset password');
+
+      ResponseUtil.error(res, "Failed to reset password");
     }
   }
 
   async getProfile(req, res) {
     try {
-      ResponseUtil.success(res, req.user, 'Profile retrieved successfully');
+      ResponseUtil.success(res, req.user, "Profile retrieved successfully");
     } catch (error) {
-      console.error('Get profile error:', error);
-      ResponseUtil.error(res, 'Failed to get profile');
+      console.error("Get profile error:", error);
+      ResponseUtil.error(res, "Failed to get profile");
     }
   }
 
   async logout(req, res) {
     try {
       // In a real app, you might want to blacklist the token
-      ResponseUtil.success(res, null, 'Logged out successfully');
+      ResponseUtil.success(res, null, "Logged out successfully");
     } catch (error) {
-      console.error('Logout error:', error);
-      ResponseUtil.error(res, 'Logout failed');
+      console.error("Logout error:", error);
+      ResponseUtil.error(res, "Logout failed");
     }
   }
 }

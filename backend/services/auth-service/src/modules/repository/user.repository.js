@@ -31,16 +31,34 @@ class UserRepository {
         }
 
     }
-    async updateById(id, payload) {
+   async updateById(id, payload) {
 
     if (id && payload) {
+
         const db = await initializeModels();
-        return await db.User.update(payload, { where: { id } });
+
+        const [affectedRows] = await db.User.update(
+            payload,
+            { where: { id } }
+        );
+
+        if (affectedRows > 0) {
+
+            return await db.User.findByPk(id);
+
+        } else {
+
+            return null;
+        }
+
     } else {
         return null;
     }
 
 }
+
+
+
 
 
 }

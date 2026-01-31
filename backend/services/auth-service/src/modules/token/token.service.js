@@ -1,36 +1,61 @@
-// services/auth-service/src/utils/jwt.js
-// const jwt = require('jsonwebtoken');
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
-class TokenService{
-  generateToken(payload) {
-    return jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-    });
-  }
+class TokenService {
 
-generateRefreshToken() {
-  return crypto.randomBytes(64).toString("hex");
-}
-getRefreshTokenExpiry() {
-  const days =  process.env.REFRESH_TOKEN_EXPIRES_IN; // or from env
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-}
+    /* ================= ACCESS TOKEN ================= */
 
+    generateAccessToken(payload) {
 
-  verifyToken(token) {
-    try {
-      return jwt.verify(token, process.env.JWT_SECRET);
-    } catch (error) {
-      throw new Error('Invalid token');
+        return jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            {
+                expiresIn: process.env.JWT_EXPIRES_IN || "15m"
+            }
+        );
     }
-  }
 
-  decodeToken(token) {
-    return jwt.decode(token);
-  }
+    verifyAccessToken(token) {
+
+        try {
+            return jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            throw new Error("Invalid or expired access token");
+        }
+
+    }
+
+    decodeAccessToken(token) {
+        return jwt.decode(token);
+    }
+
+    /* ================= REFRESH TOKEN ================= */
+
+    generateRefreshToken() {
+        return crypto.randomBytes(64).toString("hex");
+    }
+
+    hashRefreshToken(refreshToken) {
+
+        return crypto
+            .createHash("sha256")
+            .update(refreshToken)
+            .digest("hex");
+    }
+
+    getRefreshTokenExpiry() {
+
+        const days = parseInt(
+            process.env.REFRESH_TOKEN_EXPIRES_IN || "7",
+            10
+        );
+
+        return new Date(
+            Date.now() + days * 24 * 60 * 60 * 1000
+        );
+    }
+
 }
 
-// module.exports = new JWTUtil();
 export default new TokenService();
