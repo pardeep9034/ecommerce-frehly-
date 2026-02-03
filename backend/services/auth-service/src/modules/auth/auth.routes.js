@@ -3,6 +3,7 @@
 import express from 'express';
 // const AuthController = require('../controllers/authController');
 import AuthController from './auth.controller.js';
+import otpController from '../otp/otp.controller.js';
 // const { validate } = require('../middleware/validation');
 import { validate } from '../../middleware/validation.js';
 // const { authenticateToken } = require('../middleware/auth');
@@ -17,7 +18,8 @@ router.post('/register',authenticateToken, validate('register'), AuthController.
 router.post('/login', validate('login'), AuthController.login);
 router.post('/refresh-token', AuthController.refreshToken);
 router.post('/forgot-password', validate('forgotPassword'), AuthController.forgotPassword);
-router.post('/reset-password', validate('resetPassword'), AuthController.resetPassword);
+router.post('/reset-password', authenticateToken,validate('resetPassword'), AuthController.resetPassword);
+router.post("/otp/resend",otpController.resendOtp)
 
 // Protected routes
 router.get('/profile', authenticateToken, AuthController.getProfile);

@@ -1,3 +1,4 @@
+import { where } from "sequelize";
 import initializeModels from "../../models/index.js";
 
 class UserRepository {
@@ -17,6 +18,16 @@ class UserRepository {
         }
 
     }
+            async findById(userId){
+                if(userId){
+                    const db=await initializeModels()
+                    return await db.User.findOne({ where:{id:userId}})
+                }
+                else{
+                    return null;
+                }
+            }
+
 
     async create(payload) {
 

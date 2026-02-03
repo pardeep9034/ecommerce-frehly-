@@ -8,6 +8,7 @@ dotenv.config();
 
 
 import authRoutes from './modules/auth/auth.routes.js';
+import optRoutes from "./modules/otp/otp.routes.js"
 import ResponseUtil from './utils/response.js';
 
 const app = express();
@@ -43,6 +44,7 @@ if (process.env.NODE_ENV === 'development') {
 
 // Routes
 app.use('/auth', authRoutes);
+app.use("/otp",optRoutes)
 
 // Root health check
 app.get('/', (req, res) => {

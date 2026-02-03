@@ -100,35 +100,41 @@ async login(req, res) {
 
   async forgotPassword(req, res) {
     try {
-      const { email } = req.body;
-      const result = await AuthService.forgotPassword(email);
+      const { phone } = req.body;
+      const result = await AuthService.forgotPassword(phone);
 
-      ResponseUtil.success(res, null, result.message);
+      ResponseUtil.success(res, result.otp, result.message);
     } catch (error) {
       console.error("Forgot password error:", error);
       ResponseUtil.error(res, "Failed to process forgot password request");
     }
   }
 
-  async resetPassword(req, res) {
-    try {
-      const { token, password } = req.body;
-      const result = await AuthService.resetPassword(token, password);
+ async resetPassword(req, res) {
 
-      ResponseUtil.success(res, null, result.message);
-    } catch (error) {
-      console.error("Reset password error:", error);
+  const { resetToken, newPassword } = req.body;
 
-      if (
-        error.message.includes("Invalid") ||
-        error.message.includes("expired")
-      ) {
-        return ResponseUtil.error(res, error.message, 400);
-      }
+  const result = await AuthService.resetPassword(resetToken, newPassword);
 
-      ResponseUtil.error(res, "Failed to reset password");
-    }
+  if (result.success === true) {
+
+    return ResponseUtil.success(
+      res,
+      null,
+      result.message,
+      result.statusCode || 200
+    );
+
+  } else {
+
+    return ResponseUtil.error(
+      res,
+      result.message,
+      result.statusCode || 400
+    );
   }
+}
+
 
   async getProfile(req, res) {
     try {

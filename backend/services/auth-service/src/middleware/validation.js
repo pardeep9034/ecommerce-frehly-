@@ -1,10 +1,9 @@
-// services/auth-service/src/middleware/validation.js
-// const Joi = require('joi');
+
 import Joi from 'joi';
-// const ResponseUtil = require('../utils/response');
+
 import ResponseUtil from '../utils/response.js';
 
-// Validation schemas
+
 const schemas = {
   signUp: Joi.object({
   phone: Joi.string()
@@ -31,12 +30,14 @@ const schemas = {
   }),
 
   forgotPassword: Joi.object({
-    email: Joi.string().email().required()
+    phone: Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .required(),
   }),
 
   resetPassword: Joi.object({
-    token: Joi.string().required(),
-    password: Joi.string().min(6).max(100).required(),
+    resetToken: Joi.string().required(),
+    newPassword: Joi.string().min(6).max(100).required(),
     
   })
 };
@@ -57,6 +58,5 @@ const validate = (schema) => {
     next();
   };
 };
-// 
-// module.exports = { validate };
+
 export { validate };
