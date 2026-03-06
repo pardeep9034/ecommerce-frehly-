@@ -14,7 +14,8 @@ class otpController{
       res,
       null,
       result.message,
-      result.statusCode || 200
+      result.statusCode || 200,
+      result.data
     );
 
   } else {

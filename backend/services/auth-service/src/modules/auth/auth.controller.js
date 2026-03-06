@@ -21,8 +21,15 @@ class AuthController {
   async verify(req, res) {
     try {
       const result = await AuthService.verify(req.body);
+       const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
       if (result.success === true) {
+          res.cookie("refreshToken", result.data.refreshToken, cookieOptions);
         return ResponseUtil.success(res, result.data, result.message, 201);
       } else {
         return ResponseUtil.error(res, result.message, 400);
@@ -65,8 +72,16 @@ async login(req, res) {
   const { phone, password } = req.body;
 
   const result = await AuthService.login(phone, password);
+  const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
   if (result && result.success === true) {
+    res.cookie("refreshToken", result.data.refreshToken, cookieOptions);
+
 
     return ResponseUtil.success(
       res,
@@ -88,10 +103,17 @@ async login(req, res) {
 
   async refreshToken(req, res) {
     try {
-      const { refreshToken } = req.body;
+      const  refreshToken  =  req.cookies.refreshToken;
       const result = await AuthService.refreshToken(refreshToken);
-
-      ResponseUtil.success(res, result, "Token refreshed successfully");
+if(result.success === true){
+  const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
+res.cookie("refreshToken", result.data.refreshToken, cookieOptions);
+      ResponseUtil.success(res, result, "Token refreshed successfully");}
     } catch (error) {
       console.error("Refresh token error:", error);
       ResponseUtil.error(res, "Invalid refresh token", 401);
@@ -138,7 +160,11 @@ async login(req, res) {
 
   async getProfile(req, res) {
     try {
-      ResponseUtil.success(res, req.user, "Profile retrieved successfully");
+      const result=await AuthService.getProfile(req.user.id);
+
+      if(result.success === true){
+        ResponseUtil.success(res, result, "Profile retrieved successfully");
+      }
     } catch (error) {
       console.error("Get profile error:", error);
       ResponseUtil.error(res, "Failed to get profile");

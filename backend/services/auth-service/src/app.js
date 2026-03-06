@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 dotenv.config();
-
+import cookieParser from "cookie-parser";
 
 import authRoutes from './modules/auth/auth.routes.js';
 import optRoutes from "./modules/otp/otp.routes.js"
@@ -16,9 +16,10 @@ const app = express();
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: process.env.ALLOWED_ORIGINS?.split(',') ,
   credentials: true
 }));
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({

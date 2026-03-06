@@ -138,7 +138,7 @@ class AuthService {
                 success: true,
                 statusCode: 200,
                 message: "Signup OTP verified successfully",
-                data: { accessToken, refreshToken },
+                data: { accessToken },
               };
             }
 
@@ -414,6 +414,33 @@ async login(phone, password) {
     };
   }
 }
+async getProfile(userId) {
+  if(userId){
+    const user = await UserRepository.findById(userId);
+
+    if (user) {
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Profile retrieved successfully",
+        data: {
+          id: user.id,
+          phone: user.phone,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+        },
+      };
+    }
+  } else {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "User ID is required",
+    };
+  }
+
+}
 
 
 
@@ -457,7 +484,7 @@ async refreshToken(refreshToken) {
           message: "Token refreshed successfully",
           data: {
             accessToken: newAccessToken,
-            refreshToken: newRefreshToken,
+           
           },
         };
 

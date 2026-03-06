@@ -2,12 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/navbar.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import { Button } from "@/components/ui/button"
+import { useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { logout } from '@/redux/authSlice';
+import { useQuery } from '@tanstack/react-query';
+import { getProfile } from '@/apis/authApi';
+
+// function Demo() {
+//   return (
+//     <div className="p-8 space-x-4">
+//       <Button>Primary</Button>
+//       <Button variant="accent">Accent</Button>
+//       <Button variant="secondary">Secondary</Button>
+//       <Button variant="danger">Delete</Button>
+//       <Button loading>Loading</Button>
+//       <Button size="lg">Large</Button>
+//       <Button fullWidth>Full Width</Button>
+//     </div>
+//   )
+// }
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [user, setUser] = useState(null);
+  const dispatch = useDispatch();
+  const [user, setUser] = useState({
+avatar:"https://placehold.co/40x40",
+name: "Guest User",
+email: "No email provided"
+  });
   const [isScrolled, setIsScrolled] = useState(false);
+  const {isAuthenticated} = useSelector((state) => state.auth);
+  const token = localStorage.getItem("token");
+
+const { data, isLoading } = useQuery({
+  queryKey: ["profile"],
+  queryFn: async () => {
+    const res = await getProfile();
+    return res.data.data;
+  },
+  enabled: !!token,
+});
+
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -49,10 +86,9 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+   dispatch(logout());
     setUser(null);
-    navigate('/');
+    navigate('/login');
     setIsMenuOpen(false);
   };
 
@@ -127,12 +163,12 @@ const Navbar = () => {
           </Link>
 
           {/* User Profile/Auth */}
-          {user ? (
+          {isAuthenticated ? (
             <div className="user-menu">
               <button className="user-avatar" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                 <img 
-                  src={user.avatar || "/images/default-avatar.png"} 
-                  alt={user.name}
+                  src={user.avatar}
+                  alt={data ? `${data.first_name} ${data.last_name}` : "User Avatar"}
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextElementSibling.style.display = 'flex';
@@ -145,8 +181,8 @@ const Navbar = () => {
               
               <div className={`user-dropdown ${isMenuOpen ? 'user-dropdown-open' : ''}`}>
                 <div className="user-info">
-                  <span className="user-name">{user.name}</span>
-                  <span className="user-email">{user.email}</span>
+                  <span className="user-name">{data? `${data.first_name} ${data.last_name}` : "Guest User"}</span>
+                  <span className="user-email">{data?.email ?? "No email provided"}</span>
                 </div>
                 <div className="dropdown-divider"></div>
                 <Link to="/profile" className="dropdown-item" onClick={closeMenu}>
@@ -173,7 +209,7 @@ const Navbar = () => {
               <Link to="/login" className="btn btn-outline btn-sm" onClick={closeMenu}>
                 Login
               </Link>
-              <Link to="/register" className="btn btn-primary btn-sm" onClick={closeMenu}>
+              <Link to="/signup" className="btn btn-primary btn-sm" onClick={closeMenu}>
                 Sign Up
               </Link>
             </div>

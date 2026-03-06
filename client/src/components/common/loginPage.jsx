@@ -1,23 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState  } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/loginPage.css';
+import { useMutation } from '@tanstack/react-query';
+import { login } from '@/apis/authApi';
+import { loginSuccess } from '@/redux/authSlice';
+import { useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
 
-const loginPage = () => {
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [formData, setFormData] = useState({
     phoneNumber: '',
     password: ''
   });
+
   const [errors, setErrors] = useState({
     phoneNumber: false,
     password: false,
     general: ''
   });
+
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: login,
+    onSuccess: (data) => {
+      localStorage.setItem("token", data.data.accessToken);
+      setIsLoggedIn(true);
+      navigate('/');
+        dispatch(
+      loginSuccess({
+        // user: data.user,
+        token: data.data.accessToken,
+      })
+    );
+    },
+    onError: (err) => {
+      setErrors((prev) => ({
+        ...prev,
+        general:
+          err?.response?.data?.message || "Invalid credentials",
+      }));
+    },
+  });
 
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ""));
   };
 
   const validatePassword = (password) => {
@@ -25,69 +56,49 @@ const loginPage = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value
     }));
-    
-    // Clear errors when user starts typing
-    setErrors(prev => ({
+
+    setErrors((prev) => ({
       ...prev,
       [field]: false,
       general: ''
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     const newErrors = {
       phoneNumber: false,
       password: false,
       general: ''
     };
 
-    // Validate phone number
     const cleanPhone = formData.phoneNumber.replace(/[\s\-\(\)]/g, '');
+
     if (!cleanPhone || !validatePhoneNumber(cleanPhone)) {
       newErrors.phoneNumber = true;
     }
 
-    // Validate password
     if (!formData.password || !validatePassword(formData.password)) {
       newErrors.password = true;
     }
 
     setErrors(newErrors);
 
-    // If there are validation errors, don't proceed
-    if (newErrors.phoneNumber || newErrors.password) {
-      return;
-    }
+    if (newErrors.phoneNumber || newErrors.password) return;
 
-    setIsLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      // Mock authentication logic
-      if (formData.password === 'password123') {
-        setIsLoggedIn(true);
-        console.log('Login successful:', {
-          phone: cleanPhone,
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        setErrors(prev => ({
-          ...prev,
-          general: 'Invalid phone number or password. Please try again.'
-        }));
-      }
-      setIsLoading(false);
-    }, 1500);
+    mutate({
+      phone: cleanPhone,
+      password: formData.password
+    });
   };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+    setShowPassword((prev) => !prev);
   };
 
   if (isLoggedIn) {
@@ -97,12 +108,14 @@ const loginPage = () => {
           <div className="success-icon">👋</div>
           <h2 className="success-title">Welcome Back!</h2>
           <p className="success-text">You have successfully logged in.</p>
-          <p className="success-text">Phone: <strong>{formData.phoneNumber}</strong></p>
-          <button 
+          <p className="success-text">
+            Phone: <strong>{formData.phoneNumber}</strong>
+          </p>
+          <button
             className="login-btn"
-            onClick={() => console.log('Navigate to dashboard')}
+            onClick={() => navigate('/')}
           >
-            Go to Dashboard
+            Go to homepage
           </button>
         </div>
       </div>
@@ -113,7 +126,7 @@ const loginPage = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="login-title">Welcome Back</h1>
+          <h1 className="bg-red-500 login-title">Welcome Back</h1>
           <p className="login-subtitle">Sign in to your account</p>
         </div>
 
@@ -125,15 +138,17 @@ const loginPage = () => {
           )}
 
           <div className="form-group">
-            <label className="form-label">
-              Phone Number
-            </label>
+            <label className="form-label">Phone Number</label>
             <input
               type="tel"
               value={formData.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+              onChange={(e) =>
+                handleInputChange('phoneNumber', e.target.value)
+              }
               placeholder="+1 (555) 123-4567"
-              className={`form-input ${errors.phoneNumber ? 'error' : ''}`}
+              className={`form-input ${
+                errors.phoneNumber ? 'error' : ''
+              }`}
               autoComplete="tel"
             />
             {errors.phoneNumber && (
@@ -144,27 +159,29 @@ const loginPage = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">
-              Password
-            </label>
+            <label className="form-label">Password</label>
             <div className="password-input-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('password', e.target.value)
+                }
                 placeholder="Enter your password"
-                className={`form-input ${errors.password ? 'error' : ''}`}
+                className={`form-input ${
+                  errors.password ? 'error' : ''
+                }`}
                 autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
                 className="password-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
+            <p className="forgot-password-link"><Link to="/forgot-password">Forgot Password?</Link></p>
             {errors.password && (
               <span className="error-message">
                 Password must be at least 6 characters long
@@ -172,42 +189,20 @@ const loginPage = () => {
             )}
           </div>
 
-          <div className="form-options">
-            <label className="checkbox-wrapper">
-              <input type="checkbox" className="checkbox" />
-              <span className="checkbox-text">Remember me</span>
-            </label>
-            <a href="#" className="forgot-password-link">
-              Forgot Password?
-            </a>
-          </div>
-
-          <button 
+          <button
             onClick={handleSubmit}
-            className={`login-btn login-btn-primary ${isLoading ? 'loading' : ''}`}
-            disabled={isLoading}
+            className={`login-btn login-btn-primary ${
+              isPending ? 'loading' : ''
+            }`}
+            disabled={isPending}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isPending ? 'Signing In...' : 'Sign In'}
           </button>
-        </div>
-
-        <div className="login-footer">
-          <p>
-            Don't have an account?{' '}
-            <a href="#" className="signup-link">
-              Sign up here
-            </a>
-          </p>
-          <div className="divider">
-            <span>or</span>
-          </div>
-          <button className="login-btn-secondary login-btn">
-            Continue with Google
-          </button>
+          <p className="signup-link">Don't have an account? <Link to="/signup">Sign Up</Link></p>
         </div>
       </div>
     </div>
   );
 };
 
-export default loginPage;
+export default LoginPage;

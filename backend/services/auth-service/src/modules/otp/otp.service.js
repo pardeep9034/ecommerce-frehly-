@@ -43,6 +43,8 @@ async resendOtp(phone) {
     const user = await UserRepository.findByPhone(phone);
 
     if (user) {
+         /* ================= GENERATE OTP ================= */
+        const { otp, hash, expiry } = this.createOtp();
 
       /* ================= OTP TYPE CHECK ================= */
       if (user.otp_type) {
@@ -79,8 +81,7 @@ async resendOtp(phone) {
           }
         }
 
-        /* ================= GENERATE OTP ================= */
-        const { otp, hash, expiry } = OtpService.createOtp();
+     
 
         /* ================= UPDATE OTP ================= */
         await user.update({
@@ -101,6 +102,7 @@ async resendOtp(phone) {
         success: true,
         statusCode: 200,
         message: "If an OTP request exists, a new OTP has been sent",
+        data:decodeOtp(hash)
       };
 
     } else {

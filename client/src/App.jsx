@@ -7,6 +7,7 @@ import Login from  './components/common/loginPage';
 import SignUp from './pages/signUp';
 import OtpPage from './components/common/otpPage';
 import Shop from './pages/shop';
+import ForgetPassword from './components/common/forgetPassword';
 // import Products from './pages/Products';
 // import ProductDetail from './pages/ProductDetail';
 // import Cart from './pages/Cart';
@@ -15,7 +16,21 @@ import Shop from './pages/shop';
 // import Profile from './pages/Profile';
 // import Checkout from './pages/Checkout
 import './styles/app.css';
+import { useState, useEffect } from 'react';
+import{ useSelector } from 'react-redux';
+import { loginSuccess,logout } from './redux/authSlice';
+import { useDispatch } from 'react-redux';
 function App() {
+  const dispatch = useDispatch();
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if(token) {
+    dispatch(loginSuccess({ token: token }));}
+    else {
+      dispatch(logout());
+
+    }
+  },[])
   return (
     <Router>
       <div className="App">
@@ -27,6 +42,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/otp" element={<OtpPage />} />
+            <Route path="/forgot-password" element={<ForgetPassword />} />
+            
             {/* <Route path="/products" element={<Products />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
