@@ -9,6 +9,8 @@ const authenticateToken = async (req, res, next) => {
         /* ================= TOKEN EXTRACTION ================= */
         if (req.headers && req.headers.authorization) {
 
+            
+
             const authHeader = req.headers.authorization;
             const token = authHeader.split(" ")[1];
 
