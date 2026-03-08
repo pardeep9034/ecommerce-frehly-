@@ -1,60 +1,57 @@
-// App.js
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/common/navbar';
-// import Footer from './components/Layout/Footer';
-import Home from './pages/home';
-import Login from  './components/common/loginPage';
-import SignUp from './pages/signUp';
-import OtpPage from './components/common/otpPage';
-import Shop from './pages/shop';
-import ForgetPassword from './components/common/forgetPassword';
-// import Products from './pages/Products';
-// import ProductDetail from './pages/ProductDetail';
-// import Cart from './pages/Cart';
-// import Login from './pages/Login';
-// import Register from './pages/Register';
-// import Profile from './pages/Profile';
-// import Checkout from './pages/Checkout
-import './styles/app.css';
-import { useState, useEffect } from 'react';
-import{ useSelector } from 'react-redux';
-import { loginSuccess,logout } from './redux/authSlice';
-import { useDispatch } from 'react-redux';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/home";
+import Login from "./components/common/loginPage";
+import SignUp from "./pages/signUp";
+import OtpPage from "./components/common/otpPage";
+import Shop from "./pages/shop";
+import ForgetPassword from "./components/common/forgetPassword";
+import Dashboard from "./pages/Dashboard";
+import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
+import Categories from "./pages/Categories";
+import PlaceholderPage from "./pages/PlaceholderPage";
+import PublicLayout from "./components/layout/PublicLayout";
+import DashboardLayout from "./components/freshly/DashboardLayout";
+import "./styles/app.css";
+import { useEffect } from "react";
+import { loginSuccess, logout } from "./redux/authSlice";
+import { useDispatch } from "react-redux";
+
 function App() {
   const dispatch = useDispatch();
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if(token) {
-    dispatch(loginSuccess({ token: token }));}
-    else {
+    const token = localStorage.getItem("token");
+    if (token) {
+      dispatch(loginSuccess({ token }));
+    } else {
       dispatch(logout());
-
     }
-  },[])
+  }, [dispatch]);
+
   return (
     <Router>
-      <div className="App">
-        <Navbar />
-        <main className="main-content">
-          <Routes>
+      <Routes>
+        <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/otp" element={<OtpPage />} />
             <Route path="/forgot-password" element={<ForgetPassword />} />
-            
-            {/* <Route path="/products" element={<Products />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/checkout" element={<Checkout />} /> */}
-          </Routes>
-        </main>
-        {/* <Footer /> */}
-      </div>
+        </Route>
+
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/:productId" element={<ProductDetail />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="inventory" element={<PlaceholderPage />} />
+          <Route path="orders" element={<PlaceholderPage />} />
+          <Route path="customers" element={<PlaceholderPage />} />
+          <Route path="discounts" element={<PlaceholderPage />} />
+          <Route path="settings" element={<PlaceholderPage />} />
+        </Route>
+      </Routes>
     </Router>
   );
 }

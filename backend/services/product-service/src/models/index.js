@@ -36,4 +36,5 @@ async function initializeModels() {
     return db;
 }
 
-export default initializeModels;
+
+export  {   initializeModels, db };

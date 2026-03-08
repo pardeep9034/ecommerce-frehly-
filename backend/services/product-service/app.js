@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
+import categoryRoutes from "./src/modules/category/category.routes.js";
 
 dotenv.config();
 
@@ -55,7 +56,7 @@ if (process.env.NODE_ENV === "development") {
 /* ================= ROUTES ================= */
 
 // app.use("/products", productRoutes);
-// app.use("/categories", categoryRoutes);
+app.use("/category", categoryRoutes);
 
 /* ================= HEALTH CHECK ================= */
 
