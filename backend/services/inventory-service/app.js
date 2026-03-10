@@ -4,32 +4,22 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import inventoryRoutes from "./src/modules/inventory/inventory.routes.js";
 import ResponseUtil from "./src/utils/response.js";
-import categoryRoutes from "./src/modules/category/category.routes.js";
-import productRoutes from "./src/modules/product/product.routes.js";
-import variantRoutes from "./src/modules/product/variant.routes.js";
 
 dotenv.config();
-
-
-
-
 
 const app = express();
 
 /* ================= SECURITY MIDDLEWARE ================= */
-
 app.use(helmet());
-
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(","),
   credentials: true
 }));
-
 app.use(cookieParser());
 
 /* ================= RATE LIMIT ================= */
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -37,16 +27,13 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-
 app.use(limiter);
 
 /* ================= BODY PARSER ================= */
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* ================= REQUEST LOGGING ================= */
-
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
@@ -55,41 +42,31 @@ if (process.env.NODE_ENV === "development") {
 }
 
 /* ================= ROUTES ================= */
-
-app.use("/category", categoryRoutes);
-app.use("/products", productRoutes);
-app.use("/", variantRoutes); 
-// since variantRoutes use /:productId/variants and /variants/:id it's better mounted at root or /products
+// app.use("/inventory", inventoryRoutes);
 
 /* ================= HEALTH CHECK ================= */
-
 app.get("/", (req, res) => {
   res.json({
-    message: "Veggie E-commerce Product Service",
+    message: "Veggie E-commerce Inventory Service",
     version: "1.0.0",
     status: "running"
   });
 });
 
 /* ================= 404 HANDLER ================= */
-
-app.use( (req, res) => {
+app.use((req, res) => {
   ResponseUtil.notFound(res, `Route ${req.originalUrl} not found`);
 });
 
 /* ================= GLOBAL ERROR HANDLER ================= */
-
 app.use((error, req, res, next) => {
-
   console.error("Global error handler:", error);
 
   if (error.name === "SequelizeValidationError") {
-
     const errors = error.errors.map(err => ({
       field: err.path,
       message: err.message
     }));
-
     return ResponseUtil.validationError(res, errors);
   }
 
@@ -99,9 +76,7 @@ app.use((error, req, res, next) => {
 
   ResponseUtil.error(
     res,
-    process.env.NODE_ENV === "development"
-      ? error.message
-      : "Internal server error"
+    process.env.NODE_ENV === "development" ? error.message : "Internal server error"
   );
 });
 

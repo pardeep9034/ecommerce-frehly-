@@ -63,11 +63,60 @@ const CategoryController = {
   },
 
   async updateCategory(req, res) {
-    // Logic to update category
+    const { id } = req.params;
+    const categoryData = req.body;
+
+    if (categoryData) {
+
+      const result = await categoryService.updateCategory(id, categoryData);
+
+      if (result.success) {
+
+        return ResponseUtil.success(
+          res,
+          result.data,
+          "Category updated successfully"
+        );
+
+      } else {
+
+        return ResponseUtil.error(res, result.message, 500);
+
+      }
+
+    } else {
+
+      return ResponseUtil.validationError(res, "Invalid category data");
+
+    }
   },
 
   async deleteCategory(req, res) {
-    // Logic to delete category
+    const { id } = req.params;
+
+    if (id) {
+
+      const result = await categoryService.deleteCategory(id);
+
+      if (result.success) {
+
+        return ResponseUtil.success(
+          res,
+          result.data,
+          "Category deleted successfully"
+        );
+
+      } else {
+
+        return ResponseUtil.error(res, result.message, 500);
+
+      }
+
+    } else {
+
+      return ResponseUtil.validationError(res, "Invalid category data");
+
+    }
   }
 
 };

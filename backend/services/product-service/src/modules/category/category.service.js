@@ -142,12 +142,43 @@ class CategoryService {
     };
   }
 
+
   async updateCategory(id, updateData) {
-    return await this.categoryRepository.updateById(id, updateData);
+    if (updateData) {
+
+      const existingCategory = await this.categoryRepository.findById(id);
+      if (!existingCategory) {
+        return {
+          success: false,
+          message: "Category not found",
+        };
+      }
+      const category = await this.categoryRepository.updateById(id, updateData);
+      return {
+        success: true,
+        data: category,
+      };
+    } else {
+      return {
+        success: false,
+        message: "Invalid category data",
+      };
+    }
   }
 
   async deleteCategory(id) {
-    return await this.categoryRepository.deleteById(id);
+    if (id) {
+      const category = await this.categoryRepository.deleteById(id);
+      return {
+        success: true,
+        data: category,
+      };
+    } else {
+      return {
+        success: false,
+        message: "Invalid category data",
+      };
+    }
   }
 
 }

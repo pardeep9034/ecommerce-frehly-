@@ -1,61 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Edit2, Plus, Package, Tag, Layers, BadgeCheck, Leaf } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import ProductApi from "@/apis/productApi";
+import useVariant from "@/hooks/use-variant";
 import VariantTable from "@/components/freshly/VariantTable";
 import VariantModal from "@/components/freshly/VariantModal";
-
-const MOCK_PRODUCTS = {
-  1: {
-    id: 1,
-    name: "Organic Bananas",
-    slug: "organic-bananas",
-    category: "Fruits",
-    productType: "Fresh Produce",
-    brand: "Freshly",
-    description: "Premium organic bananas sourced from sustainable farms. Rich in potassium and naturally sweet, perfect for smoothies, baking, or a quick healthy snack.",
-    isOrganic: true,
-    status: true,
-    emoji: "🍌",
-    variants: [
-      { id: 1, unitType: "weight", value: 1, unit: "kg", price: 2.99, mrp: 3.49, status: true },
-      { id: 2, unitType: "weight", value: 500, unit: "g", price: 1.69, mrp: 1.99, status: true },
-      { id: 3, unitType: "pack", value: 6, unit: "pack", price: 2.49, mrp: 2.99, status: true },
-    ],
-  },
-  2: {
-    id: 2,
-    name: "Fresh Salmon Fillet",
-    slug: "fresh-salmon-fillet",
-    category: "Meat",
-    productType: "Seafood",
-    brand: "Freshly",
-    description: "Atlantic salmon fillet, skinless and boneless. Rich in omega-3 fatty acids, perfect for grilling, baking, or pan-searing.",
-    isOrganic: false,
-    status: true,
-    emoji: "🐟",
-    variants: [
-      { id: 4, unitType: "weight", value: 250, unit: "g", price: 6.99, mrp: 7.99, status: true },
-      { id: 5, unitType: "weight", value: 500, unit: "g", price: 12.99, mrp: 14.99, status: true },
-      { id: 6, unitType: "piece", value: 1, unit: "pc", price: 9.99, mrp: 11.49, status: false },
-    ],
-  },
-  3: {
-    id: 3,
-    name: "Whole Milk 1L",
-    slug: "whole-milk-1l",
-    category: "Dairy",
-    productType: "Dairy",
-    brand: "Freshly",
-    description: "Farm-fresh whole milk, pasteurized and homogenized. Great source of calcium and vitamin D.",
-    isOrganic: false,
-    status: true,
-    emoji: "🥛",
-    variants: [
-      { id: 7, unitType: "pack", value: 1, unit: "pack", price: 3.49, mrp: 3.99, status: true },
-      { id: 8, unitType: "pack", value: 2, unit: "pack", price: 6.49, mrp: 7.98, status: true },
-    ],
-  },
-};
 
 const InfoItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
@@ -64,7 +14,7 @@ const InfoItem = ({ icon: Icon, label, value }) => (
     </div>
     <div>
       <p className="text-xs font-medium text-[#6b7280]">{label}</p>
-      <p className="mt-0.5 text-sm font-medium text-[#1f2937]">{value}</p>
+      <p className="mt-0.5 text-sm font-medium text-[#1f2937]">{value || "N/A"}</p>
     </div>
   </div>
 );
@@ -73,16 +23,36 @@ const ProductDetail = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
 
-  const product = MOCK_PRODUCTS[productId];
+  const { data: productResponse, isLoading, error } = useQuery({
+    queryKey: ["product", productId],
+    queryFn: () => ProductApi.getProductById(productId),
+  });
 
-  const [variants, setVariants] = useState(product?.variants || []);
+  const product = productResponse?.data;
+
+  // Utilize the new variant hook
+  const {
+    variants,
+    createVariant: createMutation,
+    updateVariant: updateMutation,
+    deleteVariant: deleteMutation
+  } = useVariant(productId);
+
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
 
-  if (!product) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-lg font-medium text-[#1f2937]">Product not found</p>
+        <p className="text-lg font-medium text-[#6b7280]">Loading product...</p>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <p className="text-lg font-medium text-[#1f2937]">Product not found or failed to load</p>
         <button
           type="button"
           onClick={() => navigate("/dashboard/products")}
@@ -107,16 +77,16 @@ const ProductDetail = () => {
 
   const saveVariant = (payload) => {
     if (editingVariant) {
-      setVariants((prev) =>
-        prev.map((v) => (v.id === editingVariant.id ? { ...v, ...payload, id: editingVariant.id } : v))
-      );
-      return;
+      updateMutation.mutate({ id: editingVariant.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
     }
-    setVariants((prev) => [...prev, { ...payload, id: Date.now() }]);
+    setIsVariantModalOpen(false);
+    setEditingVariant(null);
   };
 
   const deleteVariant = (variantId) => {
-    setVariants((prev) => prev.filter((v) => v.id !== variantId));
+    deleteMutation.mutate(variantId);
   };
 
   const priceRange =
@@ -151,9 +121,8 @@ const ProductDetail = () => {
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                    product.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
-                  }`}
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${product.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
+                    }`}
                 >
                   {product.status ? "Active" : "Inactive"}
                 </span>
@@ -169,7 +138,7 @@ const ProductDetail = () => {
             <p className="mt-4 text-sm leading-relaxed text-[#6b7280]">{product.description}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <InfoItem icon={Tag} label="Category" value={product.category} />
+              <InfoItem icon={Tag} label="Category" value={product.Category?.name || product.category} />
               <InfoItem icon={Package} label="Type" value={product.productType} />
               <InfoItem icon={BadgeCheck} label="Brand" value={product.brand} />
               <InfoItem icon={Layers} label="Price Range" value={priceRange} />

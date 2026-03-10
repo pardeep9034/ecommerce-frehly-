@@ -62,7 +62,8 @@ export default (sequelize) => {
         });
 
         Product.hasMany(models.ProductVariant, {
-            foreignKey: "productId"
+            foreignKey: "productId",
+            as: "variants"
         });
 
     };

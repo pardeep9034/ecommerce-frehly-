@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const ProductTable = ({ products, onEdit, onDelete }) => {
   const navigate = useNavigate();
+  console.log("products", products);
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-card">
@@ -12,7 +13,6 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
             <tr className="border-b border-[#e5e7eb] bg-[#f8faf8]">
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Product</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Category</th>
-              <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Price</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Stock</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Status</th>
               <th className="px-5 py-3.5 text-right font-medium text-[#6b7280] sm:px-6">Actions</th>
@@ -29,8 +29,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                     <span className="font-medium text-[#1f2937]">{product.name}</span>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-[#6b7280] sm:px-6">{product.category}</td>
-                <td className="px-5 py-4 font-medium text-[#1f2937] sm:px-6">${product.price.toFixed(2)}</td>
+                <td className="px-5 py-4 text-[#6b7280] sm:px-6">{product?.Category?.name}</td>
                 <td className="px-5 py-4 sm:px-6">
                   <span className={product.stock < 20 ? "font-medium text-[#b8860b]" : "text-[#1f2937]"}>
                     {product.stock}
@@ -38,11 +37,10 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                 </td>
                 <td className="px-5 py-4 sm:px-6">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      product.status === "Active" ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
-                    }`}
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${product.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
+                      }`}
                   >
-                    {product.status}
+                    {product.status ? "Active" : "Inactive"}
                   </span>
                 </td>
                 <td className="px-5 py-4 sm:px-6">

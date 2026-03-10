@@ -16,7 +16,7 @@ const useCategory = (page = 1, limit = 10) => {
 
   // POST - create category
   const createMutation = useMutation({
-    mutationFn: createCategory,
+    mutationFn:(data) => createCategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },

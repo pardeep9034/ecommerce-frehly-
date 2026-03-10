@@ -13,6 +13,9 @@ class CategoryRepository {
       where: { slug }
     });
   }
+  async findById(id) {
+    return await db.Category.findByPk(id);
+  }
 
   async create(categoryData) {
     return await db.Category.create(categoryData);
