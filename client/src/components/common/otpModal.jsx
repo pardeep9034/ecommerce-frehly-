@@ -16,11 +16,14 @@ const OtpModal = ({
   disableClose = false
 }) => {
 
-  const handleClose = () => {
-    if (!disableClose) {
-      onClose();
-    }
-  };
+  const handleClose = (event, reason) => {
+
+  if (disableClose) return;
+
+  if (reason === "backdropClick") return;
+
+  onClose();
+};
 
   return (
     <Dialog

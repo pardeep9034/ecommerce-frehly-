@@ -390,7 +390,7 @@ async login(phone, password) {
 
           return {
             success: false,
-            statusCode: 401,
+            statusCode: 400,
             message: "Invalid phone or password",
           };
         }
@@ -400,7 +400,7 @@ async login(phone, password) {
 
       return {
         success: false,
-        statusCode: 401,
+        statusCode: 400,
         message: "Invalid phone or password",
       };
     }

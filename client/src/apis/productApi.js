@@ -5,6 +5,10 @@ const ProductApi = {
         const response = await api.post("/products", productData);
         return response.data;
     },
+    async searchVariants(search = "") {
+        const response = await api.get(`/products/variants/search?search=${search}`);
+        return response.data;
+    },
     async getAllProducts(page = 1, limit = 10) {
         const response = await api.get(`/products?page=${page}&limit=${limit}`);
         return response.data;

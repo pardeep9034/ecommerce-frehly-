@@ -3,48 +3,36 @@ import { initializeModels } from "../../models/index.js";
 class InventoryRepository {
 
   async getAllInventory(limit = 10, offset = 0) {
-
     const db = await initializeModels();
-
     return await db.Inventory.findAndCountAll({
       limit,
       offset,
-      include: [
-        {
-          model: db.ProductVariant,
-          as: "variant"
-        }
-      ],
       order: [["createdAt", "DESC"]]
     });
-
   }
-
 
   async getInventoryById(id) {
-
     const db = await initializeModels();
-
-    return await db.Inventory.findByPk(id, {
-      include: [
-        {
-          model: db.ProductVariant,
-          as: "variant"
-        }
-      ]
-    });
-
+    return await db.Inventory.findByPk(id);
   }
 
-
   async getInventoryByVariantId(variantId) {
-
     const db = await initializeModels();
-
     return await db.Inventory.findOne({
       where: { variantId }
     });
+  }
 
+  async getInventoryByProductId(productId, variantId) {
+    // Note: Since Inventory doesn't know about productId, this method relies on variantId or 
+    // requires variantIds to be fetched from product-service first.
+    const db = await initializeModels();
+    const where = {};
+    if (variantId) where.variantId = variantId;
+
+    return await db.Inventory.findAll({
+      where
+    });
   }
 
 

@@ -13,7 +13,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
             <tr className="border-b border-[#e5e7eb] bg-[#f8faf8]">
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Product</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Category</th>
-              <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Stock</th>
+              <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Variants</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Status</th>
               <th className="px-5 py-3.5 text-right font-medium text-[#6b7280] sm:px-6">Actions</th>
             </tr>
@@ -31,8 +31,8 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                 </td>
                 <td className="px-5 py-4 text-[#6b7280] sm:px-6">{product?.Category?.name}</td>
                 <td className="px-5 py-4 sm:px-6">
-                  <span className={product.stock < 20 ? "font-medium text-[#b8860b]" : "text-[#1f2937]"}>
-                    {product.stock}
+                  <span className="text-[#1f2937]">
+                    {product.variants?.length || 0} variants
                   </span>
                 </td>
                 <td className="px-5 py-4 sm:px-6">

@@ -42,7 +42,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 /* ================= ROUTES ================= */
-// app.use("/inventory", inventoryRoutes);
+app.use("/", inventoryRoutes);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {

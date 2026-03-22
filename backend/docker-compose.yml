@@ -1,63 +1,46 @@
-version: '3.8'
+
 
 services:
-  # Database
-  mysql:
-    image: mysql:8.0
-    container_name: veggie_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - veggie-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
 
-  # Redis for caching
-  redis:
-    image: redis:alpine
-    container_name: veggie_redis
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
     ports:
-      - "6379:6379"
-    networks:
-      - veggie-network
+      - "4000:4000"
+    env_file:
+      - ./services/api-gateway/.env
+    depends_on:
+      - auth-service
+      - product-service
+      - inventory-service
+    restart: always
 
-  # Auth Service
   auth-service:
     build: ./services/auth-service
-    container_name: veggie_auth_service
-    ports:
-      - "${AUTH_SERVICE_PORT}:3001"
-    environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - veggie-network
-    volumes:
-      - ./services/auth-service:/app
-      - /app/node_modules
+    container_name: auth-service
+    env_file:
+      - ./services/auth-service/.env
+    restart: always
 
-networks:
-  veggie-network:
-    driver: bridge
+  product-service:
+    build: ./services/product-service
+    container_name: product-service
+    env_file:
+      - ./services/product-service/.env
+    restart: always
 
-volumes:
-  mysql_data:
+  inventory-service:
+    build: ./services/inventory-service
+    container_name: inventory-service
+    env_file:
+      - ./services/inventory-service/.env
+    restart: always
+
+  # frontend:
+  #   build: ./frontend
+  #   container_name: frontend
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - api-gateway
+  #   restart: always

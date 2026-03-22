@@ -1,0 +1,18 @@
+[dotenv@17.3.1] injecting env (4) from .env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+D:\desktop\ecommerce\ecommerce-frehly-\backend\node_modules\http-proxy-middleware\dist\configuration.js:7
+        throw new Error(errors_1.ERRORS.ERR_CONFIG_FACTORY_TARGET_MISSING);
+              ^
+
+Error: [HPM] Missing "target" option. Example: {target: "http://www.example.org"}
+    at verifyConfig (D:\desktop\ecommerce\ecommerce-frehly-\backend\node_modules\http-proxy-middleware\dist\configuration.js:7:15)
+    at new HttpProxyMiddleware (D:\desktop\ecommerce\ecommerce-frehly-\backend\node_modules\http-proxy-middleware\dist\http-proxy-middleware.js:138:42)
+    at createProxyMiddleware (D:\desktop\ecommerce\ecommerce-frehly-\backend\node_modules\http-proxy-middleware\dist\factory.js:6:28)
+    at file:///D:/desktop/ecommerce/ecommerce-frehly-/backend/services/api-gateway/src/proxy/proxy.register.js:10:7
+    at Array.forEach (<anonymous>)
+    at registerProxies (file:///D:/desktop/ecommerce/ecommerce-frehly-/backend/services/api-gateway/src/proxy/proxy.register.js:6:12)
+    at file:///D:/desktop/ecommerce/ecommerce-frehly-/backend/services/api-gateway/server.js:19:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.16.0

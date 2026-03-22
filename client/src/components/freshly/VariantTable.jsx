@@ -19,6 +19,7 @@ const VariantTable = ({ variants, onEdit, onDelete }) => {
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">MRP</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Discount</th>
               <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Status</th>
+              <th className="px-5 py-3.5 text-left font-medium text-[#6b7280] sm:px-6">Stock</th>
               <th className="px-5 py-3.5 text-right font-medium text-[#6b7280] sm:px-6">Actions</th>
             </tr>
           </thead>
@@ -34,8 +35,8 @@ const VariantTable = ({ variants, onEdit, onDelete }) => {
                       {variant.unitType}
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-medium text-[#1f2937] sm:px-6">${variant.price.toFixed(2)}</td>
-                  <td className="px-5 py-4 text-[#6b7280] sm:px-6">${variant.mrp.toFixed(2)}</td>
+                  <td className="px-5 py-4 font-medium text-[#1f2937] sm:px-6">₹{variant.price.toFixed(2)}</td>
+                  <td className="px-5 py-4 text-[#6b7280] sm:px-6">₹{variant.mrp.toFixed(2)}</td>
                   <td className="px-5 py-4 sm:px-6">
                     {discount > 0 ? (
                       <span className="inline-flex rounded-full bg-[#0f5132]/10 px-2.5 py-0.5 text-xs font-medium text-[#0f5132]">
@@ -52,6 +53,11 @@ const VariantTable = ({ variants, onEdit, onDelete }) => {
                       }`}
                     >
                       {variant.status ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 font-medium sm:px-6">
+                    <span className={variant.stock === 0 ? "text-red-600" : "text-[#1f2937]"}>
+                      {variant.stock || 0}
                     </span>
                   </td>
                   <td className="px-5 py-4 sm:px-6">

@@ -10,7 +10,11 @@ module.exports={
       },
       variantId:{
         type:Sequelize.INTEGER,
-        allowNull:false
+        allowNull:false,
+        references:{
+          model:"product_variants",
+          key:"id"
+        }
       },
       stock:{
         type:Sequelize.INTEGER,

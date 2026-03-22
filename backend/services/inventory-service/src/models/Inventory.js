@@ -1,3 +1,4 @@
+import { referrerPolicy } from "helmet";
 import { DataTypes } from "sequelize";
 
 export default (sequelize) => {
@@ -13,7 +14,11 @@ export default (sequelize) => {
 
             variantId: {
                 type: DataTypes.INTEGER,
-                allowNull: false
+                allowNull: false,
+                references:{
+                    model:"product_variants",
+                    key:"id"
+                }
             },
 
             stock: {
@@ -39,11 +44,6 @@ export default (sequelize) => {
     );
 
     Inventory.associate = (models) => {
-
-        Inventory.belongsTo(models.ProductVariant, {
-            foreignKey: "variantId",
-            as: "variant"
-        });
 
         Inventory.hasMany(models.InventoryLog, {
             foreignKey: "inventoryId",

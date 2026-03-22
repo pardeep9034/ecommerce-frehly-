@@ -2,6 +2,16 @@ import VariantServices from "./variant.services.js";
 import ResponseUtil from "../../utils/response.js";
 
 const VariantController = {
+  async searchVariants(req, res) {
+    const { search } = req.query;
+    const result = await VariantServices.searchVariantsByProductName(search);
+    if (result.success) {
+      return ResponseUtil.success(res, result.data, "Variants fetched successfully");
+    } else {
+      return ResponseUtil.error(res, result.message, 400);
+    }
+  },
+
   async getAllVariants(req, res) {
     const { productId } = req.params;
     const result = await VariantServices.getAllVariants(productId);

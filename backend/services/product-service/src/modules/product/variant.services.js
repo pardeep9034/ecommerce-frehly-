@@ -1,6 +1,27 @@
 import VariantRepository from "../repository/variant.repository.js";
 
 const VariantServices = {
+    async searchVariantsByProductName(search) {
+        try {
+            if (!search || search.trim() === "") {
+                return {
+                    success: false,
+                    message: "Search query is required",
+                };
+            }
+            const products = await new VariantRepository().searchVariantsByProductName(search.trim());
+            return {
+                success: true,
+                data: products,
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message || "Failed to search variants",
+            };
+        }
+    },
+
     async getAllVariants(productId) {
         try {
             const variants = await new VariantRepository().getAllVariants(productId);

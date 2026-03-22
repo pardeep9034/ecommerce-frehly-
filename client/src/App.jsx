@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
 import Categories from "./pages/Categories";
+import Inventory from "./pages/Inventory";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import PublicLayout from "./components/layout/PublicLayout";
 import DashboardLayout from "./components/freshly/DashboardLayout";
@@ -32,12 +33,12 @@ function App() {
     <Router>
       <Routes>
         <Route element={<PublicLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/otp" element={<OtpPage />} />
-            <Route path="/forgot-password" element={<ForgetPassword />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/otp" element={<OtpPage />} />
+          <Route path="/forgot-password" element={<ForgetPassword />} />
         </Route>
 
         <Route path="/dashboard" element={<DashboardLayout />}>
@@ -45,7 +46,7 @@ function App() {
           <Route path="products" element={<Products />} />
           <Route path="products/:productId" element={<ProductDetail />} />
           <Route path="categories" element={<Categories />} />
-          <Route path="inventory" element={<PlaceholderPage />} />
+          <Route path="inventory" element={<Inventory />} />
           <Route path="orders" element={<PlaceholderPage />} />
           <Route path="customers" element={<PlaceholderPage />} />
           <Route path="discounts" element={<PlaceholderPage />} />

@@ -1,116 +1,97 @@
 import InventoryRepository from "../repository/inventory.repository.js";
 
+const fetchVariantDetails = async (variantId) => {
+  try {
+    const response = await fetch(`http://api-gateway:4000/products/variants/${variantId}`);
+    if (response.ok) {
+      const result = await response.json();
+      return result.success ? result.data : null;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch variant ${variantId}:`, error.message);
+    return null;
+  }
+};
+
 const InventoryServices = {
 
   async getAllInventory(limit, offset) {
+    if (!limit) return { success: false, message: "Limit is required" };
+    if (offset === undefined) return { success: false, message: "Offset is required" };
 
-    if (limit) {
-      if (offset !== undefined) {
+    const repo = new InventoryRepository();
+    const { count, rows } = await repo.getAllInventory(limit, offset).catch(() => ({ count: 0, rows: null }));
 
-        const repo = new InventoryRepository();
-        const { count, rows } = await repo.getAllInventory(limit, offset).catch(() => null);
+    if (!rows) return { success: false, message: "Unable to fetch inventory" };
 
-        if (rows) {
+    const inventoryWithVariants = await Promise.all(
+      rows.map(async (item) => {
+        const itemJson = item.toJSON();
+        itemJson.variant = await fetchVariantDetails(item.variantId);
+        return itemJson;
+      })
+    );
 
-          const currentPage = Math.floor(offset / limit) + 1;
-          const totalPages = Math.ceil(count / limit);
+    const currentPage = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(count / limit);
 
-          return {
-            success: true,
-            data: {
-              inventory: rows,
-              pagination: {
-                totalItems: count,
-                totalPages,
-                currentPage,
-                limit,
-                hasNextPage: currentPage < totalPages,
-                hasPrevPage: currentPage > 1
-              }
-            }
-          };
-
-        } else {
-          return { success: false, message: "Unable to fetch inventory" };
-        }
-
-      } else {
-        return { success: false, message: "Offset is required" };
+    return {
+      success: true,
+      data: {
+        inventory: inventoryWithVariants,
+        pagination: { totalItems: count, totalPages, currentPage, limit, hasNextPage: currentPage < totalPages, hasPrevPage: currentPage > 1 }
       }
-    } else {
-      return { success: false, message: "Limit is required" };
-    }
-
+    };
   },
-
 
   async getInventoryById(id) {
+    if (!id) return { success: false, message: "Inventory id is required" };
 
-    if (id) {
+    const repo = new InventoryRepository();
+    const inventory = await repo.getInventoryById(id).catch(() => null);
 
-      const repo = new InventoryRepository();
-      const inventory = await repo.getInventoryById(id).catch(() => null);
+    if (!inventory) return { success: false, message: "Inventory record not found" };
 
-      if (inventory) {
+    const inventoryJson = inventory.toJSON();
+    inventoryJson.variant = await fetchVariantDetails(inventory.variantId);
 
-        return {
-          success: true,
-          data: inventory
-        };
-
-      } else {
-
-        return {
-          success: false,
-          message: "Inventory record not found"
-        };
-
-      }
-
-    } else {
-
-      return {
-        success: false,
-        message: "Inventory id is required"
-      };
-
-    }
-
+    return { success: true, data: inventoryJson };
   },
 
-
   async getInventoryByVariantId(variantId) {
+    if (!variantId) return { success: false, message: "variantId is required" };
 
-    if (variantId) {
+    const repo = new InventoryRepository();
+    const inventory = await repo.getInventoryByVariantId(variantId).catch(() => null);
 
-      const repo = new InventoryRepository();
-      const inventory = await repo.getInventoryByVariantId(variantId).catch(() => null);
+    if (!inventory) return { success: false, message: "Inventory not found for this variant" };
 
-      if (inventory) {
+    const inventoryJson = inventory.toJSON();
+    inventoryJson.variant = await fetchVariantDetails(inventory.variantId);
 
-        return {
-          success: true,
-          data: inventory
-        };
+    return { success: true, data: inventoryJson };
+  },
 
-      } else {
+  async getInventoryByProductId(productId, variantId) {
+    if (!productId) return { success: false, message: "productId is required" };
 
-        return {
-          success: false,
-          message: "Inventory not found for this variant"
-        };
+    const repo = new InventoryRepository();
+    const inventoryList = await repo.getInventoryByProductId(productId, variantId).catch(() => null);
 
-      }
+    if (!inventoryList) return { success: false, message: "Unable to fetch inventory for this product" };
 
-    } else {
+    const inventoryWithVariants = await Promise.all(
+      inventoryList.map(async (item) => {
+        const itemJson = item.toJSON();
+        itemJson.variant = await fetchVariantDetails(item.variantId);
+        return itemJson;
+      })
+    );
 
-      return {
-        success: false,
-        message: "variantId is required"
-      };
+    const filteredInventory = inventoryWithVariants.filter(item => item.variant && item.variant.productId == productId);
 
-    }
-
+    return { success: true, data: filteredInventory };
   },
 
 

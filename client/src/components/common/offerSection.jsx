@@ -24,7 +24,7 @@ export const OfferSection = () => {
       title: "Summer Sale",
       title2: "100% fresh fruit",
       discount: "15% Off",
-      description: "On orders above $50",
+      description: "On orders above ₹50",
     },
   ];
   return (

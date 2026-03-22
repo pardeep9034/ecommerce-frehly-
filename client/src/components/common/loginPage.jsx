@@ -145,11 +145,13 @@ const LoginPage = () => {
               onChange={(e) =>
                 handleInputChange('phoneNumber', e.target.value)
               }
-              placeholder="+1 (555) 123-4567"
+              placeholder="enter your phone number"
               className={`form-input ${
                 errors.phoneNumber ? 'error' : ''
               }`}
               autoComplete="tel"
+               maxLength={10}
+  pattern="[0-9]{10}"
             />
             {errors.phoneNumber && (
               <span className="error-message">

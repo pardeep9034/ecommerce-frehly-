@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Edit2, Plus, Package, Tag, Layers, BadgeCheck, Leaf } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
+import InventoryApi from "@/apis/inventoryApi";
 import useVariant from "@/hooks/use-variant";
 import VariantTable from "@/components/freshly/VariantTable";
 import VariantModal from "@/components/freshly/VariantModal";
@@ -28,6 +29,11 @@ const ProductDetail = () => {
     queryFn: () => ProductApi.getProductById(productId),
   });
 
+  const { data: inventoryResponse, isLoading: inventoryLoading } = useQuery({
+    queryKey: ["inventory", "product", productId],
+    queryFn: () => InventoryApi.fetchInventoryByProductId(productId),
+  });
+
   const product = productResponse?.data;
 
   // Utilize the new variant hook
@@ -37,6 +43,12 @@ const ProductDetail = () => {
     updateVariant: updateMutation,
     deleteVariant: deleteMutation
   } = useVariant(productId);
+
+  const inventoryItems = inventoryResponse?.data || [];
+  const variantsWithStock = variants.map(variant => {
+    const inv = inventoryItems.find(item => item.variantId === variant.id);
+    return { ...variant, stock: inv?.stock || 0 };
+  });
 
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
@@ -91,7 +103,7 @@ const ProductDetail = () => {
 
   const priceRange =
     variants.length > 0
-      ? `$${Math.min(...variants.map((v) => v.price)).toFixed(2)} – $${Math.max(...variants.map((v) => v.price)).toFixed(2)}`
+      ? `₹${Math.min(...variants.map((v) => v.price)).toFixed(2)} – ₹${Math.max(...variants.map((v) => v.price)).toFixed(2)}`
       : "No variants";
 
   return (
@@ -165,7 +177,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <VariantTable variants={variants} onEdit={openEditVariant} onDelete={deleteVariant} />
+      <VariantTable variants={variantsWithStock} onEdit={openEditVariant} onDelete={deleteVariant} />
 
       <VariantModal
         open={isVariantModalOpen}

@@ -43,7 +43,7 @@ export function CategorySelect({ value, onChange }) {
 }
 
 export function PriceSelect({ value, onChange }) {
-  const prices = ['Under $50', '$50 - $100', '$100 - $200', 'Above $200'];
+  const prices = ['Under ₹50', '₹50 - ₹100', '₹100 - ₹200', 'Above ₹200'];
 
   return (
     <FormControl size="small" sx={{ minWidth: 160, ...selectStyles }}>

@@ -7,7 +7,10 @@ class ProductRepository {
             limit,
             offset,
             order: [["createdAt", "DESC"]],
-            include: [{ model: db.Category, as: "Category", attributes: ["id", "name"] }],
+            include: [
+                { model: db.Category, as: "Category", attributes: ["id", "name"] },
+                { model: db.ProductVariant, as: "variants", attributes: ["id"] }
+            ],
         });
     }
 

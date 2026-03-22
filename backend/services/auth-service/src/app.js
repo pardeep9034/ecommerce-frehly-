@@ -44,11 +44,11 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Routes
-app.use('/auth', authRoutes);
+app.use('/', authRoutes);
 app.use("/otp",optRoutes)
 
 // Root health check
-app.get('/', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({ 
     message: 'Veggie E-commerce Auth Service',
     version: '1.0.0',
