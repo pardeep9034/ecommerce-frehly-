@@ -7,42 +7,50 @@
 
 @layer base {
   :root {
-    --background: 0 0% 97%;
-    --foreground: 220 15% 20%;
+    --background: 220 15% 95%;
+    --foreground: 220 20% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 20%;
+    --card-foreground: 220 20% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 20%;
-    --primary: 152 70% 19%;
+    --popover-foreground: 220 20% 15%;
+    --primary: 152 70% 17%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 150 15% 95%;
-    --secondary-foreground: 152 70% 19%;
+    --secondary: 152 40% 96%;
+    --secondary-foreground: 152 70% 17%;
     --muted: 210 20% 96%;
-    --muted-foreground: 220 10% 50%;
-    --accent: 43 85% 38%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 43 90% 45%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 152 70% 19%;
-    --radius: 0.75rem;
+    --ring: 152 70% 17%;
+    --radius: 1rem;
   }
 
   * {
-    border-color: hsl(var(--border));
+    border-color: hsl(var(--border) / 1);
   }
 
   body {
     background: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Inter", sans-serif;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: "DM Sans", sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 }

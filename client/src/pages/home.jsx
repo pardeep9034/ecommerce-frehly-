@@ -7,12 +7,11 @@ import { OfferSection } from '../components/common/offerSection'
 import { HotDeals } from '../components/common/hotDeals'
 import { OfferBanner } from '../components/common/offerBanner'
 import { Testimonial } from '../components/common/testimonial'
-import { Footer } from '../components/common/footer'
+import { Newsletter } from '../components/common/newsletter'
 
-
-const home = () => {
+const Home = () => {
   return (
-    <div className=''>
+    <div className='flex flex-col overflow-hidden'>
       <HeroSection/>
       <OfferdServices/>
       <PopularCategories/>
@@ -21,12 +20,9 @@ const home = () => {
       <HotDeals/>
       <OfferBanner/>
       <Testimonial/>
-      <Footer/>
-
-      {/* Add more components as needed */}
+      <Newsletter />
     </div>
   )
 }
 
-export default home
-
+export default Home;

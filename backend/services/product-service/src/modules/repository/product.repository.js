@@ -9,7 +9,7 @@ class ProductRepository {
             order: [["createdAt", "DESC"]],
             include: [
                 { model: db.Category, as: "Category", attributes: ["id", "name"] },
-                { model: db.ProductVariant, as: "variants", attributes: ["id"] }
+                { model: db.ProductVariant, as: "variants", attributes: ["id", "unitType","value","unit","price","mrp","status"] }
             ],
         });
     }
