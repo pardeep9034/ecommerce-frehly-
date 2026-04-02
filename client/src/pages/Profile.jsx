@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProfile } from '../apis/authApi';
+import { getUserAddresses, deleteAddress, setDefaultAddress } from '../apis/userApi';
+import AddressFormModal from '../components/profile/AddressFormModal';
 import { 
   User, 
   MapPin, 
@@ -11,7 +13,8 @@ import {
   CheckCircle2, 
   MapPinned,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -19,9 +22,12 @@ import { logout } from '../redux/authSlice';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('personal');
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [currentAddress, setCurrentAddress] = useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const token = localStorage.getItem("token");
+  const queryClient = useQueryClient();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile"],
@@ -31,6 +37,35 @@ const Profile = () => {
     },
     enabled: !!token,
   });
+
+  const { data: addresses, isLoading: isAddressesLoading } = useQuery({
+    queryKey: ["addresses", profile?.id],
+    queryFn: async () => {
+      const res = await getUserAddresses(profile.id);
+      return res.data;
+    },
+    enabled: !!profile?.id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAddress,
+    onSuccess: () => queryClient.invalidateQueries(["addresses", profile?.id])
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: (addressId) => setDefaultAddress(addressId, profile.id),
+    onSuccess: () => queryClient.invalidateQueries(["addresses", profile?.id])
+  });
+
+  const openAddModal = () => {
+    setCurrentAddress(null);
+    setIsAddressModalOpen(true);
+  };
+
+  const openEditModal = (address) => {
+    setCurrentAddress(address);
+    setIsAddressModalOpen(true);
+  };
 
   const handleLogout = () => {
     dispatch(logout());
@@ -165,32 +200,37 @@ const Profile = () => {
                       <h2 className="text-4xl font-black text-slate-900 tracking-tighter">My Addresses</h2>
                       <p className="text-base font-bold text-slate-400 mt-3 leading-relaxed max-w-md">Manage your delivery locations for faster checkout experience.</p>
                     </div>
-                    <button className="flex items-center gap-2 rounded-full bg-[#0f5132] px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#0b4128] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-green-900/30">
+                    <button 
+                      onClick={openAddModal}
+                      className="flex items-center gap-2 rounded-full bg-[#0f5132] px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#0b4128] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-green-900/30"
+                    >
                       <Plus className="h-4 w-4" />
                       Add New Address
                     </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <AddressCard 
-                      type="Home" 
-                      isDefault 
-                      name={`${profile?.first_name} ${profile?.last_name}`}
-                      address="123, Green Valley, Silicon City"
-                      city="Bangalore"
-                      state="Karnataka"
-                      pincode="560001"
-                      phone={profile?.phone}
-                    />
-                    <AddressCard 
-                      type="Office" 
-                      name={`${profile?.first_name} ${profile?.last_name}`}
-                      address="Floor 4, Tech Park East, Koramangala"
-                      city="Bangalore"
-                      state="Karnataka"
-                      pincode="560034"
-                      phone="9876543210"
-                    />
+                    {addresses?.map(address => (
+                      <AddressCard 
+                        key={address.id}
+                        type={address.addressType} 
+                        isDefault={address.isDefault} 
+                        name={address.fullName}
+                        address={`${address.addressLine1} ${address.addressLine2 || ''}`}
+                        city={address.city}
+                        state={address.state}
+                        pincode={address.pincode}
+                        phone={address.phone}
+                        onEdit={() => openEditModal(address)}
+                        onDelete={() => deleteMutation.mutate(address.id)}
+                        onSetDefault={() => setDefaultMutation.mutate(address.id)}
+                      />
+                    ))}
+                    {!isAddressesLoading && addresses?.length === 0 && (
+                      <div className="col-span-1 md:col-span-2 text-center py-20 border-4 border-dashed border-slate-200 rounded-[2.5rem]">
+                        <p className="text-slate-400 font-bold">No saved addresses found. Add one to get started!</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -215,6 +255,13 @@ const Profile = () => {
           </main>
         </div>
       </div>
+
+      <AddressFormModal 
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        initialData={currentAddress}
+        userId={profile?.id}
+      />
     </div>
   );
 };
@@ -234,8 +281,8 @@ const InfoCard = ({ label, value, isVerified }) => (
   </div>
 );
 
-const AddressCard = ({ type, isDefault, name, address, city, state, pincode, phone }) => (
-  <div className={`relative rounded-[2.5rem] p-8 border-4 transition-all duration-500 cursor-pointer overflow-hidden group ${isDefault ? 'border-[#0f5132] bg-[#f0fdf4]' : 'border-slate-50 bg-white hover:border-slate-100 hover:shadow-2xl shadow-slate-200/40'}`}>
+const AddressCard = ({ type, isDefault, name, address, city, state, pincode, phone, onEdit, onDelete, onSetDefault }) => (
+  <div className={`relative rounded-[2.5rem] p-8 border-4 transition-all duration-500 overflow-hidden group ${isDefault ? 'border-[#0f5132] bg-[#f0fdf4]' : 'border-slate-50 bg-white hover:border-slate-100 hover:shadow-2xl shadow-slate-200/40'}`}>
     {isDefault && (
       <div className="absolute right-0 top-0 rounded-bl-[1.5rem] bg-[#0f5132] px-6 py-2 shadow-2xl">
           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white">Default</span>
@@ -265,10 +312,10 @@ const AddressCard = ({ type, isDefault, name, address, city, state, pincode, pho
 
     <div className="mt-10 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-6">
-            <button className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0f5132] hover:text-green-700 transition-colors">Edit</button>
-            <button className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-700 transition-colors">Delete</button>
+            <button onClick={onEdit} className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0f5132] hover:text-green-700 transition-colors">Edit</button>
+            <button onClick={onDelete} className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-700 transition-colors">Delete</button>
         </div>
-        {!isDefault && <button className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-[#0f5132]">Set Default</button>}
+        {!isDefault && <button onClick={onSetDefault} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-[#0f5132]">Set Default</button>}
     </div>
   </div>
 );

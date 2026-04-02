@@ -18,36 +18,36 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-gray-100 bg-white pt-16 pb-8">
+    <footer className="border-t border-gray-100 bg-white pt-10 pb-8">
       <div className="mx-auto max-w-7xl px-4">
         
         {/* Features / Trust Bar */}
-        <div className="mb-16 grid grid-cols-1 gap-8 border-b border-gray-100 pb-16 md:grid-cols-3">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
-              <Truck className="h-6 w-6" />
+        <div className="mb-16 grid grid-cols-3 gap-8 border-b border-gray-100 pb-16 md:grid-cols-3">
+          <div className="grid justify-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
+              <Truck className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900">Zero Emission Delivery</h4>
-              <p className="text-sm text-gray-500">Eco-friendly electric fleet</p>
+              <h4 className="font-bold text-gray-900 text-sm">Zero Emission Delivery</h4>
+              <p className="text-xs text-gray-500">Eco-friendly electric fleet</p>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-center md:justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
-              <ShieldCheck className="h-6 w-6" />
+          <div className="grid justify-center gap-4 text-center md:justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <div className="text-left">
-              <h4 className="font-bold text-gray-900">Certified Organic</h4>
-              <p className="text-sm text-gray-500">100% Pesticide free produce</p>
+              <h4 className="font-bold text-gray-900 text-sm">Certified Organic</h4>
+              <p className="text-xs text-gray-500">100% Pesticide free produce</p>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-right md:justify-end">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
-              <RotateCcw className="h-6 w-6" />
+          <div className="grid justify-center gap-4 text-right">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0f5132]/5 text-[#0f5132]">
+              <RotateCcw className="h-5 w-5" />
             </div>
             <div className="text-left">
-              <h4 className="font-bold text-gray-900">Easy Returns</h4>
-              <p className="text-sm text-gray-500">No questions asked policy</p>
+              <h4 className="font-bold text-gray-900 text-sm">Easy Returns</h4>
+              <p className="text-xs text-gray-500">No questions asked policy</p>
             </div>
           </div>
         </div>

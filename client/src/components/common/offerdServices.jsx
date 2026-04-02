@@ -28,7 +28,7 @@ const OfferedServices = () => {
   return (
     <section className="w-full py-2 lg:py-4">
       <div className="mx-auto max-w-screen-2xl px-1 sm:px-2 lg:px-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-6 lg:grid-cols-4">
           {services.map((service, index) => (
             <div 
               key={index} 
@@ -38,8 +38,8 @@ const OfferedServices = () => {
                 {React.cloneElement(service.icon, { className: "h-2 w-2 sm:h-4 sm:w-4" })}
               </div>
               <div>
-                <h3 className="text-xs sm:text-sm font-black text-[#1f2937] tracking-tight line-clamp-1">{service.title}</h3>
-                <p className="mt-1 text-[8px] sm:text-xs font-bold text-[#6b7280] leading-tight line-clamp-1">{service.description}</p>
+                <h3 className="text-[10px] sm:text-sm font-black text-[#1f2937] tracking-tight line-clamp-1">{service.title}</h3>
+                <p className="mt-1 text-[4px] sm:text-xs font-bold text-[#6b7280] leading-tight line-clamp-1">{service.description}</p>
               </div>
             </div>
           ))}

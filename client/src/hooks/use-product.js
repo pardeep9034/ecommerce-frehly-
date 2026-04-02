@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 
-const useProduct = (page = 1, limit = 10) => {
+const useProduct = (page = 1, limit = 10,type) => {
   const queryClient = useQueryClient();
 
   // GET - fetch all products with pagination
@@ -37,6 +37,12 @@ const useProduct = (page = 1, limit = 10) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
+  //product by promotion type
+  const productsByType = useQuery({
+    queryKey: ["products-by-type", type, page, limit],
+    queryFn: () => ProductApi.getProductsByType(type, page, limit),
+    enabled: !!type,
+  });
 
   return {
     products,
@@ -45,6 +51,7 @@ const useProduct = (page = 1, limit = 10) => {
     createProduct: createMutation,
     updateProduct: updateMutation,
     deleteProduct: deleteMutation,
+    productsByType,
   };
 };
 

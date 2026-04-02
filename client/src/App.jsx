@@ -11,6 +11,9 @@ import ProductDetail from "./pages/ProductDetail";
 import Categories from "./pages/Categories";
 import Inventory from "./pages/Inventory";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import Promotions from "./pages/Promotions";
+import PromotionItems from "./pages/PromotionItems";
+import AssignPromotions from "./pages/AssignPromotions";
 import MyOrders from "./pages/MyOrders";
 import OrderDetail from "./pages/OrderDetail";
 import ShopProductDetail from "./pages/ShopProductDetail";
@@ -63,7 +66,9 @@ function App() {
           <Route path="inventory" element={<Inventory />} />
           <Route path="orders" element={<PlaceholderPage />} />
           <Route path="customers" element={<PlaceholderPage />} />
-          <Route path="discounts" element={<PlaceholderPage />} />
+          <Route path="promotions" element={<Promotions />} />
+          <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
+          <Route path="assign-promotions" element={<AssignPromotions />} />
           <Route path="settings" element={<PlaceholderPage />} />
         </Route>
 

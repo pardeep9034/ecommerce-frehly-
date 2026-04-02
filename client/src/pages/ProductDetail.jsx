@@ -7,6 +7,7 @@ import InventoryApi from "@/apis/inventoryApi";
 import useVariant from "@/hooks/use-variant";
 import VariantTable from "@/components/freshly/VariantTable";
 import VariantModal from "@/components/freshly/VariantModal";
+import AssignPromotionModal from "@/components/freshly/AssignPromotionModal";
 
 const InfoItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
@@ -23,6 +24,7 @@ const InfoItem = ({ icon: Icon, label, value }) => (
 const ProductDetail = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
+  const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
 
   const { data: productResponse, isLoading, error } = useQuery({
     queryKey: ["product", productId],
@@ -177,7 +179,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <VariantTable variants={variantsWithStock} onEdit={openEditVariant} onDelete={deleteVariant} />
+      <VariantTable variants={variantsWithStock} onEdit={openEditVariant} onDelete={deleteVariant} onAssignPromotion={setAssignPromotingProduct} />
 
       <VariantModal
         open={isVariantModalOpen}
@@ -187,6 +189,12 @@ const ProductDetail = () => {
         }}
         variant={editingVariant}
         onSave={saveVariant}
+      />
+       <AssignPromotionModal 
+        isOpen={!!assignPromotingProduct} 
+        onClose={() => setAssignPromotingProduct(null)} 
+        product={product}
+        variantId={assignPromotingProduct} 
       />
     </div>
   );

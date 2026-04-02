@@ -5,6 +5,7 @@ const router = express.Router();
 
 // Define product-related routes
 router.get("/", ProductController.getAllProducts);
+router.get("/type/:type",ProductController.getProductsByType)
 router.get("/:id", ProductController.getProductById);
 router.post("/", ProductController.createProduct);
 router.put("/:id", ProductController.updateProduct);

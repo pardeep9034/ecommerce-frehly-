@@ -1,0 +1,11 @@
+
+[4mSequelize CLI [Node: 22.16.0, CLI: 6.6.3, ORM: 6.37.7][24m
+
+Loaded configuration file "config\config.json".
+Using environment "development".
+== 20260402002516-create-addresses-table: migrating =======
+(node:11852) Warning: Failed to load the ES module: D:\desktop\ecommerce\ecommerce-frehly-\backend\services\user-service\migrations\20260402002516-create-addresses-table.cjs. Make sure to set "type": "module" in the nearest package.json file or use the .mjs extension.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ERROR: Unexpected token 'export'
+

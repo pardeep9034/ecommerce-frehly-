@@ -13,6 +13,14 @@ export default [
   {
     route: "/auth",
     target: process.env.AUTH_SERVICE_URL
+  },
+  {
+    route: "/delivery",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
+    route: "/users",
+    target: process.env.USER_SERVICE_URL || "http://user-service:3000"
   }
 ];
 

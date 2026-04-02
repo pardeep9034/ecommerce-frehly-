@@ -23,11 +23,6 @@ async function initializeModels() {
             }
         });
 
-        // Sync models to DB (in dev mode) to ensure table exists
-        // if (process.env.NODE_ENV === "development") {
-        //     await sequelize.sync({ alter: true });
-        // }
-
         console.log("✅ Inventory Service: Models initialized");
     }
 

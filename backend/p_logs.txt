@@ -1,0 +1,13 @@
+
+> product-service@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+postgresql://postgres.domrsesuafaqjqrqdczm:mnR.CkpHBd%267J%26Z@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+Executing (default): SELECT 1+1 AS result
+Γ£à Auth Service: Database connected successfully
+Γ£à Product Service: Models initialized
+Γ£à Product Service: Database and models initialized
+≡ƒÜÇ Product Service running on port 3002
+≡ƒôì Environment: development

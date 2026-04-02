@@ -7,7 +7,9 @@ import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import categoryRoutes from "./src/modules/category/category.routes.js";
 import productRoutes from "./src/modules/product/product.routes.js";
-import variantRoutes from "./src/modules/product/variant.routes.js";
+import variantRoutes from "./src/modules/productVarient/variant.routes.js";
+import promotionRoutes from "./src/modules/promotion/promotion.routes.js";
+import promotionItemRoutes from "./src/modules/promotionItem/promotionItem.routes.js";
 
 dotenv.config();
 
@@ -31,11 +33,12 @@ app.use(cookieParser());
 /* ================= RATE LIMIT ================= */
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 60 * 1000, // 1 minute window
+  max: 500,            // 500 requests per minute
   message: "Too many requests from this IP, please try again later",
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "development" // disable in dev mode
 });
 
 app.use(limiter);
@@ -61,8 +64,10 @@ if (process.env.NODE_ENV === "development") {
 /* ================= ROUTES ================= */
 
 app.use("/category", categoryRoutes);
+app.use("/promotions", promotionRoutes);
+app.use("/promotion-items", promotionItemRoutes);
 app.use("/", productRoutes);
-app.use("/", variantRoutes); 
+app.use("/", variantRoutes);
 
 // since variantRoutes use /:productId/variants and /variants/:id it's better mounted at root or /products
 

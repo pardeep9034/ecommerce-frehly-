@@ -21,7 +21,6 @@ async function initializeModels() {
 
         console.log("✅ Auth Service: Models initialized");
     }
-
     return db;
 }
 

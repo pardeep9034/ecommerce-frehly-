@@ -52,14 +52,14 @@ export const OfferSection = () => {
                   {React.cloneElement(offer.icon, { className: "h-3 w-3 sm:h-5 sm:w-5" })}
                   {offer.tag}
                 </div>
-                <h3 className="text-[10px] sm:text-base font-bold text-white/70 uppercase tracking-widest mb-1">{offer.title}</h3>
-                <h2 className="text-xl sm:text-4xl font-black text-white leading-tight mb-2 sm:mb-4 uppercase italic tracking-tighter">{offer.subtitle}</h2>
-                <p className="text-[10px] sm:text-sm font-black text-white/90 tracking-tight line-clamp-1">{offer.info}</p>
+                <h3 className="text-[8px] sm:text-base font-bold text-white/70 uppercase tracking-widest mb-1">{offer.title}</h3>
+                <h2 className="text-md sm:text-4xl font-black text-white leading-tight mb-2 sm:mb-4 uppercase italic tracking-tighter">{offer.subtitle}</h2>
+                <p className="text-[8px] sm:text-sm font-black text-white/90 tracking-tight line-clamp-1">{offer.info}</p>
               </div>
 
               <Link 
                 to="/shop" 
-                className="relative z-10 inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-5 py-2 sm:px-8 sm:py-3.5 text-[8px] sm:text-[10px] font-black text-[#0f5132] hover:bg-yellow-300 transition-all group/link shadow-xl"
+                className="relative z-10 inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-3 py-1 sm:px-8 sm:py-3.5 text-[8px] sm:text-[10px] font-black text-[#0f5132] hover:bg-yellow-300 transition-all group/link shadow-xl"
               >
                 Explore
                 <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 transition-transform group-hover/link:translate-x-1" />

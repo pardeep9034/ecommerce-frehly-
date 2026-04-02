@@ -78,11 +78,22 @@ const authenticateToken = async (req, res, next) => {
 
     } catch (error) {
 
-        console.error("AUTH MIDDLEWARE ERROR →", error);
+        console.error("AUTH MIDDLEWARE FATAL ERROR →", error.stack || error.message);
 
-        return ResponseUtil.unauthorized(
+        // If it's a JWT error (from TokenService), return 401 with the specific message
+        if (error.message.includes("Token verification failed")) {
+            return ResponseUtil.unauthorized(
+                res,
+                error.message
+            );
+        }
+
+        // For other internal errors (DB, etc.), return 500
+        return ResponseUtil.error(
             res,
-            "Invalid or expired access token"
+            "Authentication service internal error",
+            500,
+            process.env.NODE_ENV === 'development' ? error.message : null
         );
 
     }
