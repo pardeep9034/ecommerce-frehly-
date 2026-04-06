@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addToCart } from "@/redux/cartSlice";
 
 const ShopProductCard = ({ product, viewMode = "grid" }) => {
   console.log("product",product)
@@ -15,14 +17,32 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
     Category,
     variants = []
   } = (product.Product || product);
+  const dispatch = useDispatch();
 
   const [selectedVariant, setSelectedVariant] = useState(variants?.[0] || {});
+  // const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart") || "[]"))
   
   const currentPrice = selectedVariant.price || price;
   const currentMrp = selectedVariant.mrp || oldPrice;
   const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
 
   const isList = viewMode === "list";
+
+const handleAddToCart = () => {
+  dispatch(
+    addToCart({
+      productId: product.id,
+      variantId: selectedVariant.id,
+      name: name,
+      image: image,
+      variantName: `${selectedVariant.value}${selectedVariant.unit}`,
+      quantity: 1,
+      priceSnapshot: currentPrice
+    })
+  );
+};
+    
+  
 
   return (
     <div className={`group relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-[#e5e7eb] bg-white transition-all duration-500 hover:border-[#16a34a]/30 hover:shadow-2xl hover:shadow-green-900/5 ${
@@ -121,7 +141,7 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
             {currentMrp > currentPrice && (
               <span className="text-[10px] sm:text-sm font-bold text-[#9ca3af] line-through">₹{currentMrp}</span>
             )}</>
-             <button className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#0f5132] px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-[#0b4128] active:scale-95 group/cart overflow-hidden relative">
+             <button onClick={handleAddToCart} className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#0f5132] px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-[#0b4128] active:scale-95 group/cart overflow-hidden relative">
             <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 transition-transform " />
             
          

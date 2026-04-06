@@ -12,6 +12,8 @@ import {
   Loader2
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addToCart } from "@/redux/cartSlice";
 import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 import useVariant from "@/hooks/use-variant";
@@ -20,8 +22,24 @@ import ShopProductCard from "../components/common/ShopProductCard";
 
 const ShopProductDetail = () => {
   const { productId } = useParams();
+  const dispatch = useDispatch();
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  
+  const handleAddToCart = () => {
+    if (!selectedVariant) return;
+    dispatch(
+      addToCart({
+        productId: product.id,
+        variantId: selectedVariant.id,
+        name: product.name,
+        image: product.image,
+        variantName: `${selectedVariant.value}${selectedVariant.unit}`,
+        quantity: quantity,
+        priceSnapshot: selectedVariant.price
+      })
+    );
+  };
 
   // Fetch Product Data
   const { data: productResponse, isLoading: productLoading, error: productError } = useQuery({
@@ -207,7 +225,10 @@ const ShopProductDetail = () => {
                   </button>
                 </div>
 
-                <button className="flex-1 min-w-[200px] flex h-12 items-center justify-center gap-2 rounded-xl bg-[#0f5132] px-8 py-3 text-base font-bold text-white shadow-lg shadow-[#0f5132]/20 transition-all hover:scale-105 hover:bg-[#0b4128]">
+                <button 
+                  onClick={handleAddToCart}
+                  className="flex-1 min-w-[200px] flex h-12 items-center justify-center gap-2 rounded-xl bg-[#0f5132] px-8 py-3 text-base font-bold text-white shadow-lg shadow-[#0f5132]/20 transition-all hover:scale-105 hover:bg-[#0b4128]"
+                >
                   <ShoppingCart className="h-5 w-5" />
                   Add to Cart
                 </button>

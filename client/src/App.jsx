@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 import Contact from "./pages/Contact";
 import PublicLayout from "./components/layout/PublicLayout";
 import DashboardLayout from "./components/freshly/DashboardLayout";
+import CartPage from "./pages/CartPage";
 import "./styles/app.css";
 import { useEffect } from "react";
 import { loginSuccess, logout } from "./redux/authSlice";
@@ -46,6 +47,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/orders" element={<MyOrders />} />

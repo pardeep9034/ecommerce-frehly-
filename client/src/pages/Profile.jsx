@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProfile } from '../apis/authApi';
 import { getUserAddresses, deleteAddress, setDefaultAddress } from '../apis/userApi';
 import AddressFormModal from '../components/profile/AddressFormModal';
+import useAddress from '@/hooks/use-address';
 import { 
   User, 
   MapPin, 
@@ -28,6 +29,7 @@ const Profile = () => {
   const dispatch = useDispatch();
   const token = localStorage.getItem("token");
   const queryClient = useQueryClient();
+  const {addresses, isLoading: isAddressesLoading} = useAddress();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile"],
@@ -38,14 +40,14 @@ const Profile = () => {
     enabled: !!token,
   });
 
-  const { data: addresses, isLoading: isAddressesLoading } = useQuery({
-    queryKey: ["addresses", profile?.id],
-    queryFn: async () => {
-      const res = await getUserAddresses(profile.id);
-      return res.data;
-    },
-    enabled: !!profile?.id,
-  });
+  // const { data: addresses, isLoading: isAddressesLoading } = useQuery({
+  //   queryKey: ["addresses", profile?.id],
+  //   queryFn: async () => {
+  //     const res = await getUserAddresses(profile.id);
+  //     return res.data;
+  //   },
+  //   enabled: !!profile?.id,
+  // });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAddress,

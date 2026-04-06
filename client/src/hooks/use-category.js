@@ -32,7 +32,7 @@ const useCategory = (page = 1, limit = 10) => {
 
   // DELETE - delete category
   const deleteMutation = useMutation({
-    mutationFn: deleteCategory,
+    mutationFn:(id)=> deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
