@@ -30,6 +30,22 @@ export default (sequelize) => {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
                 defaultValue: false
+            },
+
+            device_id: {
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+
+            user_agent: {
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+
+            family_id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                allowNull: false
             }
         },
         {
@@ -41,6 +57,9 @@ export default (sequelize) => {
                 },
                 {
                     fields: ["token_hash"]
+                },
+                {
+                    fields: ["family_id"]
                 }
             ]
         }

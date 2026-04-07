@@ -1,103 +1,52 @@
-import initializeModels from "../../models/index.js";
+import BaseRepository from "./BaseRepository.js";
 import { Op } from "sequelize";
 
-class RefreshTokenRepository {
-
-  /* ================= CREATE SESSION ================= */
-  async create(payload) {
-
-    if (payload) {
-
-      const db = await initializeModels();
-
-      return db.RefreshToken.create({
-        user_id: payload.user_id,
-        token_hash: payload.token_hash,
-        expires_at: payload.expires_at,
-        is_revoked: false,
-      });
-
-    } else {
-
-      return null;
-    }
+class RefreshTokenRepository extends BaseRepository {
+  constructor() {
+    super('RefreshToken');
   }
 
-  /* ================= FIND VALID SESSION (HASH + EXPIRY) ================= */
-  async findValidByTokenHash(tokenHash) {
-
-    if (tokenHash) {
-
-      const db = await initializeModels();
-
-      return db.RefreshToken.findOne({
-        where: {
-          token_hash: tokenHash,
-          is_revoked: false,
-          expires_at: {
-            [Op.gt]: new Date(), // 🔥 expiry check
-          },
-        },
-      });
-
-    } else {
-
-      return null;
-    }
+  async findByToken(tokenHash, options = {}) {
+    if (!tokenHash) return null;
+    return await this.findOne({ token_hash: tokenHash }, options);
   }
 
-  /* ================= ROTATE SESSION ================= */
-  async updateById(id, payload) {
-
-    if (id && payload) {
-
-      const db = await initializeModels();
-
-      return db.RefreshToken.update(
-        payload,
-        { where: { id } }
-      );
-
-    } else {
-
-      return null;
-    }
+  async findByUserId(userId, options = {}) {
+    if (!userId) return null;
+    return await this.findOne({ user_id: userId }, options);
   }
 
-  /* ================= REVOKE SINGLE SESSION ================= */
-  async revokeByTokenHash(tokenHash) {
-
-    if (tokenHash) {
-
-      const db = await initializeModels();
-
-      return db.RefreshToken.update(
-        { is_revoked: true },
-        { where: { token_hash: tokenHash } }
-      );
-
-    } else {
-
-      return null;
-    }
+  async findActiveByFamily(familyId, options = {}) {
+    if (!familyId) return null;
+    return await this.findOne({ family_id: familyId, is_revoked: false }, options);
   }
 
-  /* ================= REVOKE ALL USER SESSIONS ================= */
-  async revokeAllByUserId(userId) {
+  async revokeByFamily(familyId, options = {}) {
+    if (!familyId) return 0;
+    return await this.update({ family_id: familyId }, { is_revoked: true }, options);
+  }
 
-    if (userId) {
+  async revokeByUserId(userId, options = {}) {
+    if (!userId) return 0;
+    return await this.update({ user_id: userId }, { is_revoked: true }, options);
+  }
 
-      const db = await initializeModels();
+  async revokeByToken(tokenHash, options = {}) {
+    if (!tokenHash) return 0;
+    return await this.update({ token_hash: tokenHash }, { is_revoked: true }, options);
+  }
 
-      return db.RefreshToken.update(
-        { is_revoked: true },
-        { where: { user_id: userId } }
-      );
-
-    } else {
-
-      return null;
-    }
+  async findValidToken(userId, deviceId, options = {}) {
+    if (!userId || !deviceId) return null;
+    const expiryTime = new Date();
+    return await this.findOne({
+      user_id: userId,
+      device_id: deviceId,
+      is_revoked: false,
+      expires_at: {
+        [Op.gt]: expiryTime
+      }
+    }, options);
   }
 }
 

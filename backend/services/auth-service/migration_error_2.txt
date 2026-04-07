@@ -1,0 +1,22 @@
+
+> auth-service@1.0.0 db:migrate
+> dotenv sequelize db:migrate
+
+
+[4mSequelize CLI [Node: 22.16.0, CLI: 6.6.3, ORM: 6.37.7][24m
+
+Loaded configuration file "config\config.json".
+Using environment "development".
+== 20260407080612-add_device_tracking_to_tokens_and_create_audit_logs: migrating =======
+Column device_id already exists in refresh_tokens, skipping...
+Column user_agent already exists in refresh_tokens, skipping...
+
+
+ERROR: column "family_id" of relation "refresh_tokens" contains null values
+npm error Lifecycle script `db:migrate` failed with error:
+npm error code 1
+npm error path D:\desktop\ecommerce\ecommerce-frehly-\backend\services\auth-service
+npm error workspace auth-service@1.0.0
+npm error location D:\desktop\ecommerce\ecommerce-frehly-\backend\services\auth-service
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c dotenv sequelize db:migrate

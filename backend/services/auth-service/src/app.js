@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -8,8 +7,10 @@ dotenv.config();
 import cookieParser from "cookie-parser";
 
 import authRoutes from './modules/auth/auth.routes.js';
-import optRoutes from "./modules/otp/otp.routes.js"
+import optRoutes from "./modules/otp/otp.routes.js";
 import ResponseUtil from './utils/response.js';
+import AppError from './utils/AppError.js';
+import logger from './utils/Logger.js';
 
 const app = express();
 
@@ -35,13 +36,11 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging in development
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-  });
-}
+// Request logging
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
 
 // Routes
 app.use('/', authRoutes);
@@ -63,35 +62,35 @@ app.use('*', (req, res) => {
 
 // Global error handler
 app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
-  
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
+
   // Sequelize validation errors
   if (error.name === 'SequelizeValidationError') {
-    const errors = error.errors.map(err => ({
-      field: err.path,
-      message: err.message
-    }));
+    const errors = error.errors.map(err => ({ field: err.path, message: err.message }));
     return ResponseUtil.validationError(res, errors);
   }
-  
+
   // Sequelize unique constraint errors
   if (error.name === 'SequelizeUniqueConstraintError') {
-    return ResponseUtil.error(res, 'Resource already exists', 400);
+    return ResponseUtil.error(res, 'Resource already exists', 409);
   }
-  
+
   // JWT errors
   if (error.name === 'JsonWebTokenError') {
     return ResponseUtil.unauthorized(res, 'Invalid token');
   }
-  
   if (error.name === 'TokenExpiredError') {
     return ResponseUtil.unauthorized(res, 'Token expired');
   }
-  
-  // Default error
-  ResponseUtil.error(res, 
-    process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-  );
+
+  // Our custom AppError (operational errors)
+  if (error instanceof AppError && error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
+  }
+
+  // Unknown / programming errors - don't leak details in production
+  const message = process.env.NODE_ENV === 'development' ? error.message : 'Internal server error';
+  ResponseUtil.error(res, message, 500);
 });
 
 // module.exports = app;

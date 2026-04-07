@@ -1,641 +1,571 @@
-import initializeModels from "../../models/index.js";
-
-import JWTUtil from "../../utils/jwt.js";
-
-import crypto from "crypto";
-import jwt from "jsonwebtoken";
-
 import UserRepository from "../repository/user.repository.js";
 import RefreshTokenRepository from "../repository/refreshToken.repository.js";
+import OtpRepository from "../repository/otp.repository.js";
+import AuditRepository from "../repository/audit.repository.js";
 import OtpService from "../otp/otp.service.js";
-import AuthValidation from "./auth.validation.js";
 import TokenService from "../token/token.service.js";
-
+import kafkaManager from "../../config/kafka.js";
+import initializeModels from "../../models/index.js";
+import logger from "../../utils/Logger.js";
+import AppError from "../../utils/AppError.js";
+import jwt from "jsonwebtoken";
+import { env } from "../../config/env.js";
 
 class AuthService {
+
+  /* ================= SIGNUP ================= */
+
   async signup(data) {
+    const { phone } = data;
+    if (!phone) throw new AppError("Phone number is required", 400);
+
+    const existingUser = await UserRepository.findByPhone(phone);
+    if (existingUser) throw new AppError("User already exists with this phone number", 409);
+
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+
     try {
-      /* ================= VALIDATION ================= */
-      const validationResult = AuthValidation.validateSignup(data);
+      const otpPayload = OtpService.createOtp();
+
+      const user = await UserRepository.create({
+        phone,
+        otp_hash: otpPayload.hash,
+        otp_type: "signup",
+        otp_expiry: otpPayload.expiry,
+        otp_send_count: 1,
+        last_otp_sent_at: new Date(),
+      }, { transaction });
+
+      // Also create in new OTP table for future use
+      await OtpRepository.create({
+        user_id: user.id,
+        code_hash: otpPayload.hash,
+        type: "SIGNUP",
+        channel: "SMS",
+        sent_to: phone,
+        expires_at: otpPayload.expiry,
+      }, { transaction });
+
+      await transaction.commit();
+
+      // Emit Kafka event (non-blocking)
+      kafkaManager.sendEvent("auth.events", {
+        type: "USER_SIGNUP_INITIATED",
+        userId: user.id,
+        phone,
+        timestamp: new Date().toISOString(),
+      }).catch(err => logger.error(`Kafka error: ${err.message}`));
+
+      logger.info(`✅ Signup initiated for user ${user.id}`);
 
-      if (validationResult.valid === true) {
-        const { phone } = validationResult.sanitizedData;
-        console.log("Phone number for signup:", phone);
-
-        /* ================= USER CHECK ================= */
-        const existingUser = await UserRepository.findByPhone(phone);
-
-        if (!existingUser) {
-          const otpPayload = OtpService.createOtp()
-
-          const user = await UserRepository.create({
-            phone,
-            otp_hash: otpPayload.hash,
-            otp_type: "signup",
-            otp_expiry: otpPayload.expiry,
-            otp_send_count: 1,
-            last_otp_sent_at: new Date(),
-          });
-
-          if (user) {
-            return {
-              success: true,
-              statusCode: 201,
-              message: "Signup successful. OTP sent.",
-              data: {
-                user_id: user.id,
-                otp: otpPayload.otp, // dev only
-              },
-            };
-          } else {
-            return {
-              success: false,
-              statusCode: 500,
-              message: "User creation failed",
-            };
-          }
-        } else {
-          return {
-            success: false,
-            statusCode: 409,
-            message: "User already exists",
-          };
-        }
-      } else {
-        return {
-          success: false,
-          statusCode: 400,
-          message: validationResult.message,
-        };
-      }
-    } catch (error) {
-      console.error("SIGNUP ERROR →", error);
-
-      return {
-        success: false,
-        statusCode: 500,
-        message: error.message || "Signup failed",
-      };
-    }
-  }
-
- async verify(data) {
-
-  /* ================= VALIDATION ================= */
-  const validationResult = AuthValidation.validateVerifyOtp(data);
-
-  if (validationResult.valid === true) {
-
-    const { phone, otp } = validationResult.sanitizedData;
-
-    /* ================= USER CHECK ================= */
-    const user = await UserRepository.findByPhone(phone);
-
-    if (user) {
-
-      /* ================= OTP TYPE CHECK ================= */
-      if (user.otp_type) {
-
-        /* ================= EXPIRY CHECK ================= */
-        if (user.otp_expiry && new Date(user.otp_expiry) > new Date()) {
-
-          /* ================= OTP MATCH ================= */
-          const isOtpValid = OtpService.compareOtp(otp, user.otp_hash);
-
-          if (isOtpValid === true) {
-
-            /* ================= CLEAR OTP ================= */
-            await user.update({
-              otp_hash: null,
-              otp_expiry: null,
-              otp_attempts: 0,
-            });
-
-            /* ================= FLOW HANDLING ================= */
-            if (user.otp_type === "signup") {
-
-              await user.update({
-                phone_verified: true,
-                otp_type: null,
-                otp_send_count: 0,
-              });
-
-              const accessToken = TokenService.generateAccessToken({
-                user_id: user.id,
-                phone: user.phone,
-              });
-
-              const refreshToken = TokenService.generateRefreshToken();
-
-              await RefreshTokenRepository.create({
-                user_id: user.id,
-                token_hash: TokenService.hashRefreshToken(refreshToken),
-                expires_at: TokenService.getRefreshTokenExpiry(),
-              });
-
-              return {
-                success: true,
-                statusCode: 200,
-                message: "Signup OTP verified successfully",
-                data: { accessToken },
-              };
-            }
-
-            if (user.otp_type === "forgot_password") {
-              const resetToken = jwt.sign(
-    {
-      user_id: user.id,
-      purpose: "reset_password",
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "10m" }
-  );
-
-              await user.update({
-                otp_type: null,
-              });
-
-              return {
-                success: true,
-                statusCode: 200,
-                message: "OTP verified. You may reset your password",
-                data:{
-                  resetToken
-                }
-              };
-            }
-
-            return {
-              success: false,
-              statusCode: 400,
-              message: "Unsupported OTP type",
-            };
-
-          } else {
-
-            await user.increment("otp_attempts");
-
-            return {
-              success: false,
-              statusCode: 400,
-              message: "Invalid OTP",
-            };
-          }
-
-        } else {
-
-          return {
-            success: false,
-            statusCode: 400,
-            message: "OTP expired",
-          };
-        }
-
-      } else {
-
-        return {
-          success: false,
-          statusCode: 400,
-          message: "No OTP request found",
-        };
-      }
-
-    } else {
-
-      return {
-        success: false,
-        statusCode: 404,
-        message: "User not found",
-      };
-    }
-
-  } else {
-
-    return {
-      success: false,
-      statusCode: 400,
-      message: validationResult.message,
-    };
-  }
-}
-
-
- async register(userData) {
-
-  /* ================= VALIDATION ================= */
-  if (userData) {
-
-    if (userData.phone) {
-
-      /* ================= USER CHECK ================= */
-      const existingUser = await UserRepository.findByPhone(userData.phone);
-
-      if (existingUser) {
-
-        /* ================= UPDATE PROFILE (SAFE) ================= */
-        if (
-          userData.first_name ||
-          userData.last_name ||
-          userData.email ||
-          userData.password
-        ) {
-
-          if (userData.first_name) {
-            existingUser.first_name = userData.first_name;
-          }
-
-          if (userData.last_name) {
-            existingUser.last_name = userData.last_name;
-          }
-
-          if (userData.email) {
-            existingUser.email = userData.email;
-          }
-
-          if (userData.password) {
-            existingUser.password = userData.password; // ✅ hook will hash
-          }
-
-          const savedUser = await existingUser.save(); // 🔥 hooks run here
-
-          return {
-            success: true,
-            statusCode: 200,
-            message: "User profile completed successfully",
-            user: savedUser,
-          };
-
-        } else {
-
-          return {
-            success: false,
-            statusCode: 400,
-            message: "No data provided to update",
-          };
-        }
-
-      } else {
-
-        return {
-          success: false,
-          statusCode: 404,
-          message: "User not found",
-        };
-      }
-
-    } else {
-
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Phone number is required",
-      };
-    }
-
-  } else {
-
-    return {
-      success: false,
-      statusCode: 400,
-      message: "Invalid request data",
-    };
-  }
-}
-
-
-async login(phone, password) {
-
-  // Validate input
-  if (phone && password) {
-    console.log("--",phone,password)
-
-    // Find user by phone
-    const user = await UserRepository.findByPhone(phone);
-    console.log("--",user);
-
-    if (user) {
-
-      // Check account lock
-      if (user.lock_until && user.lock_until > new Date()) {
-
-        return {
-          success: false,
-          statusCode: 423,
-          message: "Account is temporarily locked due to too many failed login attempts",
-        };
-
-      } else {
-
-        // Compare password
-        const isValidPassword = await user.comparePassword(password);
-        console.log("-------",isValidPassword)
-
-        if (isValidPassword) {
-
-          // Reset login attempts
-          await user.update({
-            login_attempts: 0,
-            lock_until: null,
-            last_login_at: new Date(),
-          });
-
-          // Generate tokens
-          const accessToken = TokenService.generateAccessToken({
-            user_id: user.id,
-            phone: user.phone,
-          });
-
-          const refreshToken = TokenService.generateRefreshToken();
-
-          await RefreshTokenRepository.create({
-            user_id: user.id,
-            token_hash: TokenService.hashRefreshToken(refreshToken),
-            expires_at: TokenService.getRefreshTokenExpiry(),
-          });
-
-          return {
-            success: true,
-            statusCode: 200,
-            message: "Login successful",
-            data: {
-              accessToken,
-              refreshToken,
-            },
-          };
-
-        } else {
-
-          // Invalid password → increment attempts
-          const attempts = user.login_attempts + 1;
-
-          if (attempts >= Number(process.env.MAX_LOGIN_ATTEMPTS)) {
-
-            const lockUntil = new Date(
-              Date.now() + 2 * 60 * 60 * 1000 // 2 hours
-            );
-
-            await user.update({
-              login_attempts: attempts,
-              lock_until: lockUntil,
-            });
-
-          } else {
-
-            await user.update({
-              login_attempts: attempts,
-            });
-
-          }
-
-          return {
-            success: false,
-            statusCode: 400,
-            message: "Invalid phone or password",
-          };
-        }
-      }
-
-    } else {
-
-      return {
-        success: false,
-        statusCode: 400,
-        message: "Invalid phone or password",
-      };
-    }
-
-  } else {
-
-    return {
-      success: false,
-      statusCode: 400,
-      message: "Phone and password are required",
-    };
-  }
-}
-async getProfile(userId) {
-  if(userId){
-    const user = await UserRepository.findById(userId);
-
-    if (user) {
       return {
         success: true,
-        statusCode: 200,
-        message: "Profile retrieved successfully",
+        statusCode: 201,
+        message: "Signup successful. OTP sent.",
         data: {
-          id: user.id,
-          phone: user.phone,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email,
+          user_id: user.id,
+          otp: env.NODE_ENV === "development" ? otpPayload.otp : undefined,
         },
       };
+    } catch (error) {
+      await transaction.rollback();
+      logger.error(`❌ Signup error: ${error.message}`);
+      throw error;
     }
-  } else {
-    return {
-      success: false,
-      statusCode: 400,
-      message: "User ID is required",
-    };
   }
 
-}
+  /* ================= VERIFY OTP ================= */
 
+  async verify(data) {
+    const { phone, otp } = data;
+    if (!phone || !otp) throw new AppError("Phone and OTP are required", 400);
 
+    const user = await UserRepository.findByPhone(phone);
+    if (!user) throw new AppError("User not found", 404);
 
-async refreshToken(refreshToken) {
+    if (!user.otp_type) throw new AppError("No OTP request found", 400);
 
-  /* ================= VALIDATION ================= */
-  if (refreshToken) {
+    if (!user.otp_expiry || new Date(user.otp_expiry) < new Date()) {
+      throw new AppError("OTP has expired", 400);
+    }
 
-    /* ================= HASH TOKEN ================= */
-    const tokenHash = TokenService.hashRefreshToken(refreshToken);
+    const isValid = OtpService.compareOtp(otp, user.otp_hash);
+    if (!isValid) {
+      await user.increment("otp_attempts");
+      throw new AppError("Invalid OTP", 400);
+    }
 
-    /* ================= FIND STORED TOKEN ================= */
-    const storedToken = await RefreshTokenRepository.findValidByTokenHash(
-      tokenHash
-    );
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
 
-    if (storedToken) {
+    try {
+      // Clear OTP from user table
+      await user.update({
+        otp_hash: null,
+        otp_expiry: null,
+        otp_attempts: 0,
+      }, { transaction });
 
-      /* ================= USER CHECK ================= */
-      const user = await UserRepository.findById(storedToken.user_id);
+      // Mark OTP record as used
+      const otpRecord = await OtpRepository.findLatestOtp(user.id, "SIGNUP");
+      if (otpRecord) await OtpRepository.markUsed(otpRecord.id, { transaction });
 
-      if (user && user.is_active) {
+      if (user.otp_type === "signup") {
+        await user.update({
+          phone_verified: true,
+          otp_type: null,
+          otp_send_count: 0,
+        }, { transaction });
 
-        /* ================= ROTATE TOKENS ================= */
-        const newAccessToken = TokenService.generateAccessToken({
+        const accessToken = TokenService.generateAccessToken({
           user_id: user.id,
           phone: user.phone,
+          role: user.role,
         });
 
-        const newRefreshToken = TokenService.generateRefreshToken();
+        const rawRefresh = TokenService.generateRefreshToken();
+        const familyId = TokenService.generateFamilyId();
 
-        /* ================= UPDATE REFRESH TOKEN ================= */
-        await RefreshTokenRepository.updateById(storedToken.id, {
-          token_hash: TokenService.hashRefreshToken(newRefreshToken),
+        await RefreshTokenRepository.create({
+          user_id: user.id,
+          token_hash: TokenService.hashRefreshToken(rawRefresh),
           expires_at: TokenService.getRefreshTokenExpiry(),
-        });
+          family_id: familyId,
+        }, { transaction });
+
+        await transaction.commit();
+
+        // Emit Kafka event
+        kafkaManager.sendEvent("auth.events", {
+          type: "USER_REGISTERED",
+          userId: user.id,
+          phone: user.phone,
+          timestamp: new Date().toISOString(),
+        }).catch(err => logger.error(`Kafka error: ${err.message}`));
+
+        logger.info(`✅ User ${user.id} verified and registered`);
 
         return {
           success: true,
           statusCode: 200,
-          message: "Token refreshed successfully",
-          data: {
-            accessToken: newAccessToken,
-           
-          },
-        };
-
-      } else {
-
-        return {
-          success: false,
-          statusCode: 401,
-          message: "User not found or inactive",
+          message: "OTP verified successfully",
+          data: { accessToken, refreshToken: rawRefresh },
         };
       }
 
-    } else {
+      if (user.otp_type === "forgot_password") {
+        const resetToken = jwt.sign(
+          { user_id: user.id, purpose: "reset_password" },
+          env.JWT_SECRET,
+          { expiresIn: "10m" }
+        );
 
-      return {
-        success: false,
-        statusCode: 401,
-        message: "Invalid or expired refresh token",
-      };
+        await user.update({ otp_type: null }, { transaction });
+        await transaction.commit();
+
+        return {
+          success: true,
+          statusCode: 200,
+          message: "OTP verified. You may reset your password.",
+          data: { resetToken },
+        };
+      }
+
+      await transaction.rollback();
+      throw new AppError("Unsupported OTP type", 400);
+
+    } catch (error) {
+      await transaction.rollback();
+      logger.error(`❌ Verify OTP error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /* ================= COMPLETE REGISTRATION ================= */
+
+  async register(userData) {
+    const { phone, first_name, last_name, email, password } = userData;
+    if (!phone) throw new AppError("Phone number is required", 400);
+
+    const existingUser = await UserRepository.findByPhone(phone);
+    if (!existingUser) throw new AppError("User not found", 404);
+
+    if (!first_name && !last_name && !email && !password) {
+      throw new AppError("No data provided to update", 400);
     }
 
-  } else {
+    const updateData = {};
+    if (first_name) updateData.first_name = first_name;
+    if (last_name) updateData.last_name = last_name;
+    if (email) updateData.email = email;
+    if (password) updateData.password = password;
+
+    if (first_name) existingUser.first_name = first_name;
+    if (last_name) existingUser.last_name = last_name;
+    if (email) existingUser.email = email;
+    if (password) existingUser.password = password;
+
+    const savedUser = await existingUser.save();
+
+    logger.info(`✅ User ${existingUser.id} profile completed`);
 
     return {
-      success: false,
-      statusCode: 400,
-      message: "Refresh token is required",
+      success: true,
+      statusCode: 200,
+      message: "Profile completed successfully",
+      user: savedUser,
     };
   }
-}
 
+  /* ================= LOGIN ================= */
 
+  async login(phone, password, deviceId = null, userAgent = null) {
+    if (!phone || !password) throw new AppError("Phone and password are required", 400);
+
+    const user = await UserRepository.findByPhone(phone);
+    if (!user) throw new AppError("Invalid phone or password", 400);
+
+    // Check account lock
+    const lockField = user.account_locked_until || user.lock_until;
+    if (lockField && new Date(lockField) > new Date()) {
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "LOGIN_FAILURE",
+        phone,
+        status: "FAILURE",
+        error_message: "Account locked",
+      });
+      throw new AppError("Account is temporarily locked. Try again later.", 423);
+    }
+
+    const isValidPassword = await user.comparePassword(password);
+
+    if (!isValidPassword) {
+      const attempts = (user.failed_login_attempts || user.login_attempts || 0) + 1;
+      const maxAttempts = env.MAX_LOGIN_ATTEMPTS || 5;
+
+      const updateData = {
+        failed_login_attempts: attempts,
+        login_attempts: attempts,
+      };
+
+      if (attempts >= maxAttempts) {
+        const lockUntil = new Date(Date.now() + (env.LOCK_TIME || 7200000));
+        updateData.account_locked_until = lockUntil;
+        updateData.lock_until = lockUntil;
+      }
+
+      await user.update(updateData);
+
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "LOGIN_FAILURE",
+        phone,
+        device_id: deviceId,
+        user_agent: userAgent,
+        status: "FAILURE",
+        error_message: "Invalid password",
+        details: { attempt: attempts },
+      });
+
+      throw new AppError("Invalid phone or password", 400);
+    }
+
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      // Reset attempts on successful login
+      await user.update({
+        failed_login_attempts: 0,
+        login_attempts: 0,
+        account_locked_until: null,
+        lock_until: null,
+        last_login_at: new Date(),
+        last_login_ip: null,
+        last_login_device: deviceId,
+      }, { transaction });
+
+      const accessToken = TokenService.generateAccessToken({
+        user_id: user.id,
+        phone: user.phone,
+        role: user.role,
+      });
+
+      const rawRefresh = TokenService.generateRefreshToken();
+      const familyId = TokenService.generateFamilyId();
+
+      await RefreshTokenRepository.create({
+        user_id: user.id,
+        token_hash: TokenService.hashRefreshToken(rawRefresh),
+        expires_at: TokenService.getRefreshTokenExpiry(),
+        family_id: familyId,
+        device_id: deviceId,
+        user_agent: userAgent,
+      }, { transaction });
+
+      await transaction.commit();
+
+      // Cache session in Redis
+      await TokenService.cacheUserSession(user.id, accessToken);
+
+      // Audit log
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "LOGIN_SUCCESS",
+        phone,
+        device_id: deviceId,
+        user_agent: userAgent,
+        status: "SUCCESS",
+      });
+
+      // Kafka event
+      kafkaManager.sendEvent("auth.events", {
+        type: "USER_LOGIN",
+        userId: user.id,
+        timestamp: new Date().toISOString(),
+      }).catch(err => logger.error(`Kafka error: ${err.message}`));
+
+      logger.info(`✅ User ${user.id} logged in`);
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Login successful",
+        data: { accessToken, refreshToken: rawRefresh },
+      };
+    } catch (error) {
+      await transaction.rollback();
+      logger.error(`❌ Login error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /* ================= GET PROFILE ================= */
+
+  async getProfile(userId) {
+    if (!userId) throw new AppError("User ID is required", 400);
+
+    const user = await UserRepository.findById(userId);
+    if (!user) throw new AppError("User not found", 404);
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Profile retrieved successfully",
+      data: {
+        id: user.id,
+        phone: user.phone,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role: user.role,
+        phone_verified: user.phone_verified,
+        email_verified: user.email_verified,
+      },
+    };
+  }
+
+  /* ================= REFRESH TOKEN ================= */
+
+  async refreshToken(rawRefreshToken) {
+    if (!rawRefreshToken) throw new AppError("Refresh token is required", 400);
+
+    const tokenHash = TokenService.hashRefreshToken(rawRefreshToken);
+    const storedToken = await RefreshTokenRepository.findByToken(tokenHash);
+
+    if (!storedToken || storedToken.is_revoked) {
+      // Potential reuse — revoke entire family
+      if (storedToken?.family_id) {
+        await RefreshTokenRepository.revokeByFamily(storedToken.family_id);
+        logger.warn(`⚠️ Token reuse detected! Family ${storedToken.family_id} invalidated.`);
+      }
+      throw new AppError("Invalid or expired refresh token", 401);
+    }
+
+    if (new Date(storedToken.expires_at) < new Date()) {
+      throw new AppError("Refresh token has expired. Please login again.", 401);
+    }
+
+    const user = await UserRepository.findById(storedToken.user_id);
+    if (!user || !user.is_active) {
+      throw new AppError("User not found or inactive", 401);
+    }
+
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      const newAccessToken = TokenService.generateAccessToken({
+        user_id: user.id,
+        phone: user.phone,
+        role: user.role,
+      });
+
+      const newRawRefresh = TokenService.generateRefreshToken();
+
+      // Rotate the token (same family)
+      await RefreshTokenRepository.updateById(storedToken.id, {
+        token_hash: TokenService.hashRefreshToken(newRawRefresh),
+        expires_at: TokenService.getRefreshTokenExpiry(),
+      }, { transaction });
+
+      await transaction.commit();
+
+      // Update Redis session
+      await TokenService.cacheUserSession(user.id, newAccessToken);
+
+      logger.info(`✅ Tokens rotated for user ${user.id}`);
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Token refreshed successfully",
+        data: { accessToken: newAccessToken, refreshToken: newRawRefresh },
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  /* ================= LOGOUT ================= */
+
+  async logout(userId, accessToken, refreshToken = null) {
+    // Blacklist the access token in Redis
+    if (accessToken) {
+      await TokenService.blacklistAccessToken(accessToken);
+    }
+
+    // Revoke refresh token in DB
+    if (refreshToken) {
+      const tokenHash = TokenService.hashRefreshToken(refreshToken);
+      await RefreshTokenRepository.revokeByToken(tokenHash);
+    }
+
+    // Remove session from Redis cache
+    await TokenService.invalidateUserSession(userId);
+
+    await AuditRepository.logEvent({
+      user_id: userId,
+      event_type: "LOGOUT",
+      status: "SUCCESS",
+    });
+
+    logger.info(`✅ User ${userId} logged out`);
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Logged out successfully",
+    };
+  }
+
+  /* ================= FORGOT PASSWORD ================= */
 
   async forgotPassword(phone) {
+    if (!phone) throw new AppError("Phone number is required", 400);
 
-  /* ================= VALIDATION ================= */
-  if (phone) {
-
-    /* ================= USER CHECK ================= */
     const user = await UserRepository.findByPhone(phone);
-    const otp = OtpService.createOtp()
 
     if (user) {
+      const otpPayload = OtpService.createOtp();
 
-      /* ================= GENERATE OTP ================= */
-      // const otp = OtpService.createOtp()
-
-
-     
-
-      /* ================= SAVE OTP ================= */
       await user.update({
-        otp_hash: otp.hash,
+        otp_hash: otpPayload.hash,
         otp_type: "forgot_password",
-        otp_expiry: otp.expiry,
+        otp_expiry: otpPayload.expiry,
         otp_attempts: 0,
-        otp_send_count: user.otp_send_count + 1,
+        otp_send_count: (user.otp_send_count || 0) + 1,
         last_otp_sent_at: new Date(),
       });
 
-      /* ================= SEND OTP (SMS) ================= */
-      // await SmsService.sendOtp(user.phone, otp);
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "PASSWORD_RESET_REQUEST",
+        phone,
+        status: "SUCCESS",
+      });
 
+      logger.info(`✅ Password reset OTP sent to user ${user.id}`);
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "If the phone number exists, an OTP has been sent",
+        data: env.NODE_ENV === "development" ? { otp: otpPayload.otp } : {},
+      };
     }
 
-    /* ================= GENERIC RESPONSE ================= */
+    // Generic response for security
     return {
       success: true,
-      otp,
       statusCode: 200,
       message: "If the phone number exists, an OTP has been sent",
     };
-
-  } else {
-
-    return {
-      success: false,
-      statusCode: 400,
-      message: "Phone number is required",
-    };
   }
-}
 
+  /* ================= RESET PASSWORD ================= */
 
- async resetPassword(resetToken, newPassword) {
-
-  /* ================= VALIDATION ================= */
-  if (resetToken && newPassword) {
+  async resetPassword(resetToken, newPassword) {
+    if (!resetToken || !newPassword) {
+      throw new AppError("Reset token and new password are required", 400);
+    }
 
     let decoded;
-
-    /* ================= VERIFY RESET TOKEN ================= */
     try {
-      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+      decoded = jwt.verify(resetToken, env.JWT_SECRET);
     } catch {
-      return {
-        success: false,
-        statusCode: 401,
-        message: "Invalid or expired reset token",
-      };
+      throw new AppError("Invalid or expired reset token", 401);
     }
 
-    /* ================= PURPOSE CHECK ================= */
     if (decoded.purpose !== "reset_password") {
-
-      return {
-        success: false,
-        statusCode: 403,
-        message: "Invalid reset token",
-      };
+      throw new AppError("Invalid reset token purpose", 403);
     }
 
-    /* ================= USER CHECK ================= */
     const user = await UserRepository.findById(decoded.user_id);
+    if (!user) throw new AppError("User not found", 404);
 
-    if (user) {
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
 
-      /* ================= PASSWORD UPDATE ================= */
-      user.set({
-        password: newPassword, // 🔥 hashed via hook
+    try {
+      user.set({ password: newPassword });
+      await user.save({ transaction });
+
+      // Revoke all refresh tokens
+      await RefreshTokenRepository.revokeByUserId(user.id, { transaction });
+
+      await transaction.commit();
+
+      // Invalidate Redis session
+      await TokenService.invalidateUserSession(user.id);
+
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "PASSWORD_RESET_SUCCESS",
+        status: "SUCCESS",
       });
 
-      await user.save();
+      kafkaManager.sendEvent("auth.events", {
+        type: "PASSWORD_RESET",
+        userId: user.id,
+        timestamp: new Date().toISOString(),
+      }).catch(err => logger.error(`Kafka error: ${err.message}`));
 
-      /* ================= REVOKE ALL SESSIONS ================= */
-      await RefreshTokenRepository.revokeAllByUserId(user.id);
+      logger.info(`✅ Password reset for user ${user.id}`);
 
       return {
         success: true,
         statusCode: 200,
         message: "Password reset successfully",
       };
-
-    } else {
-
-      return {
-        success: false,
-        statusCode: 404,
-        message: "User not found",
-      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
-
-  } else {
-
-    return {
-      success: false,
-      statusCode: 400,
-      message: "Reset token and new password are required",
-    };
   }
 }
-}
 
-// module.exports = new AuthService();
 export default new AuthService();

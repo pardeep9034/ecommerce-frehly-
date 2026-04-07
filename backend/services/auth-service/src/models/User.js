@@ -86,8 +86,8 @@ export default (sequelize) => {
     },
 
     role: {
-      type: DataTypes.ENUM('customer', 'admin', 'vendor'),
-      defaultValue: 'customer'
+      type: DataTypes.ENUM('CUSTOMER', 'ADMIN', 'OPS_STAFF', 'VENDOR'),
+      defaultValue: 'CUSTOMER'
     },
 
     refresh_token: {
@@ -128,8 +128,27 @@ export default (sequelize) => {
     lock_until: {
       type: DataTypes.DATE,
       allowNull: true
-    }
-    ,
+    },
+    force_password_change: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
+    failed_login_attempts: {
+  type: DataTypes.INTEGER,
+  defaultValue: 0
+},
+account_locked_until: {
+  type: DataTypes.DATE,
+  allowNull: true
+},
+last_login_ip: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+last_login_device: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
       deleted_at: {
     type: DataTypes.DATE,
     allowNull: true

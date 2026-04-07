@@ -1,77 +1,61 @@
-import { where } from "sequelize";
-import initializeModels from "../../models/index.js";
+import BaseRepository from "./BaseRepository.js";
+import { Op } from "sequelize";
 
-class UserRepository {
+class UserRepository extends BaseRepository {
+  constructor() {
+    super('User');
+  }
 
-    async findByPhone(phone) {
+  async findByPhone(phone, options = {}) {
+    if (!phone) return null;
+    return await this.findOne({ phone }, options);
+  }
 
-        if (phone) {
+  async findByEmail(email, options = {}) {
+    if (!email) return null;
+    return await this.findOne({ email }, options);
+  }
 
-            const db = await initializeModels();
+  async findByPhoneOrEmail(identifier, options = {}) {
+    if (!identifier) return null;
+    const Model = await this.getModel();
+    return await Model.findOne({
+      where: {
+        [Op.or]: [
+          { phone: identifier },
+          { email: identifier }
+        ]
+      },
+      ...options
+    });
+  }
 
-            return await db.User.findOne({
-                where: { phone }
-            });
+  async markEmailVerified(userId, options = {}) {
+    return await this.updateById(userId, { email_verified: true }, options);
+  }
 
-        } else {
-            return null;
-        }
+  async markPhoneVerified(userId, options = {}) {
+    return await this.updateById(userId, { phone_verified: true }, options);
+  }
 
-    }
-            async findById(userId){
-                if(userId){
-                    const db=await initializeModels()
-                    return await db.User.findOne({ where:{id:userId}})
-                }
-                else{
-                    return null;
-                }
-            }
+  async incrementLoginAttempts(userId, options = {}) {
+    const db = await this.getModel();
+    return await db.increment('failed_login_attempts', {
+      where: { id: userId },
+      ...options
+    });
+  }
 
+  async resetLoginAttempts(userId, options = {}) {
+    return await this.updateById(userId, { 
+      failed_login_attempts: 0, 
+      account_locked_until: null 
+    }, options);
+  }
 
-    async create(payload) {
-
-        if (payload) {
-
-            const db = await initializeModels();
-
-            return await db.User.create(payload);
-
-        } else {
-            return null;
-        }
-
-    }
-   async updateById(id, payload) {
-
-    if (id && payload) {
-
-        const db = await initializeModels();
-
-        const [affectedRows] = await db.User.update(
-            payload,
-            { where: { id } }
-        );
-
-        if (affectedRows > 0) {
-
-            return await db.User.findByPk(id);
-
-        } else {
-
-            return null;
-        }
-
-    } else {
-        return null;
-    }
-
-}
-
-
-
-
-
+  async lockAccount(userId, lockUntil, options = {}) {
+    return await this.updateById(userId, { account_locked_until: lockUntil }, options);
+  }
 }
 
 export default new UserRepository();

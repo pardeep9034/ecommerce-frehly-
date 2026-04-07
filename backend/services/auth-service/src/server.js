@@ -1,35 +1,52 @@
-// services/auth-service/src/server.js
-// const app = require('./app');
 import app from './app.js';
-// const { initializeModels } = require('./models');
-import  initializeModels  from './models/index.js';
+import initializeModels from './models/index.js';
+import redisManager from './config/redis.js';
+import kafkaManager from './config/kafka.js';
+import logger from './utils/Logger.js';
+import { env } from './config/env.js';
 
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT || 3001;
 
 async function startServer() {
   try {
-    // Initialize database and models
+    // 1. Initialize database and models
     await initializeModels();
-    console.log('✅ Auth Service: Database and models initialized');
+    logger.info('✅ Auth Service: Database and models initialized');
 
-    // Start server
+    // 2. Connect Redis (non-blocking — service works without it)
+    if (env.REDIS_URL) {
+      try {
+        await redisManager.connect();
+      } catch (err) {
+        logger.warn(`⚠️ Redis connection failed, continuing without it: ${err.message}`);
+      }
+    } else {
+      logger.warn('⚠️ REDIS_URL not set — token blacklisting/sessions disabled');
+    }
+
+    // 3. Connect HTTP server
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Auth Service running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+      logger.info(`🚀 Auth Service running on port ${PORT} [${env.NODE_ENV}]`);
     });
 
-    // Graceful shutdown
-    process.on('SIGTERM', () => {
-      console.log('SIGTERM received, shutting down gracefully');
-      server.close(() => {
-        console.log('Process terminated');
+    // 5. Graceful shutdown
+    const shutdown = async (signal) => {
+      logger.info(`${signal} received — shutting down gracefully`);
+      server.close(async () => {
+        await redisManager.disconnect().catch(() => {});
+        await kafkaManager.disconnect().catch(() => {});
+        logger.info('✅ Auth Service shut down cleanly');
         process.exit(0);
       });
-    });
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 
   } catch (error) {
-    console.error('❌ Failed to start Auth Service:', error);
+    logger.error(`❌ Failed to start Auth Service: ${error.message}`);
     process.exit(1);
   }
 }
+
 startServer();
