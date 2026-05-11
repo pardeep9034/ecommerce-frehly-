@@ -49,7 +49,7 @@ export default (sequelize) => {
             }
         },
         {
-            timestamps: true,      // creates createdAt, updatedAt
+            timestamps: true,
             tableName: "refresh_tokens",
             indexes: [
                 {

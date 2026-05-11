@@ -21,6 +21,10 @@ export default [
   {
     route: "/users",
     target: process.env.USER_SERVICE_URL || "http://user-service:3000"
+  },
+  {
+    route: "/cart",
+    target: process.env.CART_SERVICE_URL || "http://cart-service:3005"
   }
 ];
 

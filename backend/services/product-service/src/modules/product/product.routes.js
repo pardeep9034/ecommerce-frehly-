@@ -7,6 +7,8 @@ const router = express.Router();
 router.get("/", ProductController.getAllProducts);
 router.get("/type/:type",ProductController.getProductsByType)
 router.get("/:id", ProductController.getProductById);
+//check product and varient id exist or not
+router.get("/check/:productId/:varientId", ProductController.checkProductAndVarientExists);
 router.post("/", ProductController.createProduct);
 router.put("/:id", ProductController.updateProduct);
 router.delete("/:id", ProductController.deleteProduct);

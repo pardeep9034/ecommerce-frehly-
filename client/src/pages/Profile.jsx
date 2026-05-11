@@ -3,7 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProfile } from '../apis/authApi';
 import { getUserAddresses, deleteAddress, setDefaultAddress } from '../apis/userApi';
 import AddressFormModal from '../components/profile/AddressFormModal';
+import OtpModal from '@/components/common/otpModal';
+import Otp from '@/components/common/otpPage';
+import EnterNewPasswordModal from '@/components/common/EnterNewPasswordModal';
 import useAddress from '@/hooks/use-address';
+import { forgotPassword } from '../apis/authApi';
+
 import { 
   User, 
   MapPin, 
@@ -21,9 +26,12 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../redux/authSlice';
 
+
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('personal');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [showEnterPasswordModal,setShowEnterPasswordModal]=useState(false);
   const [currentAddress, setCurrentAddress] = useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -35,10 +43,24 @@ const Profile = () => {
     queryKey: ["profile"],
     queryFn: async () => {
       const res = await getProfile();
-      return res.data.data;
+      return res;
     },
     enabled: !!token,
   });
+  console.log(profile);
+      const { mutate, isPending } = useMutation({
+          mutationFn: (phone) => forgotPassword(phone),
+          onSuccess: (data) => {
+              setIsOtpModalOpen(true)
+          },
+          onError: (err) => {
+              setErrors((prev) => ({
+                  ...prev,
+                  general:
+                      err?.response?.data?.message || "Invalid credentials",
+              }));
+          },
+      });
 
   // const { data: addresses, isLoading: isAddressesLoading } = useQuery({
   //   queryKey: ["addresses", profile?.id],
@@ -183,7 +205,7 @@ const Profile = () => {
                             <h3 className="text-xl font-black text-slate-900 mb-2">Password & Security</h3>
                             <p className="text-sm text-slate-500 font-bold leading-relaxed">It's a good idea to use a strong password that you don't use elsewhere.</p>
                         </div>
-                        <button className="rounded-2xl bg-white border border-slate-200 px-8 py-4 text-xs font-black text-slate-800 hover:border-[#0f5132] hover:text-[#0f5132] transition-all shadow-sm">
+                        <button onClick={()=>{mutate(profile?.phone)}} className="rounded-2xl bg-white border border-slate-200 px-8 py-4 text-xs font-black text-slate-800 hover:border-[#0f5132] hover:text-[#0f5132] transition-all shadow-sm">
                             Change Password
                         </button>
                     </div>
@@ -264,6 +286,18 @@ const Profile = () => {
         initialData={currentAddress}
         userId={profile?.id}
       />
+      <OtpModal open={isOtpModalOpen} onClose={ ()=>{setIsOtpModalOpen(false) } }>
+        <Otp 
+        onSuccess={()=>{setIsOtpModalOpen(false) ; setShowEnterPasswordModal(true)}}
+        phone={profile.phone}
+        type="FORGOT_PASSWORD"
+        
+        >
+
+        </Otp>
+      </OtpModal>
+       <EnterNewPasswordModal open={showEnterPasswordModal} onClose={() => setShowEnterPasswordModal(false)}  >
+                  </EnterNewPasswordModal>
     </div>
   );
 };

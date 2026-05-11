@@ -145,6 +145,7 @@ const ForgetPassword = () => {
             <OtpModal open={openOtpModal} onClose={() => setOpenOtpModal(false)} phone={formData.phoneNumber} >
                 <Otp
                     phone={formData.phoneNumber}
+                    type="FORGOT_PASSWORD"
                     onSuccess={() => {
                     setOpenOtpModal(false);
                     setShowEnterPasswordModal(true);

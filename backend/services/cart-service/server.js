@@ -17,7 +17,7 @@ async function startServer() {
 
     const server = app.listen(PORT, () => {
 
-      console.log(`🚀 Product Service running on port ${PORT}`);
+      console.log(`🚀 Cart Service running on port ${PORT}`);
       console.log(`📍 Environment: ${process.env.NODE_ENV}`);
 
     });
@@ -40,7 +40,7 @@ async function startServer() {
 
   } catch (error) {
 
-    console.error("❌ Failed to start Product Service:", error);
+    console.error("❌ Failed to start Cart Service:", error);
 
     process.exit(1);
 

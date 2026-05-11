@@ -4,9 +4,9 @@ import ResponseUtil from "../../utils/response.js";
 class otpController{
    async resendOtp(req, res) {
 
-  const { phone } = req.body;
+  const { phone,type } = req.body;
 
-  const result = await otpService.resendOtp(phone);
+  const result = await otpService.resendOtp(phone,type);
 
   if (result.success === true) {
 

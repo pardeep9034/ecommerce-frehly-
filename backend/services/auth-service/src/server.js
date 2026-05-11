@@ -4,6 +4,7 @@ import redisManager from './config/redis.js';
 import kafkaManager from './config/kafka.js';
 import logger from './utils/Logger.js';
 import { env } from './config/env.js';
+import { startOtpConsumer } from './events/consumer.js';
 
 const PORT = env.PORT || 3001;
 
@@ -24,7 +25,15 @@ async function startServer() {
       logger.warn('⚠️ REDIS_URL not set — token blacklisting/sessions disabled');
     }
 
-    // 3. Connect HTTP server
+    // 3. Connect Kafka Consumers
+    try {
+      await startOtpConsumer();
+      logger.info('✅ Auth Service: OTP Consumer started');
+    } catch (err) {
+      logger.error(`❌ Failed to start OTP Consumer: ${err.message}`);
+    }
+
+    // 4. Connect HTTP server
     const server = app.listen(PORT, () => {
       logger.info(`🚀 Auth Service running on port ${PORT} [${env.NODE_ENV}]`);
     });

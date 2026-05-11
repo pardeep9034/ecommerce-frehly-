@@ -35,6 +35,15 @@ const InventoryController = {
       return ResponseUtil.error(res, result.message);
     }
   },
+  async getInventoryByVariantId(req, res) {
+    const { variantId } = req.params;
+    const result = await InventoryServices.getInventoryByVariantId(variantId);
+    if(result.success) {
+      return ResponseUtil.success(res, result.data, result.message);
+    } else {
+      return ResponseUtil.error(res, result.message);
+    }
+  },
 
   async createInventory(req, res) {
     const result = await InventoryServices.createInventory(req.body);

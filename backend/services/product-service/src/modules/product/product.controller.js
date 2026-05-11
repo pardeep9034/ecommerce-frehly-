@@ -3,6 +3,17 @@ import ResponseUtil from "../../utils/response.js";
 const ProductController = {
   // Controller methods would be defined here
 
+  //check product and vrarient exist or not
+  async checkProductAndVarientExists(req,res){
+    const result = await ProductServices.checkProductAndVarientExists(req.params.productId,req.params.varientId);
+    if(result.success) {
+      return ResponseUtil.success(res, result.data, result.message);
+    } else {
+      return ResponseUtil.error(res, result.message);
+    }
+
+  },
+
   async getProductsByType(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;

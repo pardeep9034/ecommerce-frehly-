@@ -70,7 +70,7 @@ const InventoryServices = {
     const inventoryJson = inventory.toJSON();
     inventoryJson.variant = await fetchVariantDetails(inventory.variantId);
 
-    return { success: true, data: inventoryJson };
+    return { success: true, data: inventory };
   },
 
   async getInventoryByProductId(productId, variantId) {

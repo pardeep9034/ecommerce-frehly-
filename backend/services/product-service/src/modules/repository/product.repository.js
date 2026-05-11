@@ -1,6 +1,27 @@
 import { initializeModels } from "../../models/index.js";
 
 class ProductRepository {
+    // check product and varient exist or not
+    
+    async checkProductAndVarientExists(productId,varientId){
+        const db = await initializeModels();
+        return await db.Product.findOne({
+            where: {
+                id:productId,
+                
+            },
+            include:[
+                {
+                    model:db.ProductVariant,
+                    as:"variants",
+                    where:{
+                        id:varientId
+                    },
+                    attributes: ["id", "unitType", "value", "unit", "price", "mrp", "status"]
+                }
+            ]
+        });
+    }
   async getProductsByType(type, limit, offset) {
 
     const db = await initializeModels();

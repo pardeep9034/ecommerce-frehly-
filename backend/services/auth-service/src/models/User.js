@@ -158,7 +158,7 @@ last_login_device: {
     tableName: 'auth_users',
     timestamps: true,
     paranoid: true,
-     deletedAt: 'deleted_at',
+    deletedAt: 'deleted_at',
 
     hooks: {
       beforeCreate: async (user) => {

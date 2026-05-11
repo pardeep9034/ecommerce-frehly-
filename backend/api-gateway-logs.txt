@@ -1,0 +1,9 @@
+
+> api-gateway@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+API Gateway running on port 4000
+POST /auth/signup - 2026-04-10T14:19:29.062Z
+POST /auth/signup - 2026-04-10T14:21:30.988Z

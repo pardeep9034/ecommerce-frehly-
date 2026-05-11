@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/navbar.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -42,6 +42,7 @@ import {
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.items);
@@ -88,6 +89,18 @@ const cartCount = cartItems.length;
 
 
     
+  }, []);
+
+  // Handle click outside for user dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Handle scroll effect
@@ -189,7 +202,7 @@ const cartCount = cartItems.length;
 
           {/* User Profile/Auth */}
           {isAuthenticated ? (
-            <div className="user-menu">
+            <div className="user-menu" ref={dropdownRef}>
               <button className="user-avatar" onClick={toggleUserDropdown}>
                 <img
                   src={user?.avatar}

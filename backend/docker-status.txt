@@ -1,0 +1,9 @@
+CONTAINER ID   IMAGE                             COMMAND                  CREATED          STATUS          PORTS                                         NAMES
+81d6a10141d9   backend-auth-service              "docker-entrypoint.s…"   2 minutes ago    Up 2 minutes    3000/tcp                                      auth-service
+c1b9e0ee095a   backend-api-gateway               "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    0.0.0.0:4000->4000/tcp, [::]:4000->4000/tcp   api-gateway
+0ade53abddf6   backend-inventory-service         "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    3000/tcp                                      inventory-service
+6ceb0153a612   backend-user-service              "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    3000/tcp                                      user-service
+39705ec12764   backend-product-service           "docker-entrypoint.s…"   4 minutes ago    Up 4 minutes    3000/tcp                                      product-service
+e2ca5f676b11   redis:7                           "docker-entrypoint.s…"   47 minutes ago   Up 47 minutes   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   redis
+2f5715690d2d   confluentinc/cp-kafka:7.5.0       "/etc/confluent/dock…"   23 hours ago     Up 7 hours      0.0.0.0:9092->9092/tcp, [::]:9092->9092/tcp   kafka
+86ff620a3eb8   confluentinc/cp-zookeeper:7.5.0   "/etc/confluent/dock…"   23 hours ago     Up 10 hours     0.0.0.0:2181->2181/tcp, [::]:2181->2181/tcp   zookeeper

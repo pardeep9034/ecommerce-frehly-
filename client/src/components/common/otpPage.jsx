@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import "../../styles/otpPage.css";
 import { verifyOtp, resendOtp } from "@/apis/authApi";
 
-const Otp = ({ phone, onSuccess, onBack }) => {
+const Otp = ({ phone, onSuccess, onBack,type }) => {
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isValid, setIsValid] = useState(true);
@@ -92,7 +92,7 @@ const Otp = ({ phone, onSuccess, onBack }) => {
 
     setLoading(true);
 
-    const response = await verifyOtp({phone, otp:otpString}).catch((err) => err);
+    const response = await verifyOtp({phone, otp:otpString,type}).catch((err) => err);
 
     if (response?.data) {
       onSuccess(response.data);
@@ -114,7 +114,7 @@ const Otp = ({ phone, onSuccess, onBack }) => {
     setResending(true);
     setCanResend(false);
 
-    const response = await resendOtp(phone).catch((err) => err);
+    const response = await resendOtp(phone,type).catch((err) => err);
 
     if (response?.data) {
       setTimer(60);

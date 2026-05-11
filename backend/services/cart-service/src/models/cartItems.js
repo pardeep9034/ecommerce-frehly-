@@ -34,6 +34,16 @@ export default (sequelize) => {
       priceSnapshot: {
         type: DataTypes.FLOAT,
         allowNull: false
+      },
+
+      productNameSnapshot: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+
+      variantNameSnapshot: {
+        type: DataTypes.STRING,
+        allowNull: true
       }
     },
     {

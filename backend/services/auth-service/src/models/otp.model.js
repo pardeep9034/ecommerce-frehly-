@@ -19,7 +19,7 @@ export default (sequelize) => {
     },
 
     type: {
-      type: DataTypes.ENUM('SIGNUP', 'RESET'),
+      type: DataTypes.ENUM('SIGNUP', 'EMAIL_VERIFY', 'FORGOT_PASSWORD'),
       allowNull: false
     },
 
@@ -46,14 +46,30 @@ export default (sequelize) => {
     used_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
     }
 
   }, {
     tableName: 'auth_otps',
     timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+
     indexes: [
       { fields: ['user_id'] },
-      { fields: ['expires_at'] }
+      { fields: ['expires_at'] },
+      { fields: ['user_id', 'type'] }
     ]
   });
 

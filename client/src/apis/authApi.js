@@ -42,16 +42,16 @@ export const registerUser = async (userData) => {
 export const getProfile = async () => {
   try {
     const response = await api.get("/auth/profile");
-    return response.data;
+    return response.data.data;
   } catch (error) {
     console.error("Profile retrieval error:", error);
     throw error;
   }
 };
 
-export const resendOtp = async (phone) => {
+export const resendOtp = async (phone,type) => {
   try {
-    const response = await api.post("/auth/otp/resend", { phone });
+    const response = await api.post("/auth/otp/resend", { phone,type });
     return response.data;
   } catch (error) {
     console.error("Resend OTP error:", error);

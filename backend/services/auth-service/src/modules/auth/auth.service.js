@@ -10,6 +10,8 @@ import logger from "../../utils/Logger.js";
 import AppError from "../../utils/AppError.js";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
+import { emitEvent, TOPICS } from "../../events/producer.js";
+import redisManager from "../../config/redis.js";
 
 class AuthService {
 
@@ -20,13 +22,72 @@ class AuthService {
     if (!phone) throw new AppError("Phone number is required", 400);
 
     const existingUser = await UserRepository.findByPhone(phone);
-    if (existingUser) throw new AppError("User already exists with this phone number", 409);
+     const otpPayload = OtpService.createOtp();
+   if (existingUser) {
+  if (existingUser.phone_verified) {
+    throw new AppError("User already exists with this phone number", 409);
+  } else {
+
+    // 🔹 Rate limit
+    const lastOtp = await OtpRepository.findLatestOtp(existingUser.id, "SIGNUP");
+
+    if (lastOtp && (new Date() - new Date(lastOtp.created_at)) < 30000) {
+      throw new AppError("Please wait before requesting another OTP", 429);
+    }
+
+    // 🔹 Invalidate old OTPs
+    await OtpRepository.revokePendingOtps(existingUser.id, "SIGNUP");
+    try {
+      const redisClient = redisManager.getClient();
+      await redisClient.del(`otp:${existingUser.id}`);
+    } catch (err) { logger.warn(`Redis DEL error: ${err.message}`); }
+
+    // 🔹 Create new OTP
+    await OtpRepository.create({
+      user_id: existingUser.id,
+      code_hash: otpPayload.hash,
+      type: "SIGNUP",
+      channel: "SMS",
+      sent_to: phone,
+      expires_at: otpPayload.expiry,
+    });
+    
+    try {
+      const redisClient = redisManager.getClient();
+      await redisClient.set(`otp:${existingUser.id}`, JSON.stringify({
+        code_hash: otpPayload.hash,
+        type: "SIGNUP",
+        sent_to: phone,
+        expires_at: otpPayload.expiry,
+      }), "EX", 300);
+      logger.info(`✅ Redis SET success: signup_resend:${existingUser.id}`);
+    } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
+
+    // 🔹 Emit Kafka event (IMPORTANT)
+    emitEvent(TOPICS.OTP_REQUESTED, {
+      userId: existingUser.id,
+      phone,
+      type: "SIGNUP",
+      otp: otpPayload.otp,
+    }, existingUser.id.toString());
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "OTP resent successfully.",
+      data: {
+        user_id: existingUser.id,
+        otp: env.NODE_ENV === "development" ? otpPayload.otp : undefined,
+      },
+    };
+  }
+}
 
     const db = await initializeModels();
     const transaction = await db.sequelize.transaction();
 
     try {
-      const otpPayload = OtpService.createOtp();
+     
 
       const user = await UserRepository.create({
         phone,
@@ -50,12 +111,29 @@ class AuthService {
       await transaction.commit();
 
       // Emit Kafka event (non-blocking)
-      kafkaManager.sendEvent("auth.events", {
-        type: "USER_SIGNUP_INITIATED",
+      await emitEvent(TOPICS.OTP_REQUESTED, {
         userId: user.id,
         phone,
-        timestamp: new Date().toISOString(),
-      }).catch(err => logger.error(`Kafka error: ${err.message}`));
+        type: "SIGNUP",
+        otp: otpPayload.otp,
+      }, user.id.toString());
+
+      try {
+        const redisClient = redisManager.getClient();
+        await redisClient.set(`otp:${user.id}`, JSON.stringify({
+          code_hash: otpPayload.hash,
+          type: "SIGNUP",
+          sent_to: phone,
+          expires_at: otpPayload.expiry,
+        }), "EX", 300);
+        logger.info(`✅ Redis SET success: signup_initial:${user.id}`);
+      } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
+      // kafkaManager.sendEvent("auth.events", {
+      //   type: "USER_SIGNUP_INITIATED",
+      //   userId: user.id,
+      //   phone,
+      //   timestamp: new Date().toISOString(),
+      // }).catch(err => logger.error(`Kafka error: ${err.message}`));
 
       logger.info(`✅ Signup initiated for user ${user.id}`);
 
@@ -78,21 +156,40 @@ class AuthService {
   /* ================= VERIFY OTP ================= */
 
   async verify(data) {
-    const { phone, otp } = data;
+    const { phone, otp, type } = data;
     if (!phone || !otp) throw new AppError("Phone and OTP are required", 400);
 
     const user = await UserRepository.findByPhone(phone);
     if (!user) throw new AppError("User not found", 404);
 
-    if (!user.otp_type) throw new AppError("No OTP request found", 400);
+    const requestedType = type || (user.otp_type === "signup" ? "SIGNUP" : "FORGOT_PASSWORD");
+    const otpRecord = await OtpRepository.findLatestOtp(user.id, requestedType);
 
-    if (!user.otp_expiry || new Date(user.otp_expiry) < new Date()) {
-      throw new AppError("OTP has expired", 400);
+    if(!otpRecord) throw new AppError("No OTP request found", 400);
+
+    if(otpRecord.used_at){
+      throw new AppError("OTP has already been used", 400);
     }
 
-    const isValid = OtpService.compareOtp(otp, user.otp_hash);
+    if (!otpRecord.expires_at || new Date(otpRecord.expires_at) < new Date()) {
+      throw new AppError("OTP has expired", 400);
+    }
+  
+    const isValid = OtpService.compareOtp(otp, otpRecord.code_hash);
+    
+    try {
+      const redisClient = redisManager.getClient();
+      const redisTest = await redisClient.get(`otp:${user.id}`);
+      if (redisTest) {
+        logger.info(`✅ Redis Hit! OTP found for user ${user.id}`);
+      } else {
+        logger.warn(`⚠️ Redis Miss! OTP not found for user ${user.id}`);
+      }
+    } catch (err) {
+      logger.warn(`Redis GET error: ${err.message}`);
+    }
     if (!isValid) {
-      await user.increment("otp_attempts");
+      await OtpRepository.incrementAttempts(otpRecord.id);
       throw new AppError("Invalid OTP", 400);
     }
 
@@ -108,10 +205,9 @@ class AuthService {
       }, { transaction });
 
       // Mark OTP record as used
-      const otpRecord = await OtpRepository.findLatestOtp(user.id, "SIGNUP");
       if (otpRecord) await OtpRepository.markUsed(otpRecord.id, { transaction });
-
-      if (user.otp_type === "signup") {
+     
+      if (requestedType === "SIGNUP") {
         await user.update({
           phone_verified: true,
           otp_type: null,
@@ -154,7 +250,7 @@ class AuthService {
         };
       }
 
-      if (user.otp_type === "forgot_password") {
+      if (user.otp_type === "forgot_password" || requestedType === "FORGOT_PASSWORD") {
         const resetToken = jwt.sign(
           { user_id: user.id, purpose: "reset_password" },
           env.JWT_SECRET,
@@ -191,15 +287,11 @@ class AuthService {
     const existingUser = await UserRepository.findByPhone(phone);
     if (!existingUser) throw new AppError("User not found", 404);
 
-    if (!first_name && !last_name && !email && !password) {
+    if (!first_name && !email && !password) {
       throw new AppError("No data provided to update", 400);
     }
 
-    const updateData = {};
-    if (first_name) updateData.first_name = first_name;
-    if (last_name) updateData.last_name = last_name;
-    if (email) updateData.email = email;
-    if (password) updateData.password = password;
+
 
     if (first_name) existingUser.first_name = first_name;
     if (last_name) existingUser.last_name = last_name;
@@ -307,20 +399,26 @@ class AuthService {
 
       await transaction.commit();
 
-      // Cache session in Redis
-      await TokenService.cacheUserSession(user.id, accessToken);
+      // Post-commit side effects — failures here must NOT rollback (tx already committed)
+      try {
+        await TokenService.cacheUserSession(user.id, accessToken);
+      } catch (redisErr) {
+        logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
+      }
 
-      // Audit log
-      await AuditRepository.logEvent({
-        user_id: user.id,
-        event_type: "LOGIN_SUCCESS",
-        phone,
-        device_id: deviceId,
-        user_agent: userAgent,
-        status: "SUCCESS",
-      });
+      try {
+        await AuditRepository.logEvent({
+          user_id: user.id,
+          event_type: "LOGIN_SUCCESS",
+          phone,
+          device_id: deviceId,
+          user_agent: userAgent,
+          status: "SUCCESS",
+        });
+      } catch (auditErr) {
+        logger.warn(`⚠️ Audit log failed: ${auditErr.message}`);
+      }
 
-      // Kafka event
       kafkaManager.sendEvent("auth.events", {
         type: "USER_LOGIN",
         userId: user.id,
@@ -413,8 +511,12 @@ class AuthService {
 
       await transaction.commit();
 
-      // Update Redis session
-      await TokenService.cacheUserSession(user.id, newAccessToken);
+      // Post-commit side effects
+      try {
+        await TokenService.cacheUserSession(user.id, newAccessToken);
+      } catch (redisErr) {
+        logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
+      }
 
       logger.info(`✅ Tokens rotated for user ${user.id}`);
 
@@ -480,6 +582,33 @@ class AuthService {
         otp_send_count: (user.otp_send_count || 0) + 1,
         last_otp_sent_at: new Date(),
       });
+      await OtpRepository.create({
+        user_id: user.id,
+        type: "FORGOT_PASSWORD",
+        channel:"SMS",
+        sent_to:phone,
+        code_hash: otpPayload.hash,
+        expires_at: otpPayload.expiry,
+      })
+      
+      try {
+        const redisClient = redisManager.getClient();
+        await redisClient.set(`otp:${user.id}`, JSON.stringify({
+          code_hash: otpPayload.hash,
+          type: "FORGOT_PASSWORD",
+          sent_to: phone,
+          expires_at: otpPayload.expiry,
+        }), "EX", 300);
+        logger.info(`✅ Redis SET success: forgot_password:${user.id}`);
+      } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
+
+
+      emitEvent(TOPICS.OTP_REQUESTED, {
+        userId: user.id,
+        phone,
+        type: "FORGOT_PASSWORD",
+        otp: otpPayload.otp,
+      }, user.id.toString());
 
       await AuditRepository.logEvent({
         user_id: user.id,
@@ -539,14 +668,22 @@ class AuthService {
 
       await transaction.commit();
 
-      // Invalidate Redis session
-      await TokenService.invalidateUserSession(user.id);
+      // Post-commit side effects
+      try {
+        await TokenService.invalidateUserSession(user.id);
+      } catch (redisErr) {
+        logger.warn(`⚠️ Redis invalidation skipped: ${redisErr.message}`);
+      }
 
-      await AuditRepository.logEvent({
-        user_id: user.id,
-        event_type: "PASSWORD_RESET_SUCCESS",
-        status: "SUCCESS",
-      });
+      try {
+        await AuditRepository.logEvent({
+          user_id: user.id,
+          event_type: "PASSWORD_RESET_SUCCESS",
+          status: "SUCCESS",
+        });
+      } catch (auditErr) {
+        logger.warn(`⚠️ Audit log failed: ${auditErr.message}`);
+      }
 
       kafkaManager.sendEvent("auth.events", {
         type: "PASSWORD_RESET",

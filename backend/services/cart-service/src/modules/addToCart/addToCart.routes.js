@@ -1,9 +1,10 @@
 import express from "express";
 import addToCartController from "./addToCart.controller.js";
-import { authenticateToken } from "../../../../auth-service/src/middleware/auth.js";
+import authenticate from "../../middleware/authenticate.js";
+
 const router=express.Router();
 
 
-router.post("/add",addToCartController.addToCart);
+router.post("/add",authenticate,addToCartController.addToCart);
 
 export default router;

@@ -73,6 +73,7 @@ export default (sequelize) => {
   }, {
     tableName: 'auth_audit_logs',
     timestamps: true,
+    createdAt: 'created_at',
     updatedAt: false, // Audit logs are immutable
     indexes: [
       { fields: ['user_id'] },

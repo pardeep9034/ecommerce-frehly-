@@ -1,5 +1,27 @@
 import ProductRepository from "../repository/product.repository.js";
 const ProductServices = {
+
+    // check product and varient exist or not in product table
+    async checkProductAndVarientExists(productId,varientId){
+        if(!productId || !varientId){
+            return {
+                success: false,
+                statusCode: 500,
+                message: "product or varient id missing",
+              };
+        }
+        const product = await new ProductRepository().checkProductAndVarientExists(productId,varientId);
+        if(!product){
+            return {
+                success: false,
+                message: "product or varient not exist",
+              };
+        }
+        return {
+            success: true,
+            data: product,
+        };
+    },
     async getProductsByType(type,limit,offset) {
         const { count, rows } = await new ProductRepository().getProductsByType(type,limit,offset);
         const currentPage = Math.floor(offset / limit) + 1;

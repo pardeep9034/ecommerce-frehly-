@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import addToCartRoutes from "./src/modules/addToCart/addToCart.routes.js";
 
 dotenv.config();
 
@@ -20,6 +21,9 @@ app.use(express.urlencoded({extended:true}));
 
 app.use((req,res,next)=>{
     console.log("Incoming request:",req.method,req.originalUrl);
+    if (req.body && Object.keys(req.body).length > 0) {
+        console.log("Body:", JSON.stringify(req.body, null, 2));
+    }
     next();
 })
 
@@ -34,6 +38,8 @@ if(process.env.NODE_ENV === "development"){
 
 // ROUTES
 
+app.use("/",addToCartRoutes);
+
 
 
 // HEALTH CHECK
@@ -46,3 +52,4 @@ app.get("/",(req,res)=>{
     })
 })
 
+export default app;

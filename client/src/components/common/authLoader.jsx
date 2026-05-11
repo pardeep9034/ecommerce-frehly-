@@ -14,8 +14,8 @@ const AuthLoader = ({ children }) => {
 
       try {
         const res = await getProfile();
-        dispatch(setUser(res.data.data)); // 🔥 restore user
-        console.log("user",res.data.data)
+        dispatch(setUser(res)); // 🔥 restore user
+        console.log("user",res)
 
       } catch (err) {
         console.log("Auth failed", err);

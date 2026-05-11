@@ -16,6 +16,7 @@ class KafkaManager {
 
     this.producer = null;
     this._connecting = false;
+    this.consumer = null;
   }
 
   async connectProducer() {
@@ -39,7 +40,7 @@ class KafkaManager {
     }
   }
 
-  async sendEvent(topic, message) {
+  async sendEvent(topic, message, key) {
     // Lazy connect on first use
     if (!this.producer) {
       await this.connectProducer();
@@ -54,12 +55,28 @@ class KafkaManager {
       await this.producer.send({
         topic,
         messages: [{ value: JSON.stringify(message) }],
+        key,
       });
       console.log(`📡 Event sent to topic: ${topic}`);
     } catch (error) {
       console.warn(`⚠️ Kafka send failed [${topic}]: ${error.message}`);
     }
   }
+  async connectConsumer(groupId = "auth-group") {
+  if (this.consumer) return this.consumer;
+
+  this.consumer = this.kafka.consumer({ groupId });
+
+  try {
+    await this.consumer.connect();
+    console.log("✅ Kafka Consumer Connected");
+    return this.consumer;
+  } catch (err) {
+    console.warn(`⚠️ Kafka consumer error: ${err.message}`);
+    this.consumer = null;
+    return null;
+  }
+}
 
   async disconnect() {
     if (this.producer) {
