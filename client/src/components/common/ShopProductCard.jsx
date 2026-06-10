@@ -3,6 +3,8 @@ import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@/redux/cartSlice";
+import { useAddToCartMutation } from "@/hooks/use-addToCart";
+
 
 const ShopProductCard = ({ product, viewMode = "grid" }) => {
   console.log("product",product)
@@ -27,6 +29,7 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
   const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
 
   const isList = viewMode === "list";
+  const addToCartMutation = useAddToCartMutation();
 
 const handleAddToCart = () => {
   dispatch(
@@ -40,6 +43,13 @@ const handleAddToCart = () => {
       priceSnapshot: currentPrice
     })
   );
+
+addToCartMutation.mutate({
+  productId: product.id,
+  variantId: selectedVariant.id,
+  quantity:1
+})
+    
 };
     
   
