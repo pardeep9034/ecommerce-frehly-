@@ -9,6 +9,7 @@ import errorHandler from "./src/middleware/errorHandler.js";
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 4000;
 
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || "*",
@@ -33,6 +34,6 @@ app.get("/", (req, res) => {
 
 app.use(errorHandler);
 
-app.listen(4000, () => {
-  console.log("API Gateway running on port 4000");
+app.listen(PORT, () => {
+  console.log(`API Gateway running on port ${PORT}`);
 });
