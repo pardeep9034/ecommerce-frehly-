@@ -43,7 +43,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/', authRoutes);
+app.use('/auth', authRoutes);
 app.use("/otp",optRoutes)
 
 // Root health check

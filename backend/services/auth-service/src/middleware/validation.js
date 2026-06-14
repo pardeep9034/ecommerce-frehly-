@@ -16,8 +16,8 @@ const schemas = {
     .pattern(/^[0-9]{10}$/)
     .required(),
     first_name: Joi.string().min(2).max(50).required(),
-    last_name: Joi.string().min(2).max(50).required(),
-    email: Joi.string().email().required(),
+    last_name: Joi.string().min(2).max(50),
+    email: Joi.string().email(),
     password: Joi.string().min(6).max(100).required(),
 
   }),

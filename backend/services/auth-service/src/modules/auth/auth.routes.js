@@ -1,19 +1,18 @@
-// services/auth-service/src/routes/auth.js
-// const express = require('express');
+
 import express from 'express';
-// const AuthController = require('../controllers/authController');
+
 import AuthController from './auth.controller.js';
 import otpController from '../otp/otp.controller.js';
-// const { validate } = require('../middleware/validation');
+
 import { validate } from '../../middleware/validation.js';
-// const { authenticateToken } = require('../middleware/auth');
+
 import { authenticateToken } from '../../middleware/auth.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 
 const router = express.Router();
 
 // Public routes
-router.post("/signup", asyncHandler(AuthController.signup));
+router.post("/signup", validate('signUp'), asyncHandler(AuthController.signup));
 router.post("/signup/verify", asyncHandler(AuthController.verify));
 router.post('/register', authenticateToken, validate('register'), asyncHandler(AuthController.register));
 router.post('/login', validate('login'), asyncHandler(AuthController.login));

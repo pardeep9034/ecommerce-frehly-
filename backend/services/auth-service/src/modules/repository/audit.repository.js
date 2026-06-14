@@ -2,7 +2,7 @@ import BaseRepository from "./BaseRepository.js";
 
 class AuditRepository extends BaseRepository {
   constructor() {
-    super('AuditLog');
+    super('AuthAuditLog');
   }
 
   async logEvent(data, options = {}) {

@@ -19,123 +19,172 @@ class AuthService {
 
   async signup(data) {
     const { phone } = data;
-    if (!phone) throw new AppError("Phone number is required", 400);
 
-    const existingUser = await UserRepository.findByPhone(phone);
-     const otpPayload = OtpService.createOtp();
-   if (existingUser) {
-  if (existingUser.phone_verified) {
-    throw new AppError("User already exists with this phone number", 409);
-  } else {
-
-    // 🔹 Rate limit
-    const lastOtp = await OtpRepository.findLatestOtp(existingUser.id, "SIGNUP");
-
-    if (lastOtp && (new Date() - new Date(lastOtp.created_at)) < 30000) {
-      throw new AppError("Please wait before requesting another OTP", 429);
+    if (!phone) {
+      throw new AppError("Phone number is required", 400);
     }
 
-    // 🔹 Invalidate old OTPs
-    await OtpRepository.revokePendingOtps(existingUser.id, "SIGNUP");
-    try {
-      const redisClient = redisManager.getClient();
-      await redisClient.del(`otp:${existingUser.id}`);
-    } catch (err) { logger.warn(`Redis DEL error: ${err.message}`); }
+    const existingUser = await UserRepository.findByPhone(phone);
+    const otpPayload = OtpService.createOtp();
 
-    // 🔹 Create new OTP
-    await OtpRepository.create({
-      user_id: existingUser.id,
-      code_hash: otpPayload.hash,
-      type: "SIGNUP",
-      channel: "SMS",
-      sent_to: phone,
-      expires_at: otpPayload.expiry,
-    });
-    
-    try {
-      const redisClient = redisManager.getClient();
-      await redisClient.set(`otp:${existingUser.id}`, JSON.stringify({
-        code_hash: otpPayload.hash,
-        type: "SIGNUP",
-        sent_to: phone,
-        expires_at: otpPayload.expiry,
-      }), "EX", 300);
-      logger.info(`✅ Redis SET success: signup_resend:${existingUser.id}`);
-    } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
+    if (existingUser) {
+      if (existingUser.phone_verified) {
+        throw new AppError(
+          "User already exists with this phone number",
+          409
+        );
+      }
 
-    // 🔹 Emit Kafka event (IMPORTANT)
-    emitEvent(TOPICS.OTP_REQUESTED, {
-      userId: existingUser.id,
-      phone,
-      type: "SIGNUP",
-      otp: otpPayload.otp,
-    }, existingUser.id.toString());
+      const lastOtp = await OtpRepository.findLatestOtp(
+        existingUser.id,
+        "SIGNUP"
+      );
+      
+      if (
+        lastOtp &&
+        (new Date() - new Date(lastOtp.created_at)) < 30000
+      ) {
+        throw new AppError(
+          "Please wait before requesting another OTP",
+          429
+        );
+      }
 
-    return {
-      success: true,
-      statusCode: 200,
-      message: "OTP resent successfully.",
-      data: {
-        user_id: existingUser.id,
-        otp: env.NODE_ENV === "development" ? otpPayload.otp : undefined,
-      },
-    };
-  }
-}
+      await OtpRepository.revokePendingOtps(
+        existingUser.id,
+        "SIGNUP"
+      );
 
-    const db = await initializeModels();
-    const transaction = await db.sequelize.transaction();
-
-    try {
-     
-
-      const user = await UserRepository.create({
-        phone,
-        otp_hash: otpPayload.hash,
-        otp_type: "signup",
-        otp_expiry: otpPayload.expiry,
-        otp_send_count: 1,
-        last_otp_sent_at: new Date(),
-      }, { transaction });
-
-      // Also create in new OTP table for future use
       await OtpRepository.create({
-        user_id: user.id,
+        user_id: existingUser.id,
         code_hash: otpPayload.hash,
         type: "SIGNUP",
         channel: "SMS",
         sent_to: phone,
-        expires_at: otpPayload.expiry,
-      }, { transaction });
-
-      await transaction.commit();
-
-      // Emit Kafka event (non-blocking)
-      await emitEvent(TOPICS.OTP_REQUESTED, {
-        userId: user.id,
-        phone,
-        type: "SIGNUP",
-        otp: otpPayload.otp,
-      }, user.id.toString());
+        expires_at: otpPayload.expiry
+      });
 
       try {
         const redisClient = redisManager.getClient();
-        await redisClient.set(`otp:${user.id}`, JSON.stringify({
+
+        if (redisClient.isReady) {
+          await redisClient.set(
+            `otp:${existingUser.id}`,
+            JSON.stringify({
+              code_hash: otpPayload.hash,
+              type: "SIGNUP",
+              sent_to: phone,
+              expires_at: otpPayload.expiry
+            }),
+            "EX",
+            300
+          );
+        }
+        else {
+          logger.warn("Redis unavailable. Using DB only.");
+
+        }
+
+      } catch (error) {
+        console.log(error);
+      }
+
+      try {
+
+        await emitEvent(
+          TOPICS.OTP_REQUESTED,
+          {
+            userId: existingUser.id,
+            phone,
+            type: "SIGNUP",
+            otp: otpPayload.otp
+          },
+          existingUser.id.toString()
+        );
+
+      } catch (error) {
+        console.log(error);
+      }
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "OTP resent successfully.",
+        data: {
+          user_id: existingUser.id,
+          otp: env.NODE_ENV === "development" ? otpPayload.otp : null,
+          expires_at: env.NODE_ENV === "development" ? otpPayload.expiry : null
+        }
+      };
+    }
+
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+    try {
+
+      const user = await UserRepository.create(
+        {
+          phone
+        },
+        {
+          transaction
+        }
+      );
+
+      await OtpRepository.create(
+        {
+          user_id: user.id,
           code_hash: otpPayload.hash,
           type: "SIGNUP",
+          channel: "SMS",
           sent_to: phone,
-          expires_at: otpPayload.expiry,
-        }), "EX", 300);
-        logger.info(`✅ Redis SET success: signup_initial:${user.id}`);
-      } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
-      // kafkaManager.sendEvent("auth.events", {
-      //   type: "USER_SIGNUP_INITIATED",
-      //   userId: user.id,
-      //   phone,
-      //   timestamp: new Date().toISOString(),
-      // }).catch(err => logger.error(`Kafka error: ${err.message}`));
+          expires_at: otpPayload.expiry
+        },
+        {
+          transaction
+        }
+      );
 
-      logger.info(`✅ Signup initiated for user ${user.id}`);
+      await transaction.commit();
+
+      try {
+        await emitEvent(
+          TOPICS.OTP_REQUESTED,
+          {
+            userId: user.id,
+            phone,
+            type: "SIGNUP",
+            otp: otpPayload.otp
+          },
+          user.id.toString()
+        );
+
+      } catch (error) {
+        console.log(error);
+      }
+
+      try {
+        const redisClient = redisManager.getClient();
+        if (redisClient.isReady) {
+          await redisClient.set(
+            `otp:${user.id}`,
+            JSON.stringify({
+              code_hash: otpPayload.hash,
+              type: "SIGNUP",
+              sent_to: phone,
+              expires_at: otpPayload.expiry
+            }),
+            "EX",
+            300
+          );
+        }
+        else {
+          logger.warn("Redis unavailable. Using DB only.");
+        }
+
+      } catch (error) {
+        console.log(error);
+      }
 
       return {
         success: true,
@@ -143,15 +192,17 @@ class AuthService {
         message: "Signup successful. OTP sent.",
         data: {
           user_id: user.id,
-          otp: env.NODE_ENV === "development" ? otpPayload.otp : undefined,
-        },
+          otp: env.NODE_ENV === "development" ? otpPayload.otp : null,
+          expires_at: env.NODE_ENV === "development" ? otpPayload.expiry : null
+        }
       };
+
     } catch (error) {
       await transaction.rollback();
-      logger.error(`❌ Signup error: ${error.message}`);
       throw error;
     }
   }
+
 
   /* ================= VERIFY OTP ================= */
 
@@ -165,26 +216,32 @@ class AuthService {
     const requestedType = type || (user.otp_type === "signup" ? "SIGNUP" : "FORGOT_PASSWORD");
     const otpRecord = await OtpRepository.findLatestOtp(user.id, requestedType);
 
-    if(!otpRecord) throw new AppError("No OTP request found", 400);
+    if (!otpRecord) throw new AppError("No OTP request found", 400);
 
-    if(otpRecord.used_at){
+    if (otpRecord.used_at) {
       throw new AppError("OTP has already been used", 400);
     }
 
     if (!otpRecord.expires_at || new Date(otpRecord.expires_at) < new Date()) {
+      await OtpRepository.revokePendingOtps(user.id, requestedType);
       throw new AppError("OTP has expired", 400);
     }
-  
+
     const isValid = OtpService.compareOtp(otp, otpRecord.code_hash);
-    
+
     try {
       const redisClient = redisManager.getClient();
-      const redisTest = await redisClient.get(`otp:${user.id}`);
+     if(redisClient.isReady){
+       const redisTest = await redisClient.get(`otp:${user.id}`);
       if (redisTest) {
         logger.info(`✅ Redis Hit! OTP found for user ${user.id}`);
       } else {
         logger.warn(`⚠️ Redis Miss! OTP not found for user ${user.id}`);
       }
+     }
+     else{
+      logger.warn("Redis unavailable. Using DB only.");
+     }
     } catch (err) {
       logger.warn(`Redis GET error: ${err.message}`);
     }
@@ -197,38 +254,39 @@ class AuthService {
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Clear OTP from user table
-      await user.update({
-        otp_hash: null,
-        otp_expiry: null,
-        otp_attempts: 0,
-      }, { transaction });
-
       // Mark OTP record as used
       if (otpRecord) await OtpRepository.markUsed(otpRecord.id, { transaction });
-     
+
       if (requestedType === "SIGNUP") {
+        
         await user.update({
           phone_verified: true,
-          otp_type: null,
-          otp_send_count: 0,
         }, { transaction });
 
-        const accessToken = TokenService.generateAccessToken({
-          user_id: user.id,
-          phone: user.phone,
-          role: user.role,
-        });
+        // const accessToken = TokenService.generateAccessToken({
+        //   user_id: user.id,
+        //   phone: user.phone,
+        //   role: user.role,
+        // });
 
-        const rawRefresh = TokenService.generateRefreshToken();
-        const familyId = TokenService.generateFamilyId();
+        // const rawRefresh = TokenService.generateRefreshToken();
+        // const familyId = TokenService.generateFamilyId();
 
-        await RefreshTokenRepository.create({
-          user_id: user.id,
-          token_hash: TokenService.hashRefreshToken(rawRefresh),
-          expires_at: TokenService.getRefreshTokenExpiry(),
-          family_id: familyId,
-        }, { transaction });
+        // await RefreshTokenRepository.create({
+        //   user_id: user.id,
+        //   token_hash: TokenService.hashRefreshToken(rawRefresh),
+        //   expires_at: TokenService.getRefreshTokenExpiry(),
+        //   family_id: familyId,
+        // }, { transaction });
+        const onBoardToken=jwt.sign(
+          {
+            user_id: user.id,
+            phone: user.phone,
+            role: user.role,
+          },
+          env.JWT_SECRET,
+          { expiresIn: "10m" }
+        );
 
         await transaction.commit();
 
@@ -246,7 +304,7 @@ class AuthService {
           success: true,
           statusCode: 200,
           message: "OTP verified successfully",
-          data: { accessToken, refreshToken: rawRefresh },
+          data: { onBoardToken },
         };
       }
 
@@ -280,14 +338,14 @@ class AuthService {
 
   /* ================= COMPLETE REGISTRATION ================= */
 
-  async register(userData) {
+  async register(req,userData) {
     const { phone, first_name, last_name, email, password } = userData;
     if (!phone) throw new AppError("Phone number is required", 400);
 
     const existingUser = await UserRepository.findByPhone(phone);
     if (!existingUser) throw new AppError("User not found", 404);
 
-    if (!first_name && !email && !password) {
+    if (!first_name && !password) {
       throw new AppError("No data provided to update", 400);
     }
 
@@ -296,9 +354,39 @@ class AuthService {
     if (first_name) existingUser.first_name = first_name;
     if (last_name) existingUser.last_name = last_name;
     if (email) existingUser.email = email;
-    if (password) existingUser.password = password;
+    if (password) existingUser.password_hash = password;
+    existingUser.profile_complete = true;
+ 
+  const db=await initializeModels();
+  const transaction=db.sequelize.transaction()
+   
+     const savedUser = await existingUser.save(transaction);
 
-    const savedUser = await existingUser.save();
+    
+        const accessToken = TokenService.generateAccessToken({
+          user_id: existingUser.user.id,
+          phone: existingUser.user.phone,
+          role: existingUser.user.role,
+        });
+
+        const rawRefresh = TokenService.generateRefreshToken();
+        const familyId = TokenService.generateFamilyId();
+        const userAgent=req.headers["user_agent"]
+        const ipAddress = req.ip ||req.socket.remoteAddress;
+
+        await RefreshTokenRepository.create({
+          user_id: existingUser.user.id,
+          user_agent:userAgent,
+          ip_address:ipAddress,
+          token_hash: TokenService.hashRefreshToken(rawRefresh),
+          expires_at: TokenService.getRefreshTokenExpiry(),
+           family_id: familyId,
+         }, { transaction });
+
+         await transaction.commit();
+        
+         
+         
 
     logger.info(`✅ User ${existingUser.id} profile completed`);
 
@@ -307,6 +395,7 @@ class AuthService {
       statusCode: 200,
       message: "Profile completed successfully",
       user: savedUser,
+      data:{accessToken,refreshToken:rawRefresh}
     };
   }
 
@@ -585,12 +674,12 @@ class AuthService {
       await OtpRepository.create({
         user_id: user.id,
         type: "FORGOT_PASSWORD",
-        channel:"SMS",
-        sent_to:phone,
+        channel: "SMS",
+        sent_to: phone,
         code_hash: otpPayload.hash,
         expires_at: otpPayload.expiry,
       })
-      
+
       try {
         const redisClient = redisManager.getClient();
         await redisClient.set(`otp:${user.id}`, JSON.stringify({

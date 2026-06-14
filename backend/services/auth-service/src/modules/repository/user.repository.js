@@ -3,7 +3,7 @@ import { Op } from "sequelize";
 
 class UserRepository extends BaseRepository {
   constructor() {
-    super('User');
+    super('AuthUser');
   }
 
   async findByPhone(phone, options = {}) {

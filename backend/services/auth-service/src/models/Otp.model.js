@@ -1,77 +1,95 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes } from "sequelize";
 
 export default (sequelize) => {
-  const OTP = sequelize.define('auth_otp', {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
+    const AuthOtp = sequelize.define(
+        "auth_otp",
+        {
+            id: {
+                type: DataTypes.BIGINT,
+                primaryKey: true,
+                autoIncrement: true
+            },
 
-    user_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
+            user_id: {
+                type: DataTypes.BIGINT,
+                allowNull: true
+            },
 
-    code_hash: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
+            code_hash: {
+                type: DataTypes.TEXT,
+                allowNull: false
+            },
 
-    type: {
-      type: DataTypes.ENUM('SIGNUP', 'EMAIL_VERIFY', 'FORGOT_PASSWORD'),
-      allowNull: false
-    },
+            type: {
+                type: DataTypes.ENUM(
+                    "SIGNUP",
+                    "EMAIL_VERIFY",
+                    "FORGOT_PASSWORD"
+                ),
+                allowNull: false
+            },
 
-    channel: {
-      type: DataTypes.ENUM('SMS', 'EMAIL'),
-      allowNull: false
-    },
+            channel: {
+                type: DataTypes.ENUM(
+                    "SMS",
+                    "EMAIL"
+                ),
+                allowNull: false
+            },
 
-    sent_to: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
+            sent_to: {
+                type: DataTypes.STRING,
+                allowNull: false
+            },
 
-    attempt_count: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0
-    },
+            attempt_count: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                defaultValue: 0
+            },
 
-    expires_at: {
-      type: DataTypes.DATE,
-      allowNull: false
-    },
+            request_count: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                defaultValue: 1
+            },
 
-    used_at: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
+            status: {
+                type: DataTypes.ENUM(
+                    "PENDING",
+                    "USED",
+                    "EXPIRED",
+                    "BLOCKED"
+                ),
+                allowNull: false,
+                defaultValue: "PENDING"
+            },
 
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
+            expires_at: {
+                type: DataTypes.DATE,
+                allowNull: false
+            },
 
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    }
+            used_at: {
+                type: DataTypes.DATE,
+                allowNull: true
+            }
+        },
+        {
+            tableName: "auth_otps",
+            underscored: true,
+            timestamps: true,
+            createdAt: "created_at",
+            updatedAt: "updated_at"
+        }
+    );
 
-  }, {
-    tableName: 'auth_otps',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    AuthOtp.associate = (models) => {
+        AuthOtp.belongsTo(models.AuthUser, {
+            foreignKey: "user_id",
+            as: "user"
+        });
+    };
 
-    indexes: [
-      { fields: ['user_id'] },
-      { fields: ['expires_at'] },
-      { fields: ['user_id', 'type'] }
-    ]
-  });
-
-  return OTP;
+    return AuthOtp;
 };

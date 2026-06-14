@@ -3,7 +3,7 @@ import { Op } from "sequelize";
 
 class RefreshTokenRepository extends BaseRepository {
   constructor() {
-    super('RefreshToken');
+    super('AuthRefreshToken');
   }
 
   async findByToken(tokenHash, options = {}) {
