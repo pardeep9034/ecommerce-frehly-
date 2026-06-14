@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addToCart } from "@/redux/cartSlice";
 
 const ShopProductCard = ({ product, viewMode = "grid" }) => {
+  console.log("product",product)
   const {
     id,
     name,
@@ -13,15 +16,33 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
     status = true,
     Category,
     variants = []
-  } = product;
+  } = (product.Product || product);
+  const dispatch = useDispatch();
 
   const [selectedVariant, setSelectedVariant] = useState(variants?.[0] || {});
+  // const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart") || "[]"))
   
   const currentPrice = selectedVariant.price || price;
   const currentMrp = selectedVariant.mrp || oldPrice;
   const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
 
   const isList = viewMode === "list";
+
+const handleAddToCart = () => {
+  dispatch(
+    addToCart({
+      productId: product.id,
+      variantId: selectedVariant.id,
+      name: name,
+      image: image,
+      variantName: `${selectedVariant.value}${selectedVariant.unit}`,
+      quantity: 1,
+      priceSnapshot: currentPrice
+    })
+  );
+};
+    
+  
 
   return (
     <div className={`group relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-[#e5e7eb] bg-white transition-all duration-500 hover:border-[#16a34a]/30 hover:shadow-2xl hover:shadow-green-900/5 ${
@@ -66,17 +87,14 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
 
       {/* Content */}
       <div className={`flex flex-1 flex-col ${isList ? "py-1 sm:py-2" : "p-3 sm:p-6"}`}>
-        <div className="mb-1 inline-flex items-center gap-1 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#16a34a]">
-           <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-[#16a34a]"></span>
-           {Category?.name || "Organic"}
-        </div>
+     
         
-        <Link to={`/products/${id}`} className="mb-1 sm:mb-2 line-clamp-1 text-sm sm:text-lg font-black text-[#1f2937] hover:text-[#0f5132] transition-colors tracking-tight">
+        <Link to={`/products/${id}`} className="mb-1 sm:mb-2 line-clamp-1 text-xs sm:text-lg font-black text-[#1f2937] hover:text-[#0f5132] transition-colors tracking-tight">
           {name}
         </Link>
 
         {/* Rating - Hide on small mobile to save space if needed, or keep compact */}
-        <div className="mb-2 sm:mb-4 flex items-center gap-1">
+        <div className="mb-2 sm:mb-4 flex items-center gap-1 hidden sm:block md:block lg:block xl:block">
           <div className="flex items-center gap-0.5">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -87,11 +105,11 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
               />
             ))}
           </div>
-          <span className="ml-1 text-[10px] sm:text-xs font-bold text-[#6b7280]">{rating}</span>
+          {/* <span className="ml-1 text-[10px] sm:text-xs font-bold text-[#6b7280]">{rating}</span> */}
         </div>
 
         {/* Variant Selector - Compact on mobile */}
-        {variants?.length > 1 && (
+        {variants?.length > 1? (
           <div className="mb-3 sm:mb-6">
             <select
               value={variants.indexOf(selectedVariant)}
@@ -105,24 +123,33 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
               ))}
             </select>
           </div>
-        )}
+        ):
+        (
+          <div className="mb-3 sm:mb-6">
+            <span className="w-full rounded-lg sm:rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-[#4b5563] outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/5">{variants[0].value}{variants[0].unit}</span>
+            
+            </div>
+        )
+        
+        }
 
         {/* Price & Action */}
         <div className={`mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 ${isList ? "pt-3 sm:pt-4 border-t border-[#f3f4f6]" : ""}`}>
-          <div className="flex items-baseline gap-1.5 sm:gap-2">
-            <span className="text-base sm:text-2xl font-black text-[#0f5132]">₹{currentPrice}</span>
+          <div className="flex items-baseline gap-1.5 sm:gap-3">
+            <>
+            <span className="text-sm sm:text-2xl font-black text-[#0f5132]">₹{currentPrice}</span>
             {currentMrp > currentPrice && (
               <span className="text-[10px] sm:text-sm font-bold text-[#9ca3af] line-through">₹{currentMrp}</span>
-            )}
+            )}</>
+             <button onClick={handleAddToCart} className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#0f5132] px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-[#0b4128] active:scale-95 group/cart overflow-hidden relative">
+            <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 transition-transform " />
+            
+         
+            
+          </button>
           </div>
           
-          <button className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#0f5132] px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-[#0b4128] active:scale-95 group/cart overflow-hidden relative">
-            <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 transition-transform group-hover:-translate-y-12" />
-            <span>Add</span>
-            <div className="absolute inset-0 flex items-center justify-center translate-y-12 transition-transform group-hover:translate-y-0">
-              <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-          </button>
+          
         </div>
         
         {isList && (

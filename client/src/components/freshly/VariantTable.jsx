@@ -1,4 +1,4 @@
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2,Tag } from "lucide-react";
 
 const formatUnit = (variant) => {
   if (variant.unitType === "piece") return `${variant.value} pc`;
@@ -6,7 +6,7 @@ const formatUnit = (variant) => {
   return `${variant.value} ${variant.unit}`;
 };
 
-const VariantTable = ({ variants, onEdit, onDelete }) => {
+const VariantTable = ({ variants, onEdit, onDelete, onAssignPromotion }) => {
   return (
     <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-card">
       <div className="overflow-x-auto">
@@ -62,6 +62,14 @@ const VariantTable = ({ variants, onEdit, onDelete }) => {
                   </td>
                   <td className="px-5 py-4 sm:px-6">
                     <div className="flex items-center justify-end gap-1">
+                       <button
+                      type="button"
+                      onClick={() => onAssignPromotion(variant.id)}
+                      className="rounded-lg p-1.5 text-[#6b7280] transition-colors hover:bg-green-100 hover:text-green-700"
+                      title="Assign Promotion"
+                    >
+                      <Tag className="h-4 w-4" />
+                    </button>
                       <button
                         type="button"
                         onClick={() => onEdit(variant)}

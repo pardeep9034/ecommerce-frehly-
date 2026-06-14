@@ -15,13 +15,9 @@ app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || "*",
     credentials: true
 }));
-/* Register all service proxies */
-registerProxies(app);
-
-app.use(express.json());
 
 app.use(requestLogger);
-
+registerProxies(app);
 
 
 /* Gateway health check */

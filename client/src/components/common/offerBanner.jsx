@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 export const OfferBanner = () => {
   return (
-    <section className="w-full bg-[#f8fafc] py-12 lg:py-20">
+    <section className="w-full bg-[#f8fafc] py-6 lg:py-12">
       <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[4rem] bg-[#1f2937] px-8 py-12 sm:px-16 sm:py-16 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] shadow-2xl transition-all duration-500 hover:shadow-black/20">
           {/* Glow effect */}
@@ -17,18 +17,18 @@ export const OfferBanner = () => {
                 <Sparkles className="h-4 w-4 fill-yellow-400" />
                 Limited Harvest Offer
               </div>
-              <h2 className="text-4xl font-black text-white sm:text-6xl tracking-tighter leading-none mb-6">
+              <h2 className="text-3xl font-black text-white sm:text-6xl tracking-tighter leading-none mb-6">
                 Fresh Organic Harvest <br />
                 <span className="text-yellow-400 italic underline decoration-[10px] underline-offset-[10px]">20% Discount</span>
               </h2>
-              <p className="mt-10 text-xl text-gray-400 font-bold leading-relaxed">
+              <p className="mt-10 text-lg text-gray-400 font-bold leading-relaxed">
                 Experience the true taste of nature. Our certified organic produce is harvested at peak ripeness and delivered within 24 hours.
               </p>
             </div>
             
             <Link 
               to="/shop" 
-              className="flex h-20 items-center justify-center gap-4 rounded-full bg-yellow-400 px-12 text-base font-black text-[#1f2937] transition-all hover:bg-white hover:scale-105 active:scale-95 shadow-2xl shadow-yellow-400/20 group group/btn"
+              className="flex h-12 items-center justify-center gap-4 rounded-full bg-yellow-400 px-12 text-xs font-black text-[#1f2937] transition-all hover:bg-white hover:scale-105 active:scale-95 shadow-2xl shadow-yellow-400/20 group group/btn"
             >
               Start My Health Journey
               <ArrowRight className="h-6 w-6 transition-transform group-hover/btn:translate-x-2" />

@@ -17,13 +17,12 @@ class TokenService {
     }
 
     verifyAccessToken(token) {
-
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
         } catch (error) {
-            throw new Error("Invalid or expired access token");
+            // Rethrow with original message to help debugging
+            throw new Error(`Token verification failed: ${error.message}`);
         }
-
     }
 
     decodeAccessToken(token) {

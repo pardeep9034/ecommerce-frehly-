@@ -1,5 +1,24 @@
 import ProductRepository from "../repository/product.repository.js";
 const ProductServices = {
+    async getProductsByType(type,limit,offset) {
+        const { count, rows } = await new ProductRepository().getProductsByType(type,limit,offset);
+        const currentPage = Math.floor(offset / limit) + 1;
+        const totalPages = Math.ceil(count / limit);
+        return {
+            success: true,
+            data: {
+                products: rows,
+                pagination: {
+                    totalItems: count,
+                    totalPages,
+                    currentPage,
+                    limit,
+                    hasNextPage: currentPage < totalPages,
+                    hasPrevPage: currentPage > 1,
+                },
+            },
+        };
+    },
     async getAllProducts(limit,offset) {
       const { count, rows } = await new ProductRepository().getAllProducts(limit,offset);
       const currentPage = Math.floor(offset / limit) + 1;

@@ -1,0 +1,69 @@
+
+> api-gateway@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒñû agentic secret storage: https://dotenvx.com/as2
+API Gateway running on port 4000
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:49:38.470Z
+GET /products?page=1&limit=4 - 2026-04-01T13:49:38.544Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:49:38.555Z
+GET /products?page=1&limit=8 - 2026-04-01T13:49:38.571Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:49:38.580Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:49:40.401Z
+GET /products?page=1&limit=8 - 2026-04-01T13:49:40.427Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:49:40.430Z
+GET /products?page=1&limit=4 - 2026-04-01T13:49:40.433Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:49:40.446Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:49:41.532Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:49:41.537Z
+GET /products?page=1&limit=8 - 2026-04-01T13:49:41.541Z
+GET /products?page=1&limit=4 - 2026-04-01T13:49:41.543Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:49:41.546Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:49:43.568Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:49:43.570Z
+GET /products?page=1&limit=8 - 2026-04-01T13:49:43.572Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:49:43.574Z
+GET /products?page=1&limit=4 - 2026-04-01T13:49:43.577Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:49:47.571Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:49:47.573Z
+GET /products?page=1&limit=8 - 2026-04-01T13:49:47.577Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:49:47.578Z
+GET /products?page=1&limit=4 - 2026-04-01T13:49:47.581Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:51:02.066Z
+GET /products?page=1&limit=8 - 2026-04-01T13:51:02.074Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:51:02.082Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:51:02.085Z
+GET /products?page=1&limit=4 - 2026-04-01T13:51:02.087Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:51:03.121Z
+GET /products?page=1&limit=8 - 2026-04-01T13:51:03.123Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:51:03.125Z
+GET /products?page=1&limit=4 - 2026-04-01T13:51:03.127Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:51:03.129Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:51:05.153Z
+GET /products?page=1&limit=8 - 2026-04-01T13:51:05.156Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:51:05.158Z
+GET /products?page=1&limit=4 - 2026-04-01T13:51:05.160Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:51:05.163Z
+GET /products?page=1&limit=8 - 2026-04-01T13:51:09.177Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:51:09.179Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:51:09.182Z
+GET /products?page=1&limit=4 - 2026-04-01T13:51:09.183Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:51:09.185Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:52:25.283Z
+GET /products?page=1&limit=8 - 2026-04-01T13:52:25.286Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:52:25.303Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:52:25.306Z
+GET /products?page=1&limit=4 - 2026-04-01T13:52:25.309Z
+GET /products?page=1&limit=8 - 2026-04-01T13:52:26.292Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:52:26.294Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:52:26.307Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:52:26.309Z
+GET /products?page=1&limit=4 - 2026-04-01T13:52:26.311Z
+GET /products?page=1&limit=8 - 2026-04-01T13:52:28.316Z
+GET /products/category?page=1&limit=10 - 2026-04-01T13:52:28.327Z
+GET /products/type/POPULAR?page=1&limit=8 - 2026-04-01T13:52:28.336Z
+GET /products/type/HOT?page=1&limit=4 - 2026-04-01T13:52:28.337Z
+GET /products?page=1&limit=4 - 2026-04-01T13:52:28.339Z
+POST /auth/login - 2026-04-01T13:52:31.973Z
+POST /auth/login - 2026-04-01T13:52:40.019Z

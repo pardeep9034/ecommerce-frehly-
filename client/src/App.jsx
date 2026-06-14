@@ -11,6 +11,9 @@ import ProductDetail from "./pages/ProductDetail";
 import Categories from "./pages/Categories";
 import Inventory from "./pages/Inventory";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import Promotions from "./pages/Promotions";
+import PromotionItems from "./pages/PromotionItems";
+import AssignPromotions from "./pages/AssignPromotions";
 import MyOrders from "./pages/MyOrders";
 import OrderDetail from "./pages/OrderDetail";
 import ShopProductDetail from "./pages/ShopProductDetail";
@@ -19,6 +22,7 @@ import Profile from "./pages/Profile";
 import Contact from "./pages/Contact";
 import PublicLayout from "./components/layout/PublicLayout";
 import DashboardLayout from "./components/freshly/DashboardLayout";
+import CartPage from "./pages/CartPage";
 import "./styles/app.css";
 import { useEffect } from "react";
 import { loginSuccess, logout } from "./redux/authSlice";
@@ -43,6 +47,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/orders" element={<MyOrders />} />
@@ -63,7 +68,9 @@ function App() {
           <Route path="inventory" element={<Inventory />} />
           <Route path="orders" element={<PlaceholderPage />} />
           <Route path="customers" element={<PlaceholderPage />} />
-          <Route path="discounts" element={<PlaceholderPage />} />
+          <Route path="promotions" element={<Promotions />} />
+          <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
+          <Route path="assign-promotions" element={<AssignPromotions />} />
           <Route path="settings" element={<PlaceholderPage />} />
         </Route>
 

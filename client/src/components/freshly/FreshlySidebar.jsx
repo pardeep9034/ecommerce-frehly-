@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Leaf,
   Sparkles,
+  Tag,
 } from "lucide-react";
 
 const primaryItems = [
@@ -23,7 +24,8 @@ const primaryItems = [
 const managementItems = [
   { title: "Orders", path: "/dashboard/orders", icon: ShoppingCart },
   { title: "Customers", path: "/dashboard/customers", icon: Users },
-  { title: "Discounts", path: "/dashboard/discounts", icon: BadgePercent },
+  { title: "Promotions", path: "/dashboard/promotions", icon: BadgePercent },
+  { title: "Assigned Promos", path: "/dashboard/assign-promotions", icon: Tag },
   { title: "Settings", path: "/dashboard/settings", icon: Settings },
 ];
 

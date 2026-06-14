@@ -1,7 +1,7 @@
-import { Edit2, Trash2, Eye } from "lucide-react";
+import { Edit2, Trash2, Eye, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const ProductTable = ({ products, onEdit, onDelete }) => {
+const ProductTable = ({ products, onEdit, onDelete, onAssignPromotion }) => {
   const navigate = useNavigate();
   console.log("products", products);
 
@@ -51,6 +51,14 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                       className="rounded-lg p-1.5 text-[#6b7280] transition-colors hover:bg-[#f3f4f6] hover:text-[#1f2937]"
                     >
                       <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAssignPromotion(product)}
+                      className="rounded-lg p-1.5 text-[#6b7280] transition-colors hover:bg-green-100 hover:text-green-700"
+                      title="Assign Promotion"
+                    >
+                      <Tag className="h-4 w-4" />
                     </button>
                     <button
                       type="button"

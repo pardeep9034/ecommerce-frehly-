@@ -13,6 +13,10 @@ const ProductApi = {
         const response = await api.get(`/products?page=${page}&limit=${limit}`);
         return response.data;
     },
+    async getProductsByType(type, page = 1, limit = 10) {
+        const response = await api.get(`/products/type/${type}?page=${page}&limit=${limit}`);
+        return response.data;
+    },
     async getProductById(id) {
         const response = await api.get(`/products/${id}`);
         return response.data;

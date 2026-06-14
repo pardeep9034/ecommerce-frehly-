@@ -1,0 +1,47 @@
+
+Global error handler: BadRequestError: request aborted
+    at IncomingMessage.onAborted (/app/node_modules/raw-body/index.js:245:10)
+    at IncomingMessage.emit (node:events:524:28)
+    at IncomingMessage._destroy (node:_http_incoming:221:10)
+    at _destroy (node:internal/streams/destroy:121:10)
+    at IncomingMessage.destroy (node:internal/streams/destroy:83:5)
+    at abortIncoming (node:_http_server:796:9)
+    at socketOnClose (node:_http_server:790:3)
+    at Socket.emit (node:events:536:35)
+    at TCP.<anonymous> (node:net:343:12) {
+> auth-service@1.0.0 start
+> node src/server.js
+
+postgresql://postgres.domrsesuafaqjqrqdczm:mnR.CkpHBd%267J%26Z@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+postgresql://postgres.domrsesuafaqjqrqdczm:mnR.CkpHBd%267J%26Z@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+Executing (default): SELECT 1+1 AS result
+  code: 'ECONNABORTED',
+Executing (default): SELECT 1+1 AS result
+Γ£à Auth Service: Database connected successfully
+Γ£à Auth Service: Models initialized
+Γ£à Auth Service: Database connected successfully
+Γ£à Auth Service: Models initialized
+Γ£à Auth Service: Database and models initialized
+≡ƒÜÇ Auth Service running on port 3000
+≡ƒôì Environment: development
+  expected: 46,
+  length: 46,
+  received: 0,
+  type: 'request.aborted'
+}
+Global error handler: BadRequestError: request aborted
+    at IncomingMessage.onAborted (/app/node_modules/raw-body/index.js:245:10)
+    at IncomingMessage.emit (node:events:524:28)
+    at IncomingMessage._destroy (node:_http_incoming:221:10)
+    at _destroy (node:internal/streams/destroy:121:10)
+    at IncomingMessage.destroy (node:internal/streams/destroy:83:5)
+    at abortIncoming (node:_http_server:796:9)
+    at socketOnClose (node:_http_server:790:3)
+    at Socket.emit (node:events:536:35)
+    at TCP.<anonymous> (node:net:343:12) {
+  code: 'ECONNABORTED',
+  expected: 46,
+  length: 46,
+  received: 0,
+  type: 'request.aborted'
+}

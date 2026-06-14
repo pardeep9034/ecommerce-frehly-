@@ -1,6 +1,49 @@
 import { initializeModels } from "../../models/index.js";
 
 class ProductRepository {
+  async getProductsByType(type, limit, offset) {
+
+    const db = await initializeModels();
+
+    const result = await db.PromotionItem.findAndCountAll({
+
+        limit,
+        offset,
+
+        include: [
+            {
+                model: db.Promotion,
+                where: { type },   // ✅ filter here
+                attributes: ["id", "title", "type"]
+            },
+            {
+                model: db.Product,
+                as: "Product",
+                attributes: ["id", "name", "slug"],
+                include: [
+                    {
+                        model: db.ProductVariant,
+                        as: "variants",
+                        attributes: ["id", "unitType", "value", "unit", "price", "mrp", "status"]
+                    }
+                ]
+            }
+        ],
+
+        order: [["createdAt", "DESC"]]
+    });
+
+    // Filter variants based on PromotionItem.variantId
+    result.rows = result.rows.map(item => {
+        const itemJson = item.get({ plain: true });
+        if (itemJson.variantId && itemJson.Product && itemJson.Product.variants) {
+            itemJson.Product.variants = itemJson.Product.variants.filter(v => v.id === itemJson.variantId);
+        }
+        return itemJson;
+    });
+
+    return result;
+}
     async getAllProducts(limit = 0, offset = 0) {
         const db = await initializeModels();
         return await db.Product.findAndCountAll({

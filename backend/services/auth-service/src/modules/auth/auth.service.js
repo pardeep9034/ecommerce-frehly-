@@ -11,7 +11,6 @@ import OtpService from "../otp/otp.service.js";
 import AuthValidation from "./auth.validation.js";
 import TokenService from "../token/token.service.js";
 
-const db = initializeModels();
 
 class AuthService {
   async signup(data) {

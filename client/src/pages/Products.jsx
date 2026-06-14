@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import ProductTable from "@/components/freshly/ProductTable";
 import ProductModal from "@/components/freshly/ProductModal";
+import AssignPromotionModal from "@/components/freshly/AssignPromotionModal";
 import useProduct from "@/hooks/use-product";
 
 const Products = () => {
@@ -10,6 +11,7 @@ const Products = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
 
   const pageSize = 5;
 
@@ -126,7 +128,12 @@ const Products = () => {
         </div>
       </div>
 
-      <ProductTable products={filteredProducts} onEdit={openEditModal} onDelete={handleDelete} />
+      <ProductTable 
+          products={filteredProducts} 
+          onEdit={openEditModal} 
+          onDelete={handleDelete} 
+          onAssignPromotion={(product) => setAssignPromotingProduct(product)} 
+      />
 
       {totalPages > 1 && (
         <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
@@ -158,6 +165,14 @@ const Products = () => {
         product={editingProduct}
         onSave={saveProduct}
       />
+      <AssignPromotionModal 
+        isOpen={!!assignPromotingProduct} 
+        onClose={() => setAssignPromotingProduct(null)} 
+        product={assignPromotingProduct}
+        variantId={null} 
+      />
+
+     
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { useDispatch } from 'react-redux';
 import { logout } from '@/redux/authSlice';
 import { useQuery } from '@tanstack/react-query';
 import { getProfile } from '@/apis/authApi';
+
 import { 
   Search, 
   ShoppingCart, 
@@ -41,8 +42,11 @@ import {
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
+  
   const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.items);
+
+const cartCount = cartItems.length;
   const [user, setUser] = useState({
     avatar: "https://placehold.co/40x40",
     name: "Guest User",
@@ -82,8 +86,8 @@ const Navbar = () => {
       setUser(JSON.parse(userData));
     }
 
-    // Get cart count
-    updateCartCount();
+
+    
   }, []);
 
   // Handle scroll effect
@@ -96,10 +100,7 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const updateCartCount = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
-  };
+
 
   const handleLogout = () => {
     dispatch(logout());

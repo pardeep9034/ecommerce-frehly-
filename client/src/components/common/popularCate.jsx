@@ -39,19 +39,19 @@ export const PopularCategories = () => {
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="text-xl font-black text-[#1f2937] sm:text-4xl tracking-tight">Popular Categories</h2>
+            <h2 className="text-sm font-black text-[#1f2937] sm:text-4xl tracking-tight">Popular Categories</h2>
             <div className="mt-1.5 h-1 w-8 rounded-full bg-[#16a34a]"></div>
           </div>
           <Link 
             to="/shop" 
-            className="group flex items-center gap-1 text-xs font-bold text-[#0f5132] hover:text-[#16a34a] transition-colors"
+            className="group flex items-center gap-1 text-[10px] sm:text-sm font-bold text-[#0f5132] hover:text-[#16a34a] transition-colors"
           >
             See All 
-            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-6 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {categories.slice(0, 9).map((category) => (
             <Link 
               key={category.id} 
@@ -65,7 +65,7 @@ export const PopularCategories = () => {
                   className="h-full w-full object-contain"
                 />
               </div>
-              <h3 className="text-center text-[10px] sm:text-sm font-black text-[#1f2937] group-hover:text-[#0f5132] transition-colors line-clamp-1">
+              <h3 className="text-center text-[8px] sm:text-sm font-black text-[#1f2937] group-hover:text-[#0f5132] transition-colors line-clamp-1">
                 {category.name}
               </h3>
             </Link>

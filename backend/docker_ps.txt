@@ -1,0 +1,5 @@
+CONTAINER ID   IMAGE                       COMMAND                  CREATED          STATUS          PORTS                                         NAMES
+525419476e5e   backend-api-gateway         "docker-entrypoint.s…"   9 seconds ago    Up 6 seconds    0.0.0.0:4000->4000/tcp, [::]:4000->4000/tcp   api-gateway
+d8b00414aead   backend-product-service     "docker-entrypoint.s…"   29 minutes ago   Up 29 minutes   3000/tcp                                      product-service
+4303c83ba4c3   backend-inventory-service   "docker-entrypoint.s…"   29 minutes ago   Up 29 minutes   3000/tcp                                      inventory-service
+ca0be7d33aca   backend-auth-service        "docker-entrypoint.s…"   29 minutes ago   Up 29 minutes   3000/tcp                                      auth-service

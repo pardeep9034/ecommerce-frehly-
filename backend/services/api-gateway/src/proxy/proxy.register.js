@@ -10,6 +10,7 @@ const registerProxies = (app) => {
       createProxyMiddleware({
         target: service.target,
         changeOrigin: true,
+        
         logLevel: "debug"
       })
     );
