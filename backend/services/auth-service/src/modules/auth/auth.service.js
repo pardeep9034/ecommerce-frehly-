@@ -343,8 +343,11 @@ class AuthService {
     if (!phone) throw new AppError("Phone number is required", 400);
 
     const existingUser = await UserRepository.findByPhone(phone);
+    if(existingUser.profile_complete){
+      throw new AppError("profile is completed",400);
+    }
     if (!existingUser) throw new AppError("User not found", 404);
-
+console.log("existingUser",existingUser)
     if (!first_name && !password) {
       throw new AppError("No data provided to update", 400);
     }
@@ -364,9 +367,9 @@ class AuthService {
 
     
         const accessToken = TokenService.generateAccessToken({
-          user_id: existingUser.user.id,
-          phone: existingUser.user.phone,
-          role: existingUser.user.role,
+          user_id: existingUser.user_id,
+          phone: existingUser.phone,
+          role: existingUser.role,
         });
 
         const rawRefresh = TokenService.generateRefreshToken();
@@ -375,7 +378,7 @@ class AuthService {
         const ipAddress = req.ip ||req.socket.remoteAddress;
 
         await RefreshTokenRepository.create({
-          user_id: existingUser.user.id,
+          user_id: existingUser.user_id,
           user_agent:userAgent,
           ip_address:ipAddress,
           token_hash: TokenService.hashRefreshToken(rawRefresh),
@@ -388,7 +391,7 @@ class AuthService {
          
          
 
-    logger.info(`✅ User ${existingUser.id} profile completed`);
+    logger.info(`✅ User ${existingUser.user_id} profile completed`);
 
     return {
       success: true,
@@ -402,13 +405,15 @@ class AuthService {
   /* ================= LOGIN ================= */
 
   async login(phone, password, deviceId = null, userAgent = null) {
-    if (!phone || !password) throw new AppError("Phone and password are required", 400);
+    if (!phone ) throw new AppError("Phone number required", 400);
 
     const user = await UserRepository.findByPhone(phone);
-    if (!user) throw new AppError("Invalid phone or password", 400);
+    if (!user) throw new AppError("Invalid phone ", 400);
+    console.log("user",user);
+    
 
     // Check account lock
-    const lockField = user.account_locked_until || user.lock_until;
+    const lockField = user.account_locked_until;
     if (lockField && new Date(lockField) > new Date()) {
       await AuditRepository.logEvent({
         user_id: user.id,
@@ -418,6 +423,17 @@ class AuthService {
         error_message: "Account locked",
       });
       throw new AppError("Account is temporarily locked. Try again later.", 423);
+    }
+    if(user.phone_verified && !user.profile_complete){
+      return{
+        success: true,
+        statusCode: 200,
+        message: "Phone verified. Please complete your profile.",
+        
+        data:{user_id: user.id,
+          action:"COMPLETE_REGISTRATION"
+        }
+      }
     }
 
     const isValidPassword = await user.comparePassword(password);

@@ -2,6 +2,7 @@ import TokenService from "../modules/token/token.service.js";
 import ResponseUtil from "../utils/response.js";
 import initializeModels from "../models/index.js";
 import logger from "../utils/Logger.js";
+import userRepository from "../modules/repository/user.repository.js";
 
 const authenticateToken = async (req, res, next) => {
 
@@ -24,13 +25,14 @@ const authenticateToken = async (req, res, next) => {
 
                 /* ================= TOKEN VERIFICATION ================= */
                 const decoded = TokenService.verifyAccessToken(token);
+                console.log("Decoded token payload:", decoded);
 
                 if (decoded && decoded.user_id) {
 
                     /* ================= USER CHECK ================= */
                     const db = await initializeModels();
 
-                    const user = await db.User.findByPk(decoded.user_id);
+                    const user = await userRepository.findById(decoded.user_id);
 
                     if (user) {
 

@@ -7,6 +7,8 @@ import {
 
 import UserRepository from "../repository/user.repository.js";
 import OtpRepository from "../repository/otp.repository.js";
+import { env } from "../../config/env.js";
+env
 const RESEND_LIMIT = 5;
 const RESEND_WINDOW = 15 * 60 * 1000;
 class OtpService {
@@ -82,35 +84,30 @@ async resendOtp(phone,type) {
 //             };
 //           }
 //         }
-  if(otpRecord){
-    if(otpRecord.expires_at > new Date()){
-      return {
-        success: false,
-        statusCode: 429,
-        message: "Please wait before requesting another OTP",
-      };
-    }
+  // if(otpRecord){
+  //   if(otpRecord.expires_at > new Date()){
+  //     return {
+  //       success: false,
+  //       statusCode: 429,
+  //       message: "Please wait before requesting another OTP",
+  //     };
+  //   }
     
-  }
+  // }
 
      
 
         /* ================= UPDATE OTP ================= */
-        await user.update({
-          otp_hash: hash,
-          otp_expiry: expiry,
-          otp_attempts: 0,
-          otp_send_count: user.otp_send_count + 1,
-          last_otp_sent_at: new Date(),
-        });
+        
         await OtpRepository.create({
           user_id: user.id,
-          otp_hash: hash,
+          code_hash: hash,
           expires_at: expiry,
           type: type,
           channel: "SMS",
           sent_to: phone,
         });
+        console.log("OTP created and saved to DB:", otp);
 
         /* ================= SEND OTP ================= */
         // await SmsService.sendOtp(user.phone, otp);
@@ -120,7 +117,7 @@ async resendOtp(phone,type) {
           success: true,
           statusCode: 200,
           message: "If an OTP request exists, a new OTP has been sent",
-          data:decodeOtp(hash)
+          data:otp,
         };
 
       } else {
