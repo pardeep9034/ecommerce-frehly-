@@ -10,7 +10,9 @@
     "test": "jest",
     "db:migrate": "dotenv sequelize db:migrate",
     "db:migrate:status": "dotenv sequelize db:migrate:status",
-    "db:undo": "dotenv sequelize db:migrate:undo"
+    "db:undo": "dotenv sequelize db:migrate:undo",
+    "db:seed:all": "dotenv sequelize db:seed:all",
+    "db:seed:undo:all": "dotenv sequelize db:seed:undo:all"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -32,6 +34,7 @@
     "redis": "^4.6.7",
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3",
+    "uuid": "^14.0.1",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
   },

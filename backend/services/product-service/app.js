@@ -10,7 +10,11 @@ import productRoutes from "./src/modules/product/product.routes.js";
 import variantRoutes from "./src/modules/productVarient/variant.routes.js";
 import promotionRoutes from "./src/modules/promotion/promotion.routes.js";
 import promotionItemRoutes from "./src/modules/promotionItem/promotionItem.routes.js";
-
+import brandRoutes from "./src/modules/brand/brand.routes.js";
+import productType from "./src/modules/productType/productType.routes.js";
+import measurementUnitRoutes from "./src/modules/measurementUnit/measurementUnit.routes.js"
+import productAttributeRoutes from"./src/modules/productAttribute/productAttribute.routes.js"
+import productImageRoutes from "./src/modules/productImage/productImage.routes.js"
 dotenv.config();
 
 
@@ -64,10 +68,15 @@ if (process.env.NODE_ENV === "development") {
 /* ================= ROUTES ================= */
 
 app.use("/category", categoryRoutes);
+app.use("/brand",brandRoutes)
+app.use("/product-type",productType)
+app.use("/units",measurementUnitRoutes)
 app.use("/promotions", promotionRoutes);
 app.use("/promotion-items", promotionItemRoutes);
-app.use("/", productRoutes);
-app.use("/", variantRoutes);
+app.use("/product", productRoutes);
+app.use("/product-attribute",productAttributeRoutes)
+app.use("/product-image", productImageRoutes)
+app.use("/product-variant", variantRoutes);
 
 // since variantRoutes use /:productId/variants and /variants/:id it's better mounted at root or /products
 

@@ -1,9 +1,7 @@
 import ProductServices from "./product.services.js";
 import ResponseUtil from "../../utils/response.js";
-const ProductController = {
-  // Controller methods would be defined here
-
-  //check product and vrarient exist or not
+class ProductController  {
+ 
   async checkProductAndVarientExists(req,res){
     const result = await ProductServices.checkProductAndVarientExists(req.params.productId,req.params.varientId);
     if(result.success) {
@@ -12,65 +10,69 @@ const ProductController = {
       return ResponseUtil.error(res, result.message);
     }
 
-  },
+  }
 
-  async getProductsByType(req, res) {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-    const type = req.params.type;
-    const result = await ProductServices.getProductsByType(type,limit,offset);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
+  async getProductsBycategory(req, res,next) {
+    try{
+    const categoryId=req.query.category;
+    const page=req.query.page;
+    const limit=req.query.limit;
+    const offset=(page-1)*limit;
+    const result = await ProductServices.getProductsBycategory(categoryId,limit,offset);
+    return ResponseUtil.success(res, result, "Product fetched successfully", 200);
     }
-  },
+    catch(error){
+      next(error)
+    }
+  }
 
-  async getAllProducts(req, res) {
+  async getAllProducts(req, res,next) {
+    try{
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     const result = await ProductServices.getAllProducts(limit,offset);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
+   return ResponseUtil.success(res, result, "Product fetched successfully", 200);
+  }catch(error){
+    next(error)
+  }
 
     // Logic to get all products
-  },
+  }
   
-  async getProductById(req, res) {
+  async getProductById(req, res,next) {
+    try{
     const result = await ProductServices.getProductById(req.params.id);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
+    return ResponseUtil.success(res, result, "Product fetched successfully", 200);
     }
+    catch(error){
+      next(error)
+    }
+   
     // Logic to get a product by ID
-  },
-    async createProduct(req, res) {
+  }
+    async createProduct(req, res,next) {
+      try{
         const result = await ProductServices.createProduct(req.body);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message, 201);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-    // Logic to create a new product
-  },
   
-  async updateProduct(req, res) {
-    const result = await ProductServices.updateProduct(req.params.id, req.body);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
+      return ResponseUtil.success(res, result, "Product created successfully", 201);
     }
-    // Logic to update an existing product
-  },
-    async deleteProduct(req, res) {
+    catch(error){
+next(error)
+    }
+    
+  }
+  
+  async updateProduct(req, res,next) {
+    try{
+      const result = await ProductServices.updateProduct(req.params.id, req.body);
+      return ResponseUtil.success(res, result, "Product updated successfully", 200);
+    } catch(error){
+      next(error)
+    }
+  }
+    async deleteProduct(req, res,next) {
     const result = await ProductServices.deleteProduct(req.params.id);
     if(result.success) {
       return ResponseUtil.success(res, result.data, result.message);
@@ -81,4 +83,4 @@ const ProductController = {
     }
 };
 
-export default ProductController;
+export default new ProductController();

@@ -2,44 +2,53 @@
 
 module.exports={
   async up(queryInterface,Sequelize){
-    await queryInterface.createTable("inventories",{
-      id:{
-        type:Sequelize.INTEGER,
-        primaryKey:true,
-        autoIncrement:true
-      },
-      variantId:{
-        type:Sequelize.INTEGER,
-        allowNull:false,
-        references:{
-          model:"product_variants",
-          key:"id"
-        }
-      },
-      stock:{
-        type:Sequelize.INTEGER,
-        allowNull:false,
-        defaultValue:0
-      },
-      reservedStock:{
-        type:Sequelize.INTEGER,
-        defaultValue:0
-      },
-      lowStockAlert:{
-        type:Sequelize.INTEGER,
-        defaultValue:5
-      },
-      createdAt:{
+    await queryInterface.createTable("inventory",{
+     id: {
+            type: Sequelize.BIGINT,
+            primaryKey: true,
+            autoIncrement: true,
+          },
+    
+          variant_id: {
+            type: Sequelize.BIGINT,
+            allowNull: false,
+            unique: true,
+         
+          },
+    
+          current_stock: {
+            type: Sequelize.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+          },
+    
+          reserved_stock: {
+            type: Sequelize.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+          },
+    
+          low_stock_threshold: {
+            type: Sequelize.INTEGER,
+            allowNull: false,
+            defaultValue: 10,
+          },
+    
+          last_stock_update_at: {
+            type: Sequelize.DATE,
+            allowNull: true,
+          },
+      created_at:{
         allowNull:false,
         type:Sequelize.DATE
       },
-      updatedAt:{
+      updated_at:{
         allowNull:false,
         type:Sequelize.DATE
       }
     })
   },
   async down(queryInterface,Sequelize){
-    await queryInterface.dropTable("inventories")
+    await queryInterface.dropTable("inventory")
   }
 }

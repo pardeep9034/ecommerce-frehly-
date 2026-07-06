@@ -8,10 +8,13 @@ import AuthAuditLogModel from "./AuditLog.model.js";
 import UserSessionModel from "./UserSession.model.js";
 
 let sequelize;
-let db;
+let dbPromise = null;
 
 async function initializeModels() {
-    if (!db) {
+    if(!dbPromise){
+        dbPromise = (async () => {
+    
+    
         sequelize = await database.connect();
 
         const AuthUser = AuthUserModel(sequelize);
@@ -20,7 +23,7 @@ async function initializeModels() {
         const AuthAuditLog = AuthAuditLogModel(sequelize);
         const AuthUserSession = UserSessionModel(sequelize);
 
-        db = {
+      const   db = {
             sequelize,
             Sequelize,
 
@@ -41,9 +44,10 @@ async function initializeModels() {
         });
 
         console.log("✅ Auth Service: Models initialized");
+         return db;
+    }) ();
     }
-
-    return db;
+    return dbPromise;
 }
 
 export default initializeModels;

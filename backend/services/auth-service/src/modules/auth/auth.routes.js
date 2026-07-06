@@ -15,15 +15,21 @@ const router = express.Router();
 router.post("/signup", validate('signUp'), asyncHandler(AuthController.signup));
 router.post("/signup/verify", asyncHandler(AuthController.verify));
 router.post('/register', authenticateToken, validate('register'), asyncHandler(AuthController.register));
+
 router.post('/login', validate('login'), asyncHandler(AuthController.login));
+router.post("/login/password",asyncHandler(AuthController.loginWithPassword))
 router.post('/refresh-token', asyncHandler(AuthController.refreshToken));
+router.post('/logout', authenticateToken, asyncHandler(AuthController.logout));
+router.post('logout/all',authenticateToken,asyncHandler(AuthController.logoutFromAllDevices));
+
 router.post('/forgot-password', validate('forgotPassword'), asyncHandler(AuthController.forgotPassword));
 router.post('/reset-password', validate('resetPassword'), asyncHandler(AuthController.resetPassword));
+
 router.post("/otp/resend", asyncHandler(otpController.resendOtp));
 
 // Protected routes
 router.get('/profile', authenticateToken, asyncHandler(AuthController.getProfile));
-router.post('/logout', authenticateToken, asyncHandler(AuthController.logout));
+
 
 // Health check
 router.get('/health', (req, res) => {

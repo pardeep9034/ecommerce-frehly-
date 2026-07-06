@@ -12,6 +12,10 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 import { emitEvent, TOPICS } from "../../events/producer.js";
 import redisManager from "../../config/redis.js";
+import UserSessionRepository from "../repository/userSession.repository.js";
+import bcrypt from "bcryptjs"
+import { v4 as uuidv4 } from "uuid";
+import refreshTokenRepository from "../repository/refreshToken.repository.js";
 
 class AuthService {
 
@@ -213,8 +217,8 @@ class AuthService {
     const user = await UserRepository.findByPhone(phone);
     if (!user) throw new AppError("User not found", 404);
 
-    const requestedType = type || (user.otp_type === "signup" ? "SIGNUP" : "FORGOT_PASSWORD");
-    const otpRecord = await OtpRepository.findLatestOtp(user.id, requestedType);
+
+    const otpRecord = await OtpRepository.findLatestOtp(user.id, type);
 
     if (!otpRecord) throw new AppError("No OTP request found", 400);
 
@@ -223,7 +227,7 @@ class AuthService {
     }
 
     if (!otpRecord.expires_at || new Date(otpRecord.expires_at) < new Date()) {
-      await OtpRepository.revokePendingOtps(user.id, requestedType);
+      await OtpRepository.revokePendingOtps(user.id, type);
       throw new AppError("OTP has expired", 400);
     }
 
@@ -257,27 +261,13 @@ class AuthService {
       // Mark OTP record as used
       if (otpRecord) await OtpRepository.markUsed(otpRecord.id, { transaction });
 
-      if (requestedType === "SIGNUP") {
+      if (type === "SIGNUP") {
         
         await user.update({
           phone_verified: true,
         }, { transaction });
 
-        // const accessToken = TokenService.generateAccessToken({
-        //   user_id: user.id,
-        //   phone: user.phone,
-        //   role: user.role,
-        // });
-
-        // const rawRefresh = TokenService.generateRefreshToken();
-        // const familyId = TokenService.generateFamilyId();
-
-        // await RefreshTokenRepository.create({
-        //   user_id: user.id,
-        //   token_hash: TokenService.hashRefreshToken(rawRefresh),
-        //   expires_at: TokenService.getRefreshTokenExpiry(),
-        //   family_id: familyId,
-        // }, { transaction });
+       
         const onBoardToken=jwt.sign(
           {
             user_id: user.id,
@@ -308,15 +298,15 @@ class AuthService {
         };
       }
 
-      if (user.otp_type === "forgot_password" || requestedType === "FORGOT_PASSWORD") {
+      if (type === "FORGOT_PASSWORD") {
         const resetToken = jwt.sign(
           { user_id: user.id, purpose: "reset_password" },
           env.JWT_SECRET,
           { expiresIn: "10m" }
         );
 
-        await user.update({ otp_type: null }, { transaction });
-        await transaction.commit();
+      
+       
 
         return {
           success: true,
@@ -403,12 +393,52 @@ console.log("existingUser",existingUser)
   }
 
   /* ================= LOGIN ================= */
+  async login(phone){
+        if (!phone ) throw new AppError("Phone number required", 400);
+        const user = await UserRepository.findByPhone(phone);
+    if (!user) {
+      return{
+        success: true,
+        statusCode: 200,
+        message: "User Not Found.",
+        
+        data:{
+          action:"SIGNUP"
+        }
+      }
+    }
+    if(user.phone_verified && !user.profile_complete){
+      return{
+        success: true,
+        statusCode: 200,
+        message: "Phone verified. Please complete your profile.",
+        
+        data:{user_id: user.id,
+          action:"COMPLETE_REGISTRATION"
+        }
+      }
+    }
+    if(user.profile_complete){
+      return{
+        success: true,
+        statusCode: 200,
+        message: "Profile completed.",
+        
+        data:{user_id: user.id,
+          action:"LOGIN"
+        }
+      }
+    }
+    
+  }
 
-  async login(phone, password, deviceId = null, userAgent = null) {
+  async loginWithPassword(phone, password, deviceId = null, userAgent = null) {
     if (!phone ) throw new AppError("Phone number required", 400);
 
     const user = await UserRepository.findByPhone(phone);
-    if (!user) throw new AppError("Invalid phone ", 400);
+    if (!user) {
+     throw new AppError("User Not Found.", 404);
+    }
     console.log("user",user);
     
 
@@ -424,36 +454,28 @@ console.log("existingUser",existingUser)
       });
       throw new AppError("Account is temporarily locked. Try again later.", 423);
     }
-    if(user.phone_verified && !user.profile_complete){
-      return{
-        success: true,
-        statusCode: 200,
-        message: "Phone verified. Please complete your profile.",
-        
-        data:{user_id: user.id,
-          action:"COMPLETE_REGISTRATION"
-        }
-      }
-    }
+    
+    
 
-    const isValidPassword = await user.comparePassword(password);
+
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
-      const attempts = (user.failed_login_attempts || user.login_attempts || 0) + 1;
+      const attempts = (user.failed_login_attempts || 0) + 1;
       const maxAttempts = env.MAX_LOGIN_ATTEMPTS || 5;
 
       const updateData = {
         failed_login_attempts: attempts,
-        login_attempts: attempts,
+        
       };
 
       if (attempts >= maxAttempts) {
         const lockUntil = new Date(Date.now() + (env.LOCK_TIME || 7200000));
         updateData.account_locked_until = lockUntil;
-        updateData.lock_until = lockUntil;
+       
       }
 
-      await user.update(updateData);
+      await UserRepository.updateById(user.id,updateData);
 
       await AuditRepository.logEvent({
         user_id: user.id,
@@ -474,11 +496,9 @@ console.log("existingUser",existingUser)
 
     try {
       // Reset attempts on successful login
-      await user.update({
+      await UserRepository.updateById(user.id,{
         failed_login_attempts: 0,
-        login_attempts: 0,
         account_locked_until: null,
-        lock_until: null,
         last_login_at: new Date(),
         last_login_ip: null,
         last_login_device: deviceId,
@@ -492,6 +512,7 @@ console.log("existingUser",existingUser)
 
       const rawRefresh = TokenService.generateRefreshToken();
       const familyId = TokenService.generateFamilyId();
+      const session_id=uuidv4();
 
       await RefreshTokenRepository.create({
         user_id: user.id,
@@ -501,15 +522,24 @@ console.log("existingUser",existingUser)
         device_id: deviceId,
         user_agent: userAgent,
       }, { transaction });
+      await UserSessionRepository.create({
+        user_id: user.id,
+       session_id:session_id,
+        expires_at: TokenService.getRefreshTokenExpiry(),
+        refresh_family_id: familyId,
+        device_id: deviceId,
+        user_agent: userAgent,
+      }, { transaction });
+
 
       await transaction.commit();
 
       // Post-commit side effects — failures here must NOT rollback (tx already committed)
-      try {
-        await TokenService.cacheUserSession(user.id, accessToken);
-      } catch (redisErr) {
-        logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
-      }
+      // try {
+      //   await TokenService.cacheUserSession(user.id, accessToken);
+      // } catch (redisErr) {
+      //   logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
+      // }
 
       try {
         await AuditRepository.logEvent({
@@ -610,18 +640,27 @@ console.log("existingUser",existingUser)
 
       // Rotate the token (same family)
       await RefreshTokenRepository.updateById(storedToken.id, {
+     is_revoked:true,
+     revoked_at:new Date(),
+     revoke_reason:"ROTATE"
+      }, { transaction });
+      await RefreshTokenRepository.create({
+        user_id: user.id,
         token_hash: TokenService.hashRefreshToken(newRawRefresh),
         expires_at: TokenService.getRefreshTokenExpiry(),
+        family_id: storedToken.family_id,
+        device_id: storedToken.device_id,
+        user_agent: storedToken.user_agent,
       }, { transaction });
 
       await transaction.commit();
 
       // Post-commit side effects
-      try {
-        await TokenService.cacheUserSession(user.id, newAccessToken);
-      } catch (redisErr) {
-        logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
-      }
+      // try {
+      //   await TokenService.cacheUserSession(user.id, newAccessToken);
+      // } catch (redisErr) {
+      //   logger.warn(`⚠️ Redis session cache skipped: ${redisErr.message}`);
+      // }
 
       logger.info(`✅ Tokens rotated for user ${user.id}`);
 
@@ -641,18 +680,23 @@ console.log("existingUser",existingUser)
 
   async logout(userId, accessToken, refreshToken = null) {
     // Blacklist the access token in Redis
-    if (accessToken) {
-      await TokenService.blacklistAccessToken(accessToken);
-    }
+    // if (accessToken) {
+    //   await TokenService.blacklistAccessToken(accessToken);
+    // }
 
     // Revoke refresh token in DB
     if (refreshToken) {
-      const tokenHash = TokenService.hashRefreshToken(refreshToken);
-      await RefreshTokenRepository.revokeByToken(tokenHash);
+      const tokenHash =   TokenService.hashRefreshToken(refreshToken);
+      const userRefreshToken=await refreshTokenRepository.findByToken(tokenHash);
+      //revoke session
+      const familyId=userRefreshToken.family_id;
+      await UserSessionRepository.revokeSessionByFamily(familyId)
+      await RefreshTokenRepository.revokeByFamily(familyId,"logout");
     }
 
+
     // Remove session from Redis cache
-    await TokenService.invalidateUserSession(userId);
+    // await TokenService.invalidateUserSession(userId);
 
     await AuditRepository.logEvent({
       user_id: userId,
@@ -668,6 +712,39 @@ console.log("existingUser",existingUser)
       message: "Logged out successfully",
     };
   }
+  async logoutFromAllDevices(userId){
+    //revoke refresh_token
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+    await RefreshTokenRepository.update(
+    {
+        user_id: userId,
+        is_revoked: false
+    },
+    {
+        is_revoked: true,
+        revoked_at: new Date(),
+        revoke_reason: "LOGOUT_ALL"
+    },{transaction}
+);
+await UserSessionRepository.update(
+    {
+        user_id: userId,
+        status: "ACTIVE"
+    },
+    {
+        status: "REVOKED",
+        revoked_at: new Date()
+    },{transaction}
+);
+await transaction.commit();
+return {
+  success: true,
+  statusCode: 200,
+  message: "Logged out from all devices successfully",
+};
+
+  }
 
   /* ================= FORGOT PASSWORD ================= */
 
@@ -678,15 +755,9 @@ console.log("existingUser",existingUser)
 
     if (user) {
       const otpPayload = OtpService.createOtp();
+   
 
-      await user.update({
-        otp_hash: otpPayload.hash,
-        otp_type: "forgot_password",
-        otp_expiry: otpPayload.expiry,
-        otp_attempts: 0,
-        otp_send_count: (user.otp_send_count || 0) + 1,
-        last_otp_sent_at: new Date(),
-      });
+
       await OtpRepository.create({
         user_id: user.id,
         type: "FORGOT_PASSWORD",
@@ -698,12 +769,13 @@ console.log("existingUser",existingUser)
 
       try {
         const redisClient = redisManager.getClient();
+        if(redisClient.isReady) {
         await redisClient.set(`otp:${user.id}`, JSON.stringify({
           code_hash: otpPayload.hash,
           type: "FORGOT_PASSWORD",
           sent_to: phone,
           expires_at: otpPayload.expiry,
-        }), "EX", 300);
+        }), "EX", 300);}
         logger.info(`✅ Redis SET success: forgot_password:${user.id}`);
       } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
 
@@ -765,7 +837,7 @@ console.log("existingUser",existingUser)
     const transaction = await db.sequelize.transaction();
 
     try {
-      user.set({ password: newPassword });
+      user.set({ password_hash: newPassword });
       await user.save({ transaction });
 
       // Revoke all refresh tokens
@@ -774,11 +846,11 @@ console.log("existingUser",existingUser)
       await transaction.commit();
 
       // Post-commit side effects
-      try {
-        await TokenService.invalidateUserSession(user.id);
-      } catch (redisErr) {
-        logger.warn(`⚠️ Redis invalidation skipped: ${redisErr.message}`);
-      }
+      // try {
+      //   await TokenService.invalidateUserSession(user.id);
+      // } catch (redisErr) {
+      //   logger.warn(`⚠️ Redis invalidation skipped: ${redisErr.message}`);
+      // }
 
       try {
         await AuditRepository.logEvent({

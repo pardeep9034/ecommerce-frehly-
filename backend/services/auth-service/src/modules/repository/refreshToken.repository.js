@@ -21,19 +21,19 @@ class RefreshTokenRepository extends BaseRepository {
     return await this.findOne({ family_id: familyId, is_revoked: false }, options);
   }
 
-  async revokeByFamily(familyId, options = {}) {
+  async revokeByFamily(familyId, revoke_reason, options = {}) {
     if (!familyId) return 0;
-    return await this.update({ family_id: familyId }, { is_revoked: true }, options);
+    return await this.update({ family_id: familyId }, { is_revoked: true,revoked_at: new Date(),revoke_reason }, options);
   }
 
-  async revokeByUserId(userId, options = {}) {
+  async revokeByUserId(userId, revoke_reason, options = {}) {
     if (!userId) return 0;
-    return await this.update({ user_id: userId }, { is_revoked: true }, options);
+    return await this.update({ user_id: userId }, { is_revoked: true,revoked_at: new Date(),revoke_reason }, options);
   }
 
-  async revokeByToken(tokenHash, options = {}) {
+  async revokeByToken(tokenHash, revoke_reason, options = {}) {
     if (!tokenHash) return 0;
-    return await this.update({ token_hash: tokenHash }, { is_revoked: true }, options);
+    return await this.update({ token_hash: tokenHash }, { is_revoked: true, revoked_at: new Date(), revoke_reason }, options);
   }
 
   async findValidToken(userId, deviceId, options = {}) {

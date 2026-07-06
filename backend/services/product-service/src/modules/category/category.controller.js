@@ -1,124 +1,83 @@
-import CategoryRepository from "../repository/category.repository.js";
 import CategoryService from "./category.service.js";
 import ResponseUtil from "../../utils/response.js";
 
-const categoryService = new CategoryService(new CategoryRepository());
-const CategoryController = {
 
-  async createCategory(req, res) {
 
-    const categoryData = req.body;
+class CategoryController {
 
-    if (categoryData) {
-
-    
-      const result = await categoryService.createCategory(categoryData);
-
-      if (result.success) {
-
-        return ResponseUtil.success(
-          res,
-          result.data,
-          "Category created successfully",
-          201
-        );
-
-      } else {
-
-        return ResponseUtil.error(res, result.message, 500);
-
-      }
-
-    } else {
-
-      return ResponseUtil.validationError(res, "Invalid category data");
-
+  async createCategory(req, res, next) {
+    try {
+      const categoryData = req.body;
+      const result = await CategoryService.createCategory(categoryData);
+      return ResponseUtil.success(
+        res,
+        result,
+        "Category created successfully",
+        201
+      );
+    } catch (error) {
+      next(error);
     }
+  }
 
-  },
-
-  async getAllCategories(req, res) {
+  async getAllCategories(req, res,next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     try {
-      const result = await categoryService.getAllCategories({ offset, limit });
-     if (result.success) {
+      const result = await CategoryService.getAllCategories({ offset, limit });
 
         return ResponseUtil.success(
           res,
-          result.data,
+          result,
           "Categories retrieved successfully"
         );
 
-      } else {
-
-        return ResponseUtil.error(res, result.message, 500);
-
-      }
     } catch (error) {
-      return ResponseUtil.error(res, "Failed to retrieve categories", 500);
+next(error);
     }
-  },
+  }
 
-  async updateCategory(req, res) {
+  async updateCategory(req, res, next) {
     const { id } = req.params;
     const categoryData = req.body;
 
-    if (categoryData) {
+    try {
 
-      const result = await categoryService.updateCategory(id, categoryData);
+      const result = await CategoryService.updateCategory(id, categoryData);
 
-      if (result.success) {
 
-        return ResponseUtil.success(
-          res,
-          result.data,
-          "Category updated successfully"
-        );
 
-      } else {
+      return ResponseUtil.success(
+        res,
+        result,
+        "Category updated successfully"
+      );
 
-        return ResponseUtil.error(res, result.message, 500);
-
-      }
-
-    } else {
-
-      return ResponseUtil.validationError(res, "Invalid category data");
-
+    } catch (error) {
+      next(error);
     }
-  },
+  }
 
-  async deleteCategory(req, res) {
-    const { id } = req.params;
+  async deleteCategory(req, res, next) {
+    try {
+      const { id } = req.params;
+      const result = await CategoryService.deleteCategory(id);
 
-    if (id) {
 
-      const result = await categoryService.deleteCategory(id);
 
-      if (result.success) {
+      return ResponseUtil.success(
+        res,
+        result,
+        "Category deleted successfully"
+      );
 
-        return ResponseUtil.success(
-          res,
-          result.data,
-          "Category deleted successfully"
-        );
-
-      } else {
-
-        return ResponseUtil.error(res, result.message, 500);
-
-      }
-
-    } else {
-
-      return ResponseUtil.validationError(res, "Invalid category data");
-
+    } catch (error) {
+      next(error);
     }
   }
 
 };
 
-export default CategoryController;
+export default new CategoryController();

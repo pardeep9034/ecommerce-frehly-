@@ -2,16 +2,17 @@ import InventoryServices from "./inventory.services.js";
 import ResponseUtil from "../../utils/response.js";
 
 const InventoryController = {
-  async getAllInventory(req, res) {
+  async getAllInventory(req, res,next) {
+    try{
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     const result = await InventoryServices.getAllInventory(limit, offset);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
+    return ResponseUtil.success(res, result,"Inventory fetched successfully");
+    }
+    catch(error){
+      next(error)
     }
   },
   

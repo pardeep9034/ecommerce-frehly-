@@ -1,5 +1,5 @@
 import app from "./app.js";
-import { initializeModels } from "./src/models/index.js";
+import  initializeModels  from "./src/models/index.js";
 
 const PORT = process.env.PORT || 3003; // Using 3003 to avoid conflicts, standardizing Ports later
 

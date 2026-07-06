@@ -3,7 +3,7 @@ import { DataTypes } from "sequelize";
 export default (sequelize) => {
 
     const ProductVariant = sequelize.define(
-        "ProductVariant",
+        "ProductVariants",
         {
             id: {
                 type: DataTypes.INTEGER,
@@ -11,23 +11,30 @@ export default (sequelize) => {
                 autoIncrement: true
             },
 
-            productId: {
+            product_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false
             },
 
-            unitType: {
-                type: DataTypes.ENUM("weight", "piece", "pack"),
-                allowNull: false
-            },
-
-            value: {
-                type: DataTypes.FLOAT
-            },
-
-            unit: {
-                type: DataTypes.STRING
-            },
+           sku:{
+            type:DataTypes.STRING,
+            allowNull:false,
+            unique:true
+           },
+           barcode:{
+            type:DataTypes.STRING,
+            unique:true
+           },
+           quantity:{
+            type:DataTypes.INTEGER,
+            allowNull:false
+           },
+           
+           measurement_unit_id:{
+            type:DataTypes.INTEGER,
+            allowNull:false
+           },
+          
 
             price: {
                 type: DataTypes.FLOAT,
@@ -35,24 +42,38 @@ export default (sequelize) => {
             },
 
             mrp: {
-                type: DataTypes.FLOAT
+                type: DataTypes.FLOAT,
+                allowNull:false
             },
 
             status: {
-                type: DataTypes.BOOLEAN,
-                defaultValue: true
+                type: DataTypes.ENUM("ACTIVE","INACTIVE","ARCHIVED"),
+                allowNull:false
+                
+            },
+            sort_order:{
+                type:DataTypes.INTEGER,
+                defaultValue: 0
             }
         },
         {
             tableName: "product_variants",
-            timestamps: true
+            timestamps: true,
+            createdAt:"created_at",
+            updatedAt:"updated_at"
         }
     );
 
     ProductVariant.associate = (models) => {
 
         ProductVariant.belongsTo(models.Product, {
-            foreignKey: "productId"
+            foreignKey: "product_id",
+            as: "product"
+        });
+        ProductVariant.belongsTo(models.MeasurementUnit,{foreignKey:"measurement_unit_id",as:"measurementUnit"})
+        ProductVariant.hasMany(models.ProductImage, {
+            foreignKey: "variant_id",
+            as: "images"
         });
 
     };

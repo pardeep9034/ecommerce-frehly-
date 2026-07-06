@@ -1,108 +1,96 @@
 import VariantRepository from "../repository/variant.repository.js";
-
+import AppError from "../../utils/AppError.js";
+import { generateSku } from "../../utils/helper.js";
+import variantRepository from "../repository/variant.repository.js";
 const VariantServices = {
     async searchVariantsByProductName(search) {
         try {
             if (!search || search.trim() === "") {
-                return {
-                    success: false,
-                    message: "Search query is required",
-                };
+               throw new AppError("Search query is required",400)
             }
-            const products = await new VariantRepository().searchVariantsByProductName(search.trim());
-            return {
-                success: true,
-                data: products,
-            };
+            const products = await VariantRepository.searchVariantsByProductName(search.trim());
+            return products;
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || "Failed to search variants",
-            };
+           throw new AppError("Failed to search variants",400)
         }
     },
 
-    async getAllVariants(productId) {
+    async getAllVariants(productId,offset,limit) {
         try {
-            const variants = await new VariantRepository().getAllVariants(productId);
-            return {
-                success: true,
-                data: variants,
-            };
+            if(!productId){
+                throw new AppError("id is required",400);
+            }
+            const {count,rows} = await VariantRepository.getAllVariants(productId,offset,limit);
+            const totalPages = Math.ceil(count / limit);
+          const currentPage = Math.floor(offset / limit) + 1;
+           return{
+            variants:rows,
+             pagination: {
+          totalItems: count,
+          totalPages,
+          currentPage,
+          limit,
+          hasNextPage: currentPage < totalPages,
+          hasPrevPage: currentPage > 1,
+        },
+           }
+           
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || "Failed to fetch variants",
-            };
+            throw new AppError("variants not found",404)
         }
     },
     
     async getVariantById(id) {
         try {
-            const variant = await new VariantRepository().getVariantById(id);
-            if (!variant) {
-                return { success: false, message: "Variant not found" };
+            if(!id){
+                throw new AppError("id is required",400);
             }
-            return {
-                success: true,
-                data: variant,
-            };
+            const variant = await VariantRepository.getVariantById(id);
+            if (!variant) {
+                throw new AppError("variant not found",404);
+            }
+          return variant;
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || "Failed to fetch variant",
-            };
+           throw new AppError("Failed to fetch variant",400);
         }
     },
 
     async createVariant(productId, variantData) {
-        const { unitType, value, unit, price, mrp, status } = variantData;
-
-        if (!unitType || price === undefined) {
-            return {
-                success: false,
-                message: "unitType and price are required",
-            };
-        }
-
-        try {
-            const variant = await new VariantRepository().createVariant({
-                productId,
-                unitType,
-                value,
-                unit,
-                price,
-                mrp,
-                status,
-            });
-            return {
-                success: true,
-                data: variant,
-            };
+        try{
+            if(!productId){
+                throw new AppError("Product id is required",400)
+            }
+            variantData.product_id = Number(productId);
+            const sku = variantData.sku || generateSku();
+            const existing = await VariantRepository.findExistingVariant(sku, variantData.barcode);
+            if(existing){
+                throw new AppError("Variant with this SKU or barcode already exists",400)
+            }
+            variantData.sku = sku;
+            if(variantData.price > variantData.mrp){
+                throw new AppError("Price should be less than or equal to MRP",400);
+            }
+            const variant = await VariantRepository.createVariant(variantData);
+            return variant;
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || "Failed to create variant",
-            };
+            if (error instanceof AppError) throw error;
+            throw new AppError(error.message || "Failed to create variant", 400);
         }
     },
     
     async updateVariant(id, variantData) {
         try {
-            const updated = await new VariantRepository().updateVariant(id, variantData);
-            if (!updated[0]) {
-                return { success: false, message: "Variant not found or no changes made" };
+            if(!id){
+                throw new AppError("id is required",400);
             }
-            const updatedVariant = await new VariantRepository().getVariantById(id);
-            return {
-                success: true,
-                data: updatedVariant,
-            };
+            const existingVariant=await variantRepository.findById(id);
+            if(!existingVariant){
+                throw new AppError("Variant not found",404);
+            }
+            const updated = await VariantRepository.updateVariant(id, variantData);
+            return updated;
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || "Failed to update variant",
-            };
+           throw new AppError(error.message,400);
         }
     },
 

@@ -1,4 +1,4 @@
-import { initializeModels } from "../../models/index.js";
+import  initializeModels  from "../../models/index.js";
 
 const PromotionItemRepository = {
     async getAllPromotionItems() {

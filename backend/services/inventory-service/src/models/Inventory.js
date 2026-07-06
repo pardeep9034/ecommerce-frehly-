@@ -1,56 +1,54 @@
-import { referrerPolicy } from "helmet";
 import { DataTypes } from "sequelize";
 
 export default (sequelize) => {
+  const Inventory = sequelize.define(
+    "Inventory",
+    {
+      id: {
+        type: DataTypes.BIGINT,
+        primaryKey: true,
+        autoIncrement: true,
+      },
 
-    const Inventory = sequelize.define(
-        "Inventory",
-        {
-            id: {
-                type: DataTypes.INTEGER,
-                primaryKey: true,
-                autoIncrement: true
-            },
+      variant_id: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        unique: true,
+     
+      },
 
-            variantId: {
-                type: DataTypes.INTEGER,
-                allowNull: false,
-                references:{
-                    model:"product_variants",
-                    key:"id"
-                }
-            },
+      current_stock: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
 
-            stock: {
-                type: DataTypes.INTEGER,
-                allowNull: false,
-                defaultValue: 0
-            },
+      reserved_stock: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
 
-            reservedStock: {
-                type: DataTypes.INTEGER,
-                defaultValue: 0
-            },
+      low_stock_threshold: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 10,
+      },
 
-            lowStockAlert: {
-                type: DataTypes.INTEGER,
-                defaultValue: 5
-            }
-        },
-        {
-            tableName: "inventories",
-            timestamps: true
-        }
-    );
+      last_stock_update_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+    },
+    {
+      tableName: "inventory",
+      timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    }
+  );
 
-    Inventory.associate = (models) => {
 
-        Inventory.hasMany(models.InventoryLog, {
-            foreignKey: "inventoryId",
-            as: "logs"
-        });
 
-    };
-
-    return Inventory;
+  return Inventory;
 };

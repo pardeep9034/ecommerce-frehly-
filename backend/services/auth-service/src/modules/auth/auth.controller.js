@@ -42,20 +42,33 @@ class AuthController {
       next(error);
     }
   }
+  async login(req,res,next){
+    try{
+      const {phone}=req.body;
+      const result=await AuthService.login(phone);
+      if(result.data){
+        return ResponseUtil.success(res, result.data, result.message, 200);
+      }
+    }catch(err){
+      next(err);
+    }
+  }
+  async loginWithPassword(req,res,next){
 
-  async login(req, res, next) {
     try {
       const { phone, password } = req.body;
       const deviceId = req.headers["x-device-id"] || null;
       const userAgent = req.headers["user-agent"] || null;
 
-      const result = await AuthService.login(phone, password, deviceId, userAgent);
+      const result = await AuthService.loginWithPassword(phone, password, deviceId, userAgent);
       res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
       return ResponseUtil.success(res, result.data, result.message, 200);
     } catch (error) {
       next(error);
     }
   }
+
+
 
   async refreshToken(req, res, next) {
     try {
@@ -110,6 +123,16 @@ class AuthController {
     } catch (error) {
       logger.error(`Logout error: ${error.message}`);
       next(error);
+    }
+  }
+  async logoutFromAllDevices(req,re,next){
+    try{
+      const userId=req.user?.id;
+      const result=await AuthService.logoutFromAllDevices(userId);
+      return ResponseUtil.success(res, result.data, result.message, 200);
+    }
+    catch(error){
+      next(error)
     }
   }
 }

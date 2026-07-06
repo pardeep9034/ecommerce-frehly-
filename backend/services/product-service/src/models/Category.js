@@ -18,28 +18,54 @@ export default (sequelize) => {
 
             slug: {
                 type: DataTypes.STRING,
+                allowNull: false,
                 unique: true
             },
-
-            image: {
-                type: DataTypes.TEXT
+            parent_id:{
+                type: DataTypes.INTEGER,
+                allowNull: true
             },
 
-            status: {
+            image_url: {
+                type: DataTypes.STRING,
+                allowNull: false
+            },
+            description:{
+             type:DataTypes.STRING,
+             allowNull: true
+            },
+            sort_order:{
+                type:DataTypes.INTEGER,
+                allowNull: false,
+                defaultValue: 0
+            },
+
+            is_active: {
                 type: DataTypes.BOOLEAN,
                 defaultValue: true
             }
         },
         {
             tableName: "categories",
-            timestamps: true
+            timestamps: true,
+            createdAt:"created_at",
+            updatedAt:"updated_at"
         }
     );
 
     Category.associate = (models) => {
-        Category.hasMany(models.Product, {
-            foreignKey: "categoryId"
-        });
+       Category.belongsTo(models.Category, {
+        foreignKey: "parent_id",
+        as: "parent"
+       });
+       Category.hasMany(models.Category,{
+        foreignKey: "parent_id",
+        as: "children"
+       });
+       Category.hasMany(models.Product,{
+        foreignKey: "category_id",
+        as: "products"
+       })
     };
 
     return Category;

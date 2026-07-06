@@ -1,0 +1,187 @@
+import joi from "joi";
+import ResponseUtil from "../utils/response.js";
+
+const schema={
+    categorySchema:joi.object({
+        name:joi.string().required(),
+        slug:joi.string().required(),
+        parent_id:joi.number().optional(),
+        image_url:joi.string().required(),
+        description:joi.string().optional(),
+        sort_order:joi.number().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    
+    deleteCategorySchema:joi.object({
+        id:joi.number().required()
+    }),
+    updateCategorySchema:joi.object({
+        id:joi.number().required(),
+        name:joi.string().optional(),
+        slug:joi.string().optional(),
+        parent_id:joi.number().optional(),
+        image_url:joi.string().optional(),
+        description:joi.string().optional(),
+        sort_order:joi.number().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    createBrandSchema:joi.object({
+        name:joi.string().required(),
+        slug:joi.string().required(),
+        logo_url:joi.string().required(),
+        description:joi.string().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    updateBrandSchema:joi.object({
+        id:joi.number().required(),
+        name:joi.string().optional(),
+        slug:joi.string().optional(),
+        logo_url:joi.string().optional(),
+        description:joi.string().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    deleteBrandSchema:joi.object({
+        id:joi.number().required()
+    }),
+    createProductTypeSchema:joi.object({
+        name:joi.string().required(),
+        code:joi.string().required(),
+        is_active:joi.boolean().optional()
+    }),
+    updateProductTypeSchema:joi.object({
+        id:joi.number().required(),
+        name:joi.string().optional(),
+        code:joi.string().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    deleteProductTypeSchema:joi.object({
+        id:joi.number().required()
+    }),
+    createUnitSchema:joi.object({
+        name:joi.string().required(),
+        code:joi.string().required(),
+        category:joi.string().valid('WEIGHT','VOLUME','COUNT','PACKAGING').optional(),
+        is_active:joi.boolean().optional()
+    }),
+    updateUnitSchema:joi.object({
+        id:joi.number().required(),
+        name:joi.string().optional(),
+        code:joi.string().optional(),
+        category:joi.string().optional(),
+        is_active:joi.boolean().optional()
+    }),
+    deleteUnitSchema:joi.object({
+        id:joi.number().required()
+    }),
+    createProductSchema:joi.object({
+        name:joi.string().required(),
+        sku:joi.string().optional(),
+        description:joi.string().optional(),
+        short_description:joi.string().required(),
+        
+        category_id:joi.number().required(),
+        brand_id:joi.number().required(),
+        product_type_id:joi.number().required(),
+        is_organic:joi.boolean().optional(),
+        is_featured:joi.boolean().optional(),
+        sort_order:joi.number().optional(),
+        status:joi.string().valid('DRAFT','ACTIVE','INACTIVE','ARCHIVED').optional()
+    }),
+    updateProductSchema:joi.object({
+        id:joi.number().required(),
+        name:joi.string().optional(),
+        sku:joi.string().optional(),
+        description:joi.string().optional(),
+        short_description:joi.string().optional(),
+        images_url:joi.array().items(joi.string()).optional(),
+        category_id:joi.number().optional(),
+        brand_id:joi.number().optional(),
+        product_type_id:joi.number().optional(),
+        is_organic:joi.boolean().optional(),
+        is_featured:joi.boolean().optional(),
+        sort_order:joi.number().optional(),
+        status:joi.string().valid('DRAFT','ACTIVE','INACTIVE','ARCHIVED').optional()
+    }),
+    deleteProductSchema:joi.object({
+        id:joi.number().required()
+    }),
+    createProductAttributeSchema:joi.object({
+        product_id:joi.number().required(),
+        attribute_name:joi.string().required(),
+        attribute_value:joi.string().required(),
+        data_type:joi.string().valid('TEXT','NUMBER','BOOLEAN').optional(),
+        is_filterable:joi.boolean().optional(),
+        sort_order:joi.number().optional()
+    }),
+    updateProductAttributeSchema:joi.object({
+        id:joi.number().required(),
+        product_id:joi.number().optional(),
+        attribute_name:joi.string().optional(),
+        attribute_value:joi.string().optional(),
+        data_type:joi.string().optional(),
+        is_filterable:joi.boolean().optional(),
+        sort_order:joi.number().optional()
+    }),
+    deleteProductAttributeSchema:joi.object({
+        id:joi.number().required()
+    }),
+    createVariantSchema:joi.object({
+        product_id:joi.number().required(),
+        sku:joi.string().optional(),
+        barcode:joi.string().optional(),
+        quantity:joi.number().required(),
+        measurement_unit_id:joi.number().required(),
+        price:joi.number().required(),
+        mrp:joi.number().required(),
+        status:joi.string().valid('ACTIVE','INACTIVE','ARCHIVED').required(),
+        sort_order:joi.number().optional()
+    }),
+    updateVariantSchema:joi.object({
+        id:joi.number().required(),
+        product_id:joi.number().optional(),
+        sku:joi.string().optional(),
+        barcode:joi.string().optional(),
+        quantity:joi.number().optional(),
+        measurement_unit_id:joi.number().optional(),
+        price:joi.number().optional(),
+        mrp:joi.number().optional(),
+        status:joi.string().valid('ACTIVE','INACTIVE','ARCHIVED').optional(),
+        sort_order:joi.number().optional()
+    }),
+    deleteVariantSchema:joi.object({
+        id:joi.number().required()
+    }),
+    addProductImageSchema:joi.object({
+        product_id:joi.number().required(),
+        variant_id:joi.number().optional(),
+        image_url:joi.string().uri().required(),
+        public_id:joi.string().optional(),
+        alt_text:joi.string().max(255).optional(),
+        sort_order:joi.number().integer().min(0).optional(),
+        is_primary:joi.boolean().optional()
+    }),
+    updateProductImageSchema:joi.object({
+        image_url:joi.string().uri().optional(),
+        public_id:joi.string().optional(),
+        alt_text:joi.string().max(255).optional(),
+        sort_order:joi.number().integer().min(0).optional(),
+        is_primary:joi.boolean().optional()
+    }),
+    deleteProductImageSchema:joi.object({
+        id:joi.number().required()
+    })
+
+}
+
+const validate = (schemaName) => {
+    return (req, res, next) => {
+        const { error, value } = schema[schemaName].validate(req.body);
+        if (error) {
+            return ResponseUtil.error(res, error.details[0].message, 400);
+        }
+        req.body = value;
+        next();
+    };
+};
+
+export default validate;

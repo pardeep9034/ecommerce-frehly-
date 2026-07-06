@@ -1,19 +1,22 @@
 import database from "../config/database.js";
 import InventoryModel from "./Inventory.js";
-import InventoryLogModel from "./inventoryLog.js";
+import StockMovementModel from "./stockMovement.js";
+import StockReservationModel from "./stockReservation.js";
 
 let sequelize;
-let db;
+let dbPromise = null;
 
 async function initializeModels() {
-    if (!db) {
+    if (!dbPromise) {
+        dbPromise = (async () => {
         sequelize = await database.connect();
 
-        db = {
+      const  db = {
             sequelize,
             Sequelize: database.Sequelize,
             Inventory: InventoryModel(sequelize),
-            InventoryLog: InventoryLogModel(sequelize),
+            StockMovement: StockMovementModel(sequelize),
+            StockReservation: StockReservationModel(sequelize),
         };
 
         /* ================= ASSOCIATIONS ================= */
@@ -24,9 +27,11 @@ async function initializeModels() {
         });
 
         console.log("✅ Inventory Service: Models initialized");
+        return db;
+    })()
     }
 
-    return db;
+    return dbPromise;
 }
 
-export { initializeModels, db };
+export default initializeModels;

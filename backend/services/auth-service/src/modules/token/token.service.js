@@ -104,6 +104,9 @@ class TokenService {
   async invalidateUserSession(userId) {
     try {
       const redis = redisManager.getClient();
+      if (!redis) {
+        throw new Error("Redis client not available");
+      }
       const key = `${SESSION_PREFIX}${userId}`;
       await redis.del(key);
     } catch (err) {
