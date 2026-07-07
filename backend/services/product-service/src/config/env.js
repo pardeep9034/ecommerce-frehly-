@@ -1,27 +1,56 @@
-import { z } from 'zod';
-import dotenv from 'dotenv';
+import Joi from "joi";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.string().default('4000'),
-  DATABASE_URL: z.string().url(),
-  JWT_SECRET: z.string().min(32),
-  JWT_ACCESS_EXPIRATION: z.string().default('15m'),
-  JWT_REFRESH_EXPIRATION: z.string().default('7d'),
-  REDIS_URL: z.string().url().optional(),
-  KAFKA_BROKERS: z.string().default('localhost:9092'),
-  BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
-  MAX_LOGIN_ATTEMPTS: z.string().transform(Number).default('5'),
-  LOCK_TIME: z.string().transform(Number).default('7200000'), // 2 hours in ms
-});
+const envSchema = Joi.object({
+    NODE_ENV: Joi.string()
+        .valid("development", "test", "production")
+        .default("development"),
 
-const envVars = envSchema.safeParse(process.env);
+    PORT: Joi.number()
+        .default(4000),
 
-if (!envVars.success) {
-  console.error('❌ Invalid environment variables:', envVars.error.format());
-  process.exit(1);
+    DATABASE_URL: Joi.string()
+        .uri()
+        .required(),
+
+    JWT_SECRET: Joi.string()
+        .min(32)
+        .required(),
+
+    JWT_ACCESS_EXPIRATION: Joi.string()
+        .default("15m"),
+
+    JWT_REFRESH_EXPIRATION: Joi.string()
+        .default("7d"),
+
+    REDIS_URL: Joi.string()
+        .uri()
+        .optional(),
+
+    KAFKA_BROKERS: Joi.string()
+        .default("localhost:9092"),
+
+    BCRYPT_ROUNDS: Joi.number()
+        .integer()
+        .default(12),
+
+    MAX_LOGIN_ATTEMPTS: Joi.number()
+        .integer()
+        .default(5),
+
+    LOCK_TIME: Joi.number()
+        .integer()
+        .default(7200000)
+}).unknown(true);
+
+const { error, value } = envSchema.validate(process.env);
+
+if (error) {
+    console.error("❌ Invalid environment variables");
+    console.error(error.details.map(e => e.message).join("\n"));
+    process.exit(1);
 }
 
-export const env = envVars.data;
+export const env = value;

@@ -7,7 +7,7 @@ const router = express.Router();
 // Define inventory-related routes
 router.get("/", InventoryController.getAllInventory);
 // ⚠️ Specific routes MUST come before /:id wildcard
-router.get("/product/:productId", InventoryController.getInventoryByProductId);
+
 router.get("/variant/:variantId", InventoryController.getInventoryByVariantId);
 router.get("/:id", InventoryController.getInventoryById);
 router.post("/",authenticateToken,validate("createInventorySchema"),InventoryController.createInventory);

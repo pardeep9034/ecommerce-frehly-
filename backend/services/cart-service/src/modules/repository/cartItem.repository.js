@@ -1,39 +1,34 @@
-import initializeModels from "../../models/index.js";
+import BaseRepository from "./base.repository.js";
 
-class CartItemRepository{
+class CartItemRepository extends BaseRepository {
+    constructor() {
+        super("CartItem");
+    }
 
     async add(data) {
-        if (data) {
-            const db = await initializeModels();
-            const result = await db.CartItem.create(data);
-            return result;
-
-        }
-        else {
-            return null;
-        }
-    }
-    async checkCartItem(itemDetail){
-        const db=await initializeModels();
-        const result= await db.CartItem.findOne({where:{cartId:itemDetail.cartId,productId:itemDetail.productId,variantId:itemDetail.variantId}});
-        return result;
-    }
-    async updateQuantity(cartItemId,quantity){
-        const db=await initializeModels();
-        const result= await db.CartItem.update({quantity:quantity},{where:{id:cartItemId}});
-        return result;
-    }
-    async delete(cartItemId){
-        const db=await initializeModels();
-        const result= await db.CartItem.destroy({where:{id:cartItemId}});
-        return result;
-    }
-    async getCartItem(cartItemId){
-        const db=await initializeModels();
-        const result= await db.CartItem.findOne({where:{id:cartItemId}});
-        return result;
+        return await this.create(data);
     }
 
+    async checkCartItem(itemDetail) {
+        return await this.findOne({
+            where: {
+                cart_id: itemDetail.cart_id,
+                variant_id: itemDetail.variant_id
+            }
+        });
+    }
+
+    async updateQuantity(cartItemId, quantity) {
+        return await this.update({ quantity: quantity }, { where: { id: cartItemId } });
+    }
+
+    async delete(cartItemId) {
+        return await this.destroy({ where: { id: cartItemId } });
+    }
+
+    async getCartItem(cartItemId) {
+        return await this.findOne({ where: { id: cartItemId } });
+    }
 }
 
-export default CartItemRepository;
+export default new CartItemRepository ();

@@ -10,17 +10,12 @@ export default (sequelize) => {
         autoIncrement: true
       },
 
-      cartId: {
+      cart_id: {
         type: DataTypes.INTEGER,
         allowNull: false
       },
 
-      productId: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      },
-
-      variantId: {
+      variant_id: {
         type: DataTypes.INTEGER,
         allowNull: true
       },
@@ -30,45 +25,18 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: 1
       },
-
-      priceSnapshot: {
-        type: DataTypes.FLOAT,
-        allowNull: false
-      },
-
-      productNameSnapshot: {
-        type: DataTypes.STRING,
-        allowNull: true
-      },
-
-      variantNameSnapshot: {
-        type: DataTypes.STRING,
-        allowNull: true
-      }
     },
     {
       tableName: "cart_items",
       timestamps: true,
-      indexes: [
-        {
-          name: "idx_cartId",
-          fields: ["cartId"]
-        },
-        {
-          name: "idx_product_variant",
-          fields: ["productId", "variantId"]
-        },
-        {
-          name: "idx_cart_product",
-          fields: ["cartId", "productId", "variantId"],
-          unique: true   
-        }
-      ]
+      createdAt:"created_at",
+      updatedAt:"updated_at"
     }
   );
 CartItem.associate = (models) => {
   CartItem.belongsTo(models.Cart, {
-    foreignKey: "cartId"
+    foreignKey: "cart_id",
+    as:"cart"
   });
 };
 

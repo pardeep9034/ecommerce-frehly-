@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import inventoryRoutes from "./src/modules/inventory/inventory.routes.js";
+import stockMovementRoutes from "./src/modules/stockMovement/stockMovement.routes.js";
+import stockReservationRoutes from "./src/modules/stockReservation/stockReservation.routes.js";
 import ResponseUtil from "./src/utils/response.js";
 
 dotenv.config();
@@ -42,7 +44,9 @@ if (process.env.NODE_ENV === "development") {
 }
 
 /* ================= ROUTES ================= */
-app.use("/", inventoryRoutes);
+app.use("/inventory", inventoryRoutes);
+app.use("/stock-movements", stockMovementRoutes);
+app.use("/stock-reservations", stockReservationRoutes);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
@@ -72,6 +76,10 @@ app.use((error, req, res, next) => {
 
   if (error.name === "SequelizeUniqueConstraintError") {
     return ResponseUtil.error(res, "Resource already exists", 400);
+  }
+
+  if (error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
   }
 
   ResponseUtil.error(

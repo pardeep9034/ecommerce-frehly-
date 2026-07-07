@@ -1,230 +1,223 @@
 import CartRepository from "../repository/cart.repository.js";
 import CartItemRepository from "../repository/cartItem.repository.js";
 import axios from "axios";
-import env from "../../config/env.js";
-import ResponseUtil from "../../utils/response.js";
+import { env } from "../../config/env.js";
+import AppError from "../../utils/AppError.js";
 
 
-const addToCartService={
 
-  // cart.service.js
+class addToCartService {
 
-async add(user, data) {
 
-    // validate request
-    const validation = this.validateAddToCart(user, data);
+    async add(user, data) {
+        // product + inventory validation
+        console.log("from add func", data)
+        const serviceValidation =
+            await this.validateProductAndInventory(data);
+        console.log("service validation", serviceValidation)
 
-    if (!validation.success) {
-        return validation;
-    }
+        if (!serviceValidation.success) {
+            throw new AppError(serviceValidation.message, 400)
+        }
 
-    // product + inventory validation
-    const serviceValidation =
-        await this.validateProductAndInventory(data);
 
-    if (!serviceValidation.success) {
-        return serviceValidation;
-    }
+        const cart =
+            await this.getOrCreateCart(user);
 
-    // get or create cart
-    const cart =
-        await this.getOrCreateCart(user.user_id);
+        if (!cart) {
+            throw new AppError("cart not created", 400);
+        }
 
-    if (!cart.success) {
-        return cart;
-    }
+        // check existing cart item
+        const existingCartItem =
+            await CartItemRepository.checkCartItem({
 
-    // check existing cart item
-    const existingCartItem =
-        await new CartItemRepository().checkCartItem({
+                cart_id: cart.id,
+                variant_id: data.variant_id
 
-            cartId: cart.data.id,
-            productId: data.productId,
-            variantId: data.variantId
+            });
 
-        });
+        // existing cart item
+        if (existingCartItem) {
 
-    // existing cart item
-    if (existingCartItem) {
+            return await this.handleExistingCartItem(
 
-        return await this.handleExistingCartItem(
+                existingCartItem,
+                serviceValidation.data.inventory,
+                data
 
-            existingCartItem,
+            );
+
+        }
+
+        // create new cart item
+        return await this.createCartItem(
+            cart,
             serviceValidation.data.inventory,
             data
-
         );
 
     }
 
-    // create new cart item
-    return await this.createCartItem(
-        cart.data,
-        serviceValidation.data.product,
-        serviceValidation.data.variant,
-        serviceValidation.data.inventory,
-        data
-    );
-
-},
-
-
-// validate request
-validateAddToCart(user, data) {
-
-    if (!user) {
-
-        return {
-            success: false,
-            statusCode: 401,
-            message: "user detail missing"
-        };
-
+    //create cart
+    async createCart(data, user_id) {
+        try {
+            const cart = await new CartRepository().createCart(cart_id);
+            return {
+                success: true,
+                data: cart
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            };
+        }
     }
 
-    if (!data) {
-
-        return { success: false, message: "cart detail missing" };
-
-    }
-
-    if (!data.productId) {
-
-        return { success: false, message: "productId required" };
-
-    }
-
-    // handle both variantId and varientId
-    data.varientId = data.varientId || data.variantId;
-
-    if (!data.varientId) {
-
-        return { success: false, message: "variantId required" };
-
-    }
-
-    if (!data.quantity) {
-
-        return { success: false, message: "quantity required" };
-
-    }
-
-    if (data.quantity === 0) {
-
-        return { success: false, message: "quantity cannot be 0" };
-
-    }
-
-    return {
-        success: true
-    };
-
-},
 
 
-// validate product + inventory
-async validateProductAndInventory(data) {
 
-    const [productResponse, inventoryResponse] =
-        await Promise.all([
 
-            axios.get(
 
-                `${env.PRODUCT_SERVICE_URL}/check/${data.productId}/${data.varientId}`
 
-            ).catch((err) => err.response || null),
 
-            axios.get(
+    // validate product + inventory
+    async validateProductAndInventory(data) {
 
-                `${env.INVENTORY_SERVICE_URL}/variant/${data.varientId}`
+        const [productResponse, inventoryResponse] =
+            await Promise.all([
 
-            ).catch((err) => err.response || null)
+                axios.get(
 
-        ]);
+                    `http://localhost:3002/product-variant/variants/${data.variant_id}`
 
-    // product validation
-    if (!productResponse || !productResponse.data.success) {
+                ),
 
-        return {
-            success: false,
-            message: productResponse?.data?.message || "product service unavailable"
-        };
+                axios.get(
 
-    }
+                    `http://localhost:3003/inventory/${data.variant_id}`
 
-    // inventory validation
-    if (!inventoryResponse || !inventoryResponse.data.success) {
+                )
 
-        return {
-            success: false,
-            message: inventoryResponse?.data?.message || "inventory service unavailable"
-        };
+            ]);
+        console.log("productResponse", productResponse.data.data);
+        console.log("inventoryResponse", inventoryResponse.data.data);
+        // product validation
+        if (!productResponse.data.data || !productResponse.data.success) {
 
-    }
+            return {
+                success: false,
+                message: productResponse?.data?.message || "product service unavailable"
+            };
 
-    return {
-
-        success: true,
-
-        data: {
-            product: productResponse.data.data,
-            variant: productResponse.data.data.variants[0],
-            inventory: inventoryResponse.data.data.stock
         }
 
-    };
+        // inventory validation
+        if (!inventoryResponse.data.data || !inventoryResponse.data.success) {
 
-}
-,
+            return {
+                success: false,
+                message: inventoryResponse?.data?.message || "inventory service unavailable"
+            };
 
-// get or create cart
-async getOrCreateCart(userId) {
+        }
 
-    let cart =
-        await new CartRepository().getCartByUserId(userId);
+        return {
 
-    if (!cart) {
+            success: true,
 
-        cart =
-            await new CartRepository().createCart(userId);
+            data: {
+
+                variant: productResponse.data.data,
+                inventory: inventoryResponse.data.data
+            }
+
+        };
 
     }
 
-    if (!cart) {
 
-        return { success: false, message: "cart not created" };
+    // get or create cart
+    async getOrCreateCart(userId) {
+
+        let cart =
+            await CartRepository.getCartByUserId(userId);
+
+        if (!cart) {
+
+            cart =
+                await CartRepository.createCart({ user_id: userId });
+
+        }
+
+
+
+        return cart.dataValues
+
+
 
     }
 
-    return {
 
-        success: true,
-        data: cart
+    // existing cart item handling
+    async handleExistingCartItem(
+        existingCartItem,
+        inventory,
+        data
+    ) {
 
-    };
+        const finalQuantity =
+            existingCartItem.quantity + data.quantity;
 
-}
+        // remove cart item
+        if (finalQuantity <= 0) {
 
-,
-// existing cart item handling
-async handleExistingCartItem(
-    existingCartItem,
-    inventory,
-    data
-) {
+            const deleteItem =
+                await CartItemRepository.delete(existingCartItem.id);
 
-    const finalQuantity =
-        existingCartItem.quantity + data.quantity;
+            if (!deleteItem) {
 
-    // remove cart item
-    if (finalQuantity <= 0) {
+                return { success: false, message: "cart item not removed" };
 
-        const deleteItem =
-            await new CartItemRepository().delete(existingCartItem.id);
+            }
 
-        if (!deleteItem) {
+            return {
 
-            return { success: false, message: "cart item not removed" };
+                success: true,
+                statusCode: 200,
+                message: "cart item removed"
+
+            };
+
+        }
+
+        // inventory validation
+        if (finalQuantity > inventory.current_stock) {
+
+            return { success: false, message: "inventory not available" };
+
+        }
+
+        // max quantity validation
+        if (finalQuantity > 10) {
+
+            return { success: false, message: "max quantity limit exceeded" };
+
+        }
+
+        // update quantity
+        const updateQuantity =
+            await CartItemRepository.updateQuantity(
+
+                existingCartItem.id,
+                finalQuantity
+
+            );
+
+        if (!updateQuantity) {
+
+            return { success: false, message: "cart item not updated" };
 
         }
 
@@ -232,116 +225,79 @@ async handleExistingCartItem(
 
             success: true,
             statusCode: 200,
-            message: "cart item removed"
+            message: "cart item updated successfully"
 
         };
 
     }
 
-    // inventory validation
-    if (finalQuantity > inventory) {
 
-        return { success: false, message: "inventory not available" };
+    // create cart item
+    async createCartItem(
+        cart,
+        inventory,
+        data
+    ) {
+        console.log("inventory", inventory);
+        console.log("data", data);
+        console.log("data in cart", cart)
+        // inventory validation
+        if (data.quantity > inventory.current_stock) {
+
+            return { success: false, message: "inventory not available" };
+
+        }
+
+        // max quantity validation
+        if (data.quantity > 10) {
+
+            return { success: false, message: "max quantity limit exceeded" };
+
+        }
+
+        data.cart_id = cart.id;
+
+        const cartItem =
+            await CartItemRepository.add(data);
+
+        if (!cartItem) {
+
+            return { success: false, message: "cart item not added" };
+
+        }
+
+        return {
+
+            success: true,
+            statusCode: 201,
+            message: "cart item added successfully"
+
+        };
 
     }
 
-    // max quantity validation
-    if (finalQuantity > 10) {
-
-        return { success: false, message: "max quantity limit exceeded" };
-
+    async getCart(cartId) {
+        const cart = await CartRepository.findOne({
+            where: { id: cartId },
+            include: [{ association: "items" }]
+        });
+        if (!cart) {
+            throw new AppError("Cart not found", 404);
+        }
+        return cart;
     }
 
-    // update quantity
-    const updateQuantity =
-        await new CartItemRepository().updateQuantity(
-
-            existingCartItem.id,
-            finalQuantity
-
-        );
-
-    if (!updateQuantity) {
-
-        return { success: false, message: "cart item not updated" };
-
+    async removeCartItem(cartItemId) {
+        const cartItem = await CartItemRepository.getCartItem(cartItemId);
+        if (!cartItem) {
+            throw new AppError("Cart item not found", 404);
+        }
+        await CartItemRepository.delete(cartItemId);
+        return {
+            success: true,
+            message: "Cart item removed successfully"
+        };
     }
-
-    return {
-
-        success: true,
-        statusCode: 200,
-        message: "cart item updated successfully"
-
-    };
 
 }
-,
-
-// create cart item
-async createCartItem(
-    cart,
-    product,
-    variant,
-    inventory,
-    data
-) {
-
-    // inventory validation
-    if (data.quantity > inventory) {
-
-        return { success: false, message: "inventory not available" };
-
-    }
-
-    // max quantity validation
-    if (data.quantity > 10) {
-
-        return { success: false, message: "max quantity limit exceeded" };
-
-    }
-
-    const itemDetail = {
-
-        cartId: cart.id,
-
-        productId: data.productId,
-
-        variantId: data.varientId,
-
-        quantity: data.quantity,
-
-        priceSnapshot:
-            variant.price,
-
-        productNameSnapshot:
-            product.name,
-
-        variantNameSnapshot:
-            `${variant.value} ${variant.unit}`
-
-    };
-
-    const cartItem =
-        await new CartItemRepository().add(itemDetail);
-
-    if (!cartItem) {
-
-        return { success: false, message: "cart item not added" };
-
-    }
-
-    return {
-
-        success: true,
-        statusCode: 201,
-        message: "cart item added successfully"
-
-    };
-
-}
-
-
-
-}
-export default addToCartService;
+export default new addToCartService();

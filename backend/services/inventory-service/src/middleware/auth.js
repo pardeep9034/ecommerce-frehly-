@@ -21,7 +21,7 @@ const authenticateToken = async (req, res, next) => {
                 const decoded = verifyToken(token);
                 if(decoded.role){
                     if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"){
-                        req.user=decoded.user;
+                        req.user=decoded.user_id;
                         next();
                     }
                     else{

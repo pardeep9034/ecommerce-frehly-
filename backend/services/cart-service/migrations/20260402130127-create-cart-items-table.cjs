@@ -8,17 +8,11 @@ module.exports= {async up(queryInterface, Sequelize) {
       autoIncrement: true
     },
 
-    cartId: {
+    cart_id: {
       type: Sequelize.INTEGER,
       allowNull: false
     },
-
-    productId: {
-      type: Sequelize.INTEGER,
-      allowNull: false
-    },
-
-    variantId: {
+    variant_id: {
       type: Sequelize.INTEGER,
       allowNull: true
     },
@@ -29,17 +23,13 @@ module.exports= {async up(queryInterface, Sequelize) {
       defaultValue: 1
     },
 
-    priceSnapshot: {
-      type: Sequelize.FLOAT,
-      allowNull: false
-    },
 
-    createdAt: {
+    created_at: {
       type: Sequelize.DATE,
       allowNull: false
     },
 
-    updatedAt: {
+    updated_at: {
       type: Sequelize.DATE,
       allowNull: false
     }

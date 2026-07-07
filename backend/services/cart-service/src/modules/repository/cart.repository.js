@@ -1,39 +1,17 @@
-import initializeModels from "../../models/index.js";
+import BaseRepository from "./base.repository.js";
 
-class CartRepository {
-    async add(data, user) {
-
-        if (data) {
-            if (!data.productId || !data.varientId) {
-                return {
-                    success: false,
-                    statusCode: 500,
-                    message: "cart detail missing",
-                };
-            }
-
-            const db = await initializeModels();
-            const result = await db.Cart.create(data);
-            return result;
-        }
-        else {
-            return null;
-        }
+class CartRepository extends BaseRepository {
+    constructor() {
+        super("Cart");
     }
+
     async getCartByUserId(userId) {
-        const db = await initializeModels();
-        const result = await db.Cart.findOne({ where: { userId: userId } });
-        return result;
+        return await this.findOne({ where: { user_id: userId } });
     }
-    async createCart(userId) {
-        const db = await initializeModels();
-        const result = await db.Cart.create({ userId: userId });
-        return result;
+
+    async createCart(data) {
+        return await this.create(data);
     }
-    
 }
-export default CartRepository;
 
-
-
-
+export default new CartRepository ();

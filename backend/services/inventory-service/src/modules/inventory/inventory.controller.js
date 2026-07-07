@@ -1,77 +1,109 @@
 import InventoryServices from "./inventory.services.js";
 import ResponseUtil from "../../utils/response.js";
 
-const InventoryController = {
-  async getAllInventory(req, res,next) {
-    try{
+class InventoryController {
+  async getAllInventory(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const result = await InventoryServices.getAllInventory(limit, offset);
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory fetched successfully",
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInventoryById(req, res, next) {
+    try {
+      const result = await InventoryServices.getInventoryById(req.params.id);
+
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory fetched successfully",
+        200,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInventoryByVariantId(req, res, next) {
+    const { variantId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    try {
+      const result = await InventoryServices.getInventoryByVariantId(
+        variantId,
+        limit,
+        offset,
+      );
 
-    const result = await InventoryServices.getAllInventory(limit, offset);
-    return ResponseUtil.success(res, result,"Inventory fetched successfully");
-    }
-    catch(error){
-      next(error)
-    }
-  },
-  
-  async getInventoryById(req, res) {
-    const result = await InventoryServices.getInventoryById(req.params.id);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-  },
-
-  async getInventoryByProductId(req, res) {
-    const { productId } = req.params;
-    const { variantId } = req.query;
-    
-    const result = await InventoryServices.getInventoryByProductId(productId, variantId);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-  },
-  async getInventoryByVariantId(req, res) {
-    const { variantId } = req.params;
-    const result = await InventoryServices.getInventoryByVariantId(variantId);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-  },
-
-  async createInventory(req, res) {
-    const result = await InventoryServices.createInventory(req.body);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message, 201);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-  },
-  
-  async updateInventory(req, res) {
-    const result = await InventoryServices.updateInventory(req.params.id, req.body);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
-    }
-  },
-
-  async deleteInventory(req, res) {
-    const result = await InventoryServices.deleteInventory(req.params.id);
-    if(result.success) {
-      return ResponseUtil.success(res, result.data, result.message);
-    } else {
-      return ResponseUtil.error(res, result.message);
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory fetched successfully",
+        200,
+      );
+    } catch (error) {
+      next(error);
     }
   }
-};
 
-export default InventoryController;
+  async createInventory(req, res, next) {
+    try {
+      const result = await InventoryServices.createInventory(req.body);
+
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory created successfully",
+        201,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateInventory(req, res, next) {
+    try {
+      const result = await InventoryServices.updateInventory(
+        req.params.id,
+        req.body,
+      );
+
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory updated successfully",
+        200,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteInventory(req, res, next) {
+    try {
+      const result = await InventoryServices.deleteInventory(req.params.id);
+
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory deleted successfully",
+        200,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+export default new InventoryController();

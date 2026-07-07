@@ -9,18 +9,28 @@ module.exports= {
       autoIncrement: true
     },
 
-    userId: {
+    user_id: {
       type: Sequelize.INTEGER,
       allowNull: false,
       unique: true   // 🔥 one cart per user
     },
+     coupon_code: {
+      type:Sequelize.STRING,
+      allowNull:true,
+    },
+    is_active:{
+type:Sequelize.BOOLEAN,
+defaultValue:true,
+allowNull:false
+    },
+   
 
-    createdAt: {
+    created_at: {
       type: Sequelize.DATE,
       allowNull: false
     },
 
-    updatedAt: {
+    updated_at: {
       type: Sequelize.DATE,
       allowNull: false
     }

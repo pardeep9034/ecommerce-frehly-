@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import addToCartRoutes from "./src/modules/addToCart/addToCart.routes.js";
+import ResponseUtil from "./src/utils/response.js"
 
 dotenv.config();
 
@@ -19,13 +20,10 @@ app.use(cors({
 app.use(express.json({limit:"10mb"}));
 app.use(express.urlencoded({extended:true}));
 
-app.use((req,res,next)=>{
-    console.log("Incoming request:",req.method,req.originalUrl);
-    if (req.body && Object.keys(req.body).length > 0) {
-        console.log("Body:", JSON.stringify(req.body, null, 2));
-    }
+app.use((req, res, next) => {
+    console.log("Body:", req.body);
     next();
-})
+});
 
 //REQUEST LOGGING
 
@@ -38,7 +36,7 @@ if(process.env.NODE_ENV === "development"){
 
 // ROUTES
 
-app.use("/",addToCartRoutes);
+app.use("/cart",addToCartRoutes);
 
 
 
@@ -51,5 +49,33 @@ app.get("/",(req,res)=>{
         status:"running"
     })
 })
+
+//GLOBAL ERROR HANDLER
+
+app.use((error, req, res, next) => {
+
+  console.error("Global error handler:", error);
+
+  if (error.name === "SequelizeValidationError") {
+
+    const errors = error.errors.map(err => ({
+      field: err.path,
+      message: err.message
+    }));
+
+    return ResponseUtil.validationError(res, errors);
+  }
+
+  if (error.name === "SequelizeUniqueConstraintError") {
+    return ResponseUtil.error(res, "Resource already exists", 400);
+  }
+
+  ResponseUtil.error(
+    res,
+    process.env.NODE_ENV === "development"
+      ? error.message
+      : "Internal server error"
+  );
+});
 
 export default app;

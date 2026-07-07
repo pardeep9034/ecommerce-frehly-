@@ -20,19 +20,19 @@ class InventoryRepository extends BaseRepository{
     return await this.findById(id);
   }
 
-  async getInventoryByVariantId(variantId) {
-  return await this.findOne({variantId});
+  async getInventoryByVariantId(variantId, offset, limit) {
+  return await this.findAndCountAll({variant_id: variantId}, { limit, offset, order: [["created_at", "DESC"]] });
   }
 
-  async createInventory(inventoryData) {
+  async createInventory(inventoryData, options = {}) {
 
-    return await this.create(inventoryData);
+    return await this.create(inventoryData, options);
 
   }
 
 
-  async updateInventory(id, inventoryData) {
-    return await this.updateById(id,inventoryData);
+  async updateInventory(id, inventoryData, options = {}) {
+    return await this.updateById(id,inventoryData, options);
 
   }
 
@@ -80,4 +80,4 @@ class InventoryRepository extends BaseRepository{
 
 }
 
-export default InventoryRepository;
+export default new InventoryRepository ();

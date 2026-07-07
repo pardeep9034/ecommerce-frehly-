@@ -3,26 +3,33 @@ import CartModel from "./carts.js";
 import CartItemModel from "./cartItems.js";
 
 let sequelize;
-let db;
+
+let dbPromise=null;
 
 export async function initializeModels() {
-  if (!db) {
-    sequelize = await database.connect();
+  
+  if (!dbPromise) {
+    dbPromise=(async()=>{
+ sequelize = await database.connect();
+    const db={
+        sequelize,
+        Sequelize:database.Sequelize,
+        Cart:CartModel(sequelize),
+        CartItem:CartItemModel(sequelize)
+    }
+  
 
-    db = {};
-    db.Cart = CartModel(sequelize);
-    db.CartItem = CartItemModel(sequelize);
-
-    // Run associations
-    Object.keys(db).forEach((modelName) => {
-      if (db[modelName] && typeof db[modelName].associate === "function") {
-        db[modelName].associate(db);
-      }
-    });
+     Object.keys(db).forEach((modelName) => {
+            if (db[modelName] && typeof db[modelName].associate === "function") {
+                db[modelName].associate(db);
+            }
+        });
 
     console.log("✅ Models initialized");
-  }
+  
   return db;
+})()}
+return dbPromise;
 }
 
 export default initializeModels;

@@ -1,7 +1,7 @@
-import TokenService from "../modules/token/token.service.js";
+
 import ResponseUtil from "../utils/response.js";
-import initializeModels from "../models/index.js";
-import logger from "../utils/Logger.js";
+
+import verifyToken from "../utils/verifyToken.js";
 
 const authenticateToken = async (req, res, next) => {
 
@@ -10,64 +10,45 @@ const authenticateToken = async (req, res, next) => {
         /* ================= TOKEN EXTRACTION ================= */
         if (req.headers && req.headers.authorization) {
 
+            
+
             const authHeader = req.headers.authorization;
             const token = authHeader.split(" ")[1];
 
-            /* ================= TOKEN VALIDATION ================= */
-            // Check if token exists and is not a placeholder string like "undefined" or "null"
-            if (!token || token === "undefined" || token === "null" || token.length < 10) {
-                return ResponseUtil.unauthorized(
-                    res,
-                    "Invalid or malformed access token provided"
-                );
-            }
+            if (token) {
 
                 /* ================= TOKEN VERIFICATION ================= */
-                const decoded = TokenService.verifyAccessToken(token);
-
-                if (decoded && decoded.user_id) {
-
-                    /* ================= USER CHECK ================= */
-                    const db = await initializeModels();
-
-                    const user = await db.User.findByPk(decoded.user_id);
-
-                    if (user) {
-
-                        if (user.is_active === true) {
-
-                            req.user = user;
-                            return next();
-
-                        } else {
-
-                            return ResponseUtil.forbidden(
-                                res,
-                                "Account is deactivated"
-                            );
-
-                        }
-
-                    } else {
-
+                const decoded = verifyToken(token);
+                if(decoded.role){
+                    if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"||"CUSTOMER"){
+                        req.user=decoded.user_id;
+                        next();
+                    }
+                    else{
                         return ResponseUtil.unauthorized(
                             res,
-                            "User not found"
+                            "Unauthorized"
                         );
-
                     }
-
-                } else {
-
+                }
+                else{
                     return ResponseUtil.unauthorized(
                         res,
-                        "Invalid access token payload"
+                        "Unauthorized"
                     );
-
                 }
 
-            // Case handled by the string validation above
-            return ResponseUtil.unauthorized(res, "Access token missing");
+              
+            
+
+            } else {
+
+                return ResponseUtil.unauthorized(
+                    res,
+                    "Access token missing"
+                );
+
+            }
 
         } else {
 
@@ -79,21 +60,12 @@ const authenticateToken = async (req, res, next) => {
         }
 
     } catch (error) {
-        // Log standard JWT errors as warnings, don't trigger FATAL ERROR logs for client mistakes
-        if (error.message.includes("Token verification failed")) {
-            logger.warn(`Auth Warning: ${error.message} | Path: ${req.originalUrl}`);
-            return ResponseUtil.unauthorized(res, error.message);
-        }
 
-        // Only log truly unexpected errors as errors
-        logger.error(`AUTH MIDDLEWARE ERROR: ${error.message}`, { stack: error.stack });
+        console.error("AUTH MIDDLEWARE ERROR →", error);
 
-        // For other internal errors (DB, etc.), return 500
-        return ResponseUtil.error(
+        return ResponseUtil.unauthorized(
             res,
-            "Authentication service internal error",
-            500,
-            process.env.NODE_ENV === 'development' ? error.message : null
+            "Invalid or expired access token"
         );
 
     }
