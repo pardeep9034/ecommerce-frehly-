@@ -42,7 +42,9 @@ class RedisManager {
       await this.client.quit();
       this.client = null;
     }
-  }
+  } 
 }
+
+
 
 export default new RedisManager();

@@ -51,7 +51,7 @@ const VariantServices = {
             }
           return variant;
         } catch (error) {
-           throw new AppError("Failed to fetch variant",400);
+           throw new AppError(error.message || "Failed to fetch variant",400);
         }
     },
 

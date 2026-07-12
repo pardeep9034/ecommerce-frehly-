@@ -75,6 +75,7 @@ export default (sequelize) => {
             foreignKey: "variant_id",
             as: "images"
         });
+        
 
     };
 

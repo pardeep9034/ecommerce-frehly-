@@ -30,7 +30,19 @@ class VariantRepository extends BaseRepository {
     }
 
     async getVariantById(id) {
-        return await this.findById(id);
+        return await this.findById(id,{
+            include:[
+                {
+                    association:"product",
+                    attributes:["id","name","short_description","status"]
+                },
+                {
+                    association:"measurementUnit",
+                    attributes:["id","name","code"]
+                }
+            ]
+            
+        });
     }
 
     async updateVariant(id, variantData) {
