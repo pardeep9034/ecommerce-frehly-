@@ -1,35 +1,45 @@
 import database from "../config/database.js";
-import DeliveryModel from "./Delivery.js";
+import DeliveryPartnerModel from "./DeliveryPartner.js";
+import DeliverySlotModel from "./DeliverySlot.js";
+import DeliveryAssignmentModel from "./DeliveryAssignment.js";
+import DeliveryAssignmentHistoryModel from "./DeliveryAssignmentHistory.js";
+import DeliveryStatusHistoryModel from "./DeliveryStatusHistory.js";
+import DeliveryAttemptModel from "./DeliveryAttempt.js";
+import DeliveryHandoverModel from "./DeliveryHandover.js";
 
 let sequelize;
-let db;
+let dbPromise = null;
 
 async function initializeModels() {
-  if (!db) {
-    sequelize = await database.connect();
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      sequelize = await database.connect();
 
-    db = {
-      sequelize,
-      Sequelize: database.Sequelize,
-      Delivery: DeliveryModel(sequelize)
-    };
+      const db = {
+        sequelize,
+        Sequelize: database.Sequelize,
+        DeliveryPartner: DeliveryPartnerModel(sequelize),
+        DeliverySlot: DeliverySlotModel(sequelize),
+        DeliveryAssignment: DeliveryAssignmentModel(sequelize),
+        DeliveryAssignmentHistory: DeliveryAssignmentHistoryModel(sequelize),
+        DeliveryStatusHistory: DeliveryStatusHistoryModel(sequelize),
+        DeliveryAttempt: DeliveryAttemptModel(sequelize),
+        DeliveryHandover: DeliveryHandoverModel(sequelize)
+      };
 
-    /* ================= ASSOCIATIONS ================= */
-    Object.keys(db).forEach((modelName) => {
-      if (db[modelName] && typeof db[modelName].associate === "function") {
-        db[modelName].associate(db);
-      }
-    });
+      Object.keys(db).forEach((modelName) => {
+        if (db[modelName] && typeof db[modelName].associate === "function") {
+          db[modelName].associate(db);
+        }
+      });
 
-    if (process.env.NODE_ENV === "development") {
-      await sequelize.sync({ alter: true });
-      console.log("✅ Delivery Service: Database synced (alter: true)");
-    }
-
-    console.log("✅ Delivery Service: Models initialized");
+      console.log("Delivery Service: Models initialized");
+      return db;
+    })();
   }
 
-  return db;
+  return dbPromise;
 }
 
-export { initializeModels, db };
+export { initializeModels };
+export default initializeModels;

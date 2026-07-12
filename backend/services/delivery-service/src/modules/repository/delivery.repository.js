@@ -1,36 +1,29 @@
-import { initializeModels } from "../../models/index.js";
+import DeliveryAssignmentRepository from "./deliveryAssignment.repository.js";
 
 class DeliveryRepository {
   async getAllDeliveries() {
-    const db = await initializeModels();
-    return await db.Delivery.findAll({
-      order: [["createdAt", "DESC"]]
-    });
+    const { rows } = await DeliveryAssignmentRepository.getAllDeliveryAssignments(100, 0);
+    return rows;
   }
 
   async getDeliveryById(id) {
-    const db = await initializeModels();
-    return await db.Delivery.findByPk(id);
+    return await DeliveryAssignmentRepository.getDeliveryAssignmentById(id);
   }
 
   async createDelivery(deliveryData) {
-    const db = await initializeModels();
-    return await db.Delivery.create(deliveryData);
+    return await DeliveryAssignmentRepository.createDeliveryAssignment(deliveryData);
   }
 
   async updateDelivery(id, deliveryData) {
-    const db = await initializeModels();
-    return await db.Delivery.update(deliveryData, { where: { id } });
+    return await DeliveryAssignmentRepository.updateDeliveryAssignment(id, deliveryData);
   }
 
   async deleteDelivery(id) {
-    const db = await initializeModels();
-    return await db.Delivery.destroy({ where: { id } });
+    return await DeliveryAssignmentRepository.deleteDeliveryAssignment(id);
   }
 
   async getDeliveryByOrderId(orderId) {
-    const db = await initializeModels();
-    return await db.Delivery.findOne({ where: { orderId } });
+    return await DeliveryAssignmentRepository.getDeliveryAssignmentByOrderId(orderId);
   }
 }
 

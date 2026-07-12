@@ -9,7 +9,7 @@ const DeliveryServices = {
     return await new DeliveryRepository().getDeliveryById(id);
   },
 
-  async createDelivery(deliveryData) {
+  async  createDelivery(deliveryData) {
     return await new DeliveryRepository().createDelivery(deliveryData);
   },
 

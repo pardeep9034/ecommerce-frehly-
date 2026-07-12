@@ -8,6 +8,6 @@ RUN npm install --production
 
 COPY . .
 
-EXPOSE 3000
+EXPOSE 3005
 
 CMD ["sh", "-c", "NODE_OPTIONS=--dns-result-order=ipv4first npm start"]

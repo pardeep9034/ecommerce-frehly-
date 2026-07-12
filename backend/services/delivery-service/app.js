@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import deliveryRoutes from "./src/modules/delivery/delivery.routes.js";
+import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner.routes.js";
 
 dotenv.config();
 
@@ -42,9 +43,6 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-/* ================= ROUTES ================= */
-app.use("/", deliveryRoutes);
-
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
   res.json({
@@ -54,6 +52,10 @@ app.get("/", (req, res) => {
   });
 });
 
+/* ================= ROUTES ================= */
+app.use("/deliveries", deliveryRoutes);
+app.use("/delivery-partners", deliveryPartnerRoutes);
+
 /* ================= 404 HANDLER ================= */
 app.use((req, res) => {
   ResponseUtil.notFound(res, `Route ${req.originalUrl} not found`);
@@ -62,6 +64,24 @@ app.use((req, res) => {
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((error, req, res, next) => {
   console.error("Global error handler (Delivery Service):", error);
+
+  if (error.name === "SequelizeValidationError") {
+    const errors = error.errors.map((err) => ({
+      field: err.path,
+      message: err.message
+    }));
+
+    return ResponseUtil.validationError(res, errors);
+  }
+
+  if (error.name === "SequelizeUniqueConstraintError") {
+    return ResponseUtil.error(res, "Resource already exists", 409);
+  }
+
+  if (error.isOperational || error.statusCode) {
+    return ResponseUtil.error(res, error.message, error.statusCode || 500);
+  }
+
   ResponseUtil.error(
     res,
     process.env.NODE_ENV === "development" ? error.message : "Internal server error"

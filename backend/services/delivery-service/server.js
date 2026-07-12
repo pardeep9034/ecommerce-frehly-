@@ -1,20 +1,18 @@
 import app from "./app.js";
-import database from "./src/config/database.js";
 import { initializeModels } from "./src/models/index.js";
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3005;
 
 async function startServer() {
   try {
     /* ================= INITIALIZE DATABASE ================= */
-    await database.connect();
     await initializeModels();
-    console.log("✅ Delivery Service: Models initialized");
+    console.log("Delivery Service: Database and models initialized");
 
     /* ================= START SERVER ================= */
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Delivery Service running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`Delivery Service running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
     });
 
     /* ================= GRACEFUL SHUTDOWN ================= */
@@ -27,7 +25,7 @@ async function startServer() {
     });
 
   } catch (error) {
-    console.error("❌ Failed to start Delivery Service:", error);
+    console.error("Failed to start Delivery Service:", error);
     process.exit(1);
   }
 }
