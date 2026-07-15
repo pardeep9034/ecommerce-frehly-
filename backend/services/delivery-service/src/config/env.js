@@ -9,10 +9,14 @@ const envSchema = Joi.object({
     .default("development"),
 
   PORT: Joi.number()
-    .default(3005),
+    .default(3006),
 
   DATABASE_URL: Joi.string()
     .uri()
+    .required(),
+
+  JWT_SECRET: Joi.string()
+    .min(32)
     .required(),
 
   ALLOWED_ORIGINS: Joi.string()
@@ -23,7 +27,12 @@ const envSchema = Joi.object({
     .default("http://localhost:3001"),
 
   AUTH_CREATE_USER_PATH: Joi.string()
-    .default("/auth/register")
+    .default("/auth/register"),
+
+  ORDER_SERVICE_URL: Joi.string()
+    .uri()
+    .default("http://localhost:3004/orders"),
+  INVENTORY_SERVICE_WAREHOUSE_URL:joi.string().uri()
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

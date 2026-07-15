@@ -7,6 +7,9 @@ import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import deliveryRoutes from "./src/modules/delivery/delivery.routes.js";
 import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner.routes.js";
+import deliveryZoneRoutes from "./src/modules/deliveryZone/deliveryZone.routes.js";
+import deliveryPartnerZoneRoutes from "./src/modules/deliveryPartnerZone/deliveryPartnerZone.routes.js";
+import handleOrderRoutes from "./src/modules/handleOrder/handleOrder.routes.js";
 
 dotenv.config();
 
@@ -55,6 +58,9 @@ app.get("/", (req, res) => {
 /* ================= ROUTES ================= */
 app.use("/deliveries", deliveryRoutes);
 app.use("/delivery-partners", deliveryPartnerRoutes);
+app.use("/delivery-zones", deliveryZoneRoutes);
+app.use("/delivery-partner-zones", deliveryPartnerZoneRoutes);
+app.use("/handle-orders", handleOrderRoutes);
 
 /* ================= 404 HANDLER ================= */
 app.use((req, res) => {

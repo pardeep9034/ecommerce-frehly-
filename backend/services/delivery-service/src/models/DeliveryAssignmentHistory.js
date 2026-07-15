@@ -10,7 +10,15 @@ export default (sequelize) => {
         defaultValue: DataTypes.UUIDV4
       },
       order_id: {
-        type: DataTypes.UUID
+        type: DataTypes.BIGINT,
+        allowNull:false
+      },
+      assignment_id :{
+        data:DataTypes.UUID,
+        allowNull:false
+      },
+      action :{
+        type:DataTypes.ENUM("ASSIGNED","REASSIGNED","CANCELLED","COMPLETED")
       },
       old_delivery_partner_id: {
         type: DataTypes.UUID
@@ -22,7 +30,7 @@ export default (sequelize) => {
         type: DataTypes.TEXT
       },
       changed_by: {
-        type: DataTypes.UUID
+        type: DataTypes.BIGINT
       },
       changed_at: {
         type: DataTypes.DATE
@@ -30,7 +38,9 @@ export default (sequelize) => {
     },
     {
       tableName: "delivery_assignment_history",
-      timestamps: false
+      timestamps: true,
+      createdAt:"created_at",
+      updatedAt:false
     }
   );
 

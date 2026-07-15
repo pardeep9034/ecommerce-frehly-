@@ -1,5 +1,6 @@
+// services/auth-service/src/utils/response.js
 class ResponseUtil {
-  success(res, data, message = "Success", statusCode = 200) {
+  success(res, data, message = 'Success', statusCode = 200) {
     return res.status(statusCode).json({
       success: true,
       message,
@@ -7,7 +8,7 @@ class ResponseUtil {
     });
   }
 
-  error(res, message = "Internal Server Error", statusCode = 500, errors = null) {
+  error(res, message = 'Internal Server Error', statusCode = 500, errors = null) {
     return res.status(statusCode).json({
       success: false,
       message,
@@ -18,19 +19,26 @@ class ResponseUtil {
   validationError(res, errors) {
     return res.status(400).json({
       success: false,
-      message: "Validation Error",
+      message: 'Validation Error',
       errors
     });
   }
 
-  unauthorized(res, message = "Unauthorized") {
+  unauthorized(res, message = 'Unauthorized') {
     return res.status(401).json({
       success: false,
       message
     });
   }
 
-  notFound(res, message = "Resource not found") {
+  forbidden(res, message = 'Forbidden') {
+    return res.status(403).json({
+      success: false,
+      message
+    });
+  }
+
+  notFound(res, message = 'Resource not found') {
     return res.status(404).json({
       success: false,
       message
@@ -38,4 +46,5 @@ class ResponseUtil {
   }
 }
 
+// module.exports = new ResponseUtil();
 export default new ResponseUtil();

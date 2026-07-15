@@ -8,6 +8,15 @@ class DeliveryAssignmentRepository extends BaseRepository {
   async createDeliveryAssignment(data, options = {}) {
     return await this.create(data, options);
   }
+  getActiveAssignmentsByPartnerId(delivery_partner_id, options = {}) {
+    return this.findAll({
+      where: {
+        delivery_partner_id,
+        status: "ACTIVE"
+      },
+      ...options
+    });
+  }
 
   async getDeliveryAssignmentById(id, options = {}) {
     return await this.findById(id, {

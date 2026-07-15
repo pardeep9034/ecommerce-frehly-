@@ -6,26 +6,37 @@ class DeliveryPartnerController {
     try {
       const result = await DeliveryPartnerService.createDeliveryPartner(
         req.body,
-        req.headers.authorization
+        req.user
       );
 
       return ResponseUtil.success(res, result, "Delivery partner created", 201);
     } catch (error) {
-      return next(error);
+       next(error);
     }
   }
 
-  async getAllDeliveryPartners(req, res, next) {
+  async getAllDeliveryPartnersByZoneId(req, res, next) {
     try {
-      const page = Number.parseInt(req.query.page, 10) || 1;
-      const limit = Number.parseInt(req.query.limit, 10) || 10;
+      // const page = Number.parseInt(req.query.page, 10) || 1;
+      // const limit = Number.parseInt(req.query.limit, 10) || 10;
+      const zone_id = Number.parseInt(req.query.zone_id, 10);
+      const
       const offset = (page - 1) * limit;
-      const result = await DeliveryPartnerService.getAllDeliveryPartners(limit, offset);
+      const result = await DeliveryPartnerService.getAllDeliveryPartnersByZoneId(zone_id);
 
       return ResponseUtil.success(res, result, "Delivery partners fetched");
     } catch (error) {
-      return next(error);
+      next(error);
     }
+  }
+  async getAvalableDeliveryPartners(res,req,next){
+    try{
+      const warehouseId = req.header("X-Warehouse-Id");
+      const result = await DeliveryPartnerService.getAvalableDeliveryPartners(warehouseId);
+      return ResponseUtil.success(res, result, "Available delivery partners fetched");
+
+    }catch(error){
+      next(error)}
   }
 
   async getDeliveryPartnerById(req, res, next) {
@@ -34,7 +45,7 @@ class DeliveryPartnerController {
 
       return ResponseUtil.success(res, result, "Delivery partner fetched");
     } catch (error) {
-      return next(error);
+       next(error);
     }
   }
 
@@ -44,7 +55,7 @@ class DeliveryPartnerController {
 
       return ResponseUtil.success(res, result, "Delivery partner updated");
     } catch (error) {
-      return next(error);
+      next(error);
     }
   }
 
@@ -54,7 +65,7 @@ class DeliveryPartnerController {
 
       return ResponseUtil.success(res, result, "Delivery partner location updated");
     } catch (error) {
-      return next(error);
+      next(error);
     }
   }
 
@@ -64,7 +75,7 @@ class DeliveryPartnerController {
 
       return ResponseUtil.success(res, result, "Delivery partner activated");
     } catch (error) {
-      return next(error);
+       next(error);
     }
   }
 
@@ -74,7 +85,7 @@ class DeliveryPartnerController {
 
       return ResponseUtil.success(res, result, "Delivery partner suspended");
     } catch (error) {
-      return next(error);
+       next(error);
     }
   }
 }

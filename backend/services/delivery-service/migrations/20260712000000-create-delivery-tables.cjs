@@ -82,10 +82,16 @@ module.exports = {
         defaultValue: Sequelize.UUIDV4
       },
       order_id: {
-        type: Sequelize.UUID
+        type: Sequelize.UUID,
+        allowNull: false
+      },
+      warehouse_id: {
+        type: Sequelize.BIGINT,
+        allowNull: false
       },
       delivery_partner_id: {
         type: Sequelize.UUID,
+        allowNull: false,
         references: {
           model: "delivery_partners",
           key: "id"
@@ -103,7 +109,9 @@ module.exports = {
         onUpdate: "CASCADE"
       },
       assignment_source: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM("AUTO", "MANUAL"),
+        allowNull: false,
+        defaultValue: "MANUAL"
       },
       assigned_by: {
         type: Sequelize.UUID
@@ -111,8 +119,46 @@ module.exports = {
       assigned_at: {
         type: Sequelize.DATE
       },
+      pickup_name: {
+        type: Sequelize.STRING(150)
+      },
+      pickup_address: {
+        type: Sequelize.TEXT
+      },
+      pickup_latitude: {
+        type: Sequelize.DECIMAL(10, 8)
+      },
+      pickup_longitude: {
+        type: Sequelize.DECIMAL(11, 8)
+      },
+      pickup_contact_name: {
+        type: Sequelize.STRING(100)
+      },
+      pickup_contact_phone: {
+        type: Sequelize.STRING(20)
+      },
+      customer_name: {
+        type: Sequelize.STRING(150)
+      },
+      customer_phone: {
+        type: Sequelize.STRING(20)
+      },
+      delivery_address: {
+        type: Sequelize.TEXT
+      },
+      delivery_latitude: {
+        type: Sequelize.DECIMAL(10, 8)
+      },
+      delivery_longitude: {
+        type: Sequelize.DECIMAL(11, 8)
+      },
       status: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM("ACTIVE", "TRANSFERRED", "COMPLETED", "CANCELLED", "FAILED"),
+        allowNull: false,
+        defaultValue: "ACTIVE"
+      },
+      cancellation_reason: {
+        type: Sequelize.TEXT
       },
       created_at: {
         type: Sequelize.DATE,
@@ -159,6 +205,14 @@ module.exports = {
       },
       changed_at: {
         type: Sequelize.DATE
+      },
+      created_at: {
+        type: Sequelize.DATE,
+        allowNull: false
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false
       }
     });
 
@@ -263,8 +317,22 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false
       }
     });
+
+    // Add useful indexes for faster lookups
+    await queryInterface.addIndex('delivery_assignments', ['order_id']);
+    await queryInterface.addIndex('delivery_assignments', ['delivery_partner_id']);
+    await queryInterface.addIndex('delivery_assignment_history', ['order_id']);
+    await queryInterface.addIndex('delivery_assignment_history', ['old_delivery_partner_id']);
+    await queryInterface.addIndex('delivery_assignment_history', ['new_delivery_partner_id']);
+    await queryInterface.addIndex('delivery_handovers', ['order_id']);
+    await queryInterface.addIndex('delivery_handovers', ['old_delivery_partner_id']);
+    await queryInterface.addIndex('delivery_handovers', ['new_delivery_partner_id']);
   },
 
   async down(queryInterface, Sequelize) {

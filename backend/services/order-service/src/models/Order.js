@@ -20,16 +20,31 @@ export default (sequelize) => {
       },
       status: {
         type: DataTypes.ENUM(
+          // Payment
           "PENDING_PAYMENT",
+          "PAYMENT_FAILED",
+          "PAYMENT_EXPIRED",
+
+          // Order
           "PLACED",
           "CONFIRMED",
+
+          // Inventory
+          "READY_FOR_ASSIGNMENT",
+
+          // Delivery
+          "ASSIGNED",
+          "PICKED_UP",
           "OUT_FOR_DELIVERY",
+          "HANDOVER_IN_PROGRESS",
+
+          // Final
           "DELIVERED",
           "CANCELLED",
-          "PAYMENT_FAILED",
-          "PAYMENT_EXPIRED"
+          "DELIVERY_FAILED"
         ),
-        allowNull: false
+        allowNull: false,
+        defaultValue: "PLACED"
       },
       subtotal: {
         type: DataTypes.DECIMAL(12, 2),

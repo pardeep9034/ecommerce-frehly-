@@ -1,7 +1,8 @@
 import app from "./app.js";
 import { initializeModels } from "./src/models/index.js";
+import { env } from "./src/config/env.js";
 
-const PORT = process.env.PORT || 3005;
+const PORT = env.PORT;
 
 async function startServer() {
   try {

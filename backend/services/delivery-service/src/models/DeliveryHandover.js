@@ -9,8 +9,12 @@ export default (sequelize) => {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4
       },
+      assignment_id:{
+        type:DataTypes.UUID
+      },
       order_id: {
-        type: DataTypes.UUID
+        type: DataTypes.BIGINT,
+        allowNull:false
       },
       old_delivery_partner_id: {
         type: DataTypes.UUID
@@ -21,12 +25,26 @@ export default (sequelize) => {
       reason: {
         type: DataTypes.TEXT
       },
-      handover_confirmed_at: {
+       handover_latitude:{
+        type:DataTypes.DECIMAL(10,8)
+       },
+        handover_longitude:{
+        type:DataTypes.DECIMAL(10,8)
+       },
+     
+      old_partner_confirmed_at : {
         type: DataTypes.DATE
       },
-      receipt_confirmed_at: {
+      old_partner_confirmed_at  : {
         type: DataTypes.DATE
+      },
+      status:{
+        type:DataTypes.ENUM("PENDING","OLD_PARTNER_CONFIRMED","COMPLETED","CANCELLED"),
+        defaultValue:"PENDING" ,
       }
+      
+
+     
     },
     {
       tableName: "delivery_handovers",

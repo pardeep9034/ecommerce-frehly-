@@ -13,7 +13,15 @@ export default (sequelize) => {
       variant_id: {
         type: DataTypes.BIGINT,
         allowNull: false,
-       
+      },
+
+      warehouse_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: {
+          model: "warehouses",
+          key: "id",
+        },
       },
 
       movement_type: {

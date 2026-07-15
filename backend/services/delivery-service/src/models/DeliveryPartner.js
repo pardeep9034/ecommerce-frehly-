@@ -14,6 +14,9 @@ export default (sequelize) => {
         allowNull: false,
         unique: true
       },
+      zone_id: {
+        type: DataTypes.INTEGER
+      },
       vehicle_type: {
         type: DataTypes.STRING
       },
@@ -23,8 +26,13 @@ export default (sequelize) => {
       max_active_orders: {
         type: DataTypes.INTEGER
       },
+      current_active_orders: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+      },
       status: {
-        type: DataTypes.STRING
+        type: DataTypes.ENUM("ACTIVE", "SUSPENDED", "INACTIVE"),
+        defaultValue: "ACTIVE"
       },
       current_latitude: {
         type: DataTypes.DECIMAL
@@ -52,6 +60,11 @@ export default (sequelize) => {
       foreignKey: "delivery_partner_id",
       as: "assignments"
     });
+   DeliveryPartner.belongsTo(DeliveryZone,{
+    foreignKey:"zone_id",
+    as:"zone"
+});
+
 
     DeliveryPartner.hasMany(models.DeliveryStatusHistory, {
       foreignKey: "delivery_partner_id",
@@ -61,6 +74,18 @@ export default (sequelize) => {
     DeliveryPartner.hasMany(models.DeliveryAttempt, {
       foreignKey: "delivery_partner_id",
       as: "attempts"
+    });
+
+    DeliveryPartner.hasMany(models.DeliveryPartnerZone, {
+      foreignKey: "delivery_partner_id",
+      as: "partnerZones"
+    });
+
+    DeliveryPartner.belongsToMany(models.DeliveryZone, {
+      through: models.DeliveryPartnerZone,
+      foreignKey: "delivery_partner_id",
+      otherKey: "zone_id",
+      as: "zones"
     });
   };
 

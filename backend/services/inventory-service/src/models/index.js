@@ -2,6 +2,7 @@ import database from "../config/database.js";
 import InventoryModel from "./Inventory.js";
 import StockMovementModel from "./stockMovement.js";
 import StockReservationModel from "./stockReservation.js";
+import Warehouse from "./Warehouse.js";
 
 let sequelize;
 let dbPromise = null;
@@ -17,6 +18,8 @@ async function initializeModels() {
             Inventory: InventoryModel(sequelize),
             StockMovement: StockMovementModel(sequelize),
             StockReservation: StockReservationModel(sequelize),
+            warehouse: Warehouse(sequelize)
+
         };
 
         /* ================= ASSOCIATIONS ================= */

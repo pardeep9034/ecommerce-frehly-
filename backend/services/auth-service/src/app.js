@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from './modules/auth/auth.routes.js';
 import optRoutes from "./modules/otp/otp.routes.js";
+import userAddressRoutes from "./modules/userAddress/userAddress.routes.js";
 import ResponseUtil from './utils/response.js';
 import AppError from './utils/AppError.js';
 import logger from './utils/Logger.js';
@@ -45,6 +46,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use("/otp",optRoutes)
+app.use("/user-addresses", userAddressRoutes);
 
 // Root health check
 app.get('/health', (req, res) => {

@@ -1,6 +1,5 @@
 import { Sequelize } from "sequelize";
-import dotenv from "dotenv";
-dotenv.config();
+import { env } from "./env.js";
 
 class Database {
   constructor() {

@@ -8,6 +8,7 @@ import inventoryRoutes from "./src/modules/inventory/inventory.routes.js";
 import stockMovementRoutes from "./src/modules/stockMovement/stockMovement.routes.js";
 import stockReservationRoutes from "./src/modules/stockReservation/stockReservation.routes.js";
 import ResponseUtil from "./src/utils/response.js";
+import warehouseRoutes from "./src/modules/warehouse/warehouse.routes.js";
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ if (process.env.NODE_ENV === "development") {
 app.use("/inventory", inventoryRoutes);
 app.use("/stock-movements", stockMovementRoutes);
 app.use("/stock-reservations", stockReservationRoutes);
+app.use("/warehouses", warehouseRoutes);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {

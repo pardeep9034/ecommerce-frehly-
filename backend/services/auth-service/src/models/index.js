@@ -6,6 +6,7 @@ import AuthRefreshTokenModel from "./RefreshToken.model.js";
 import AuthOtpModel from "./Otp.model.js";
 import AuthAuditLogModel from "./AuditLog.model.js";
 import UserSessionModel from "./UserSession.model.js";
+import AuthUserAddressModel from "./UserAddress.model.js";
 
 let sequelize;
 let dbPromise = null;
@@ -22,6 +23,7 @@ async function initializeModels() {
         const AuthOtp = AuthOtpModel(sequelize);
         const AuthAuditLog = AuthAuditLogModel(sequelize);
         const AuthUserSession = UserSessionModel(sequelize);
+        const AuthUserAddress = AuthUserAddressModel(sequelize);
 
       const   db = {
             sequelize,
@@ -31,7 +33,8 @@ async function initializeModels() {
             AuthRefreshToken,
             AuthOtp,
             AuthUserSession,
-            AuthAuditLog
+            AuthAuditLog,
+            AuthUserAddress
         };
 
         Object.values(db).forEach((model) => {

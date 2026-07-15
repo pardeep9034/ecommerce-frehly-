@@ -40,6 +40,14 @@ export default (sequelize) => {
       },
       country: {
         type: DataTypes.STRING(100)
+      },
+      latitude: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true
+      },
+      latitude: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true
       }
     },
     {

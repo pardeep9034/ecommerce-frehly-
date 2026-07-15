@@ -168,6 +168,10 @@ export default (sequelize) => {
             foreignKey: "user_id",
             as: "auditLogs"
         });
+        AuthUser.hasMany(models.AuthUserAddress, {
+            foreignKey: "user_id",
+            as: "addresses"
+        });
 
     };
 

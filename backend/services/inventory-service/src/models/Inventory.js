@@ -14,7 +14,15 @@ export default (sequelize) => {
         type: DataTypes.BIGINT,
         allowNull: false,
         unique: true,
-     
+      },
+
+      warehouse_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: {
+          model: "warehouses",
+          key: "id",
+        },
       },
 
       current_stock: {

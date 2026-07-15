@@ -6,6 +6,8 @@ import DeliveryAssignmentHistoryModel from "./DeliveryAssignmentHistory.js";
 import DeliveryStatusHistoryModel from "./DeliveryStatusHistory.js";
 import DeliveryAttemptModel from "./DeliveryAttempt.js";
 import DeliveryHandoverModel from "./DeliveryHandover.js";
+import DeliveryZoneModel from "./DeliveryZone.js";
+import DeliveryPartnerZoneModel from "./DeliveryPartnerZone.js";
 
 let sequelize;
 let dbPromise = null;
@@ -24,7 +26,9 @@ async function initializeModels() {
         DeliveryAssignmentHistory: DeliveryAssignmentHistoryModel(sequelize),
         DeliveryStatusHistory: DeliveryStatusHistoryModel(sequelize),
         DeliveryAttempt: DeliveryAttemptModel(sequelize),
-        DeliveryHandover: DeliveryHandoverModel(sequelize)
+        DeliveryHandover: DeliveryHandoverModel(sequelize),
+        DeliveryZone: DeliveryZoneModel(sequelize),
+        DeliveryPartnerZone: DeliveryPartnerZoneModel(sequelize)
       };
 
       Object.keys(db).forEach((modelName) => {
@@ -42,4 +46,4 @@ async function initializeModels() {
 }
 
 export { initializeModels };
-export default initializeModels;
+

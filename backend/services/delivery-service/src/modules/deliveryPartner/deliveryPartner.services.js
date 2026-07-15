@@ -1,33 +1,12 @@
 import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.js";
+import DeliveryPartnerZoneRepository from "../repository/deliveryPartnerZone.repository.js";
+import { Op, Sequelize } from "sequelize";
 import AppError from "../../utils/AppError.js";
-import { env } from "../../config/env.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const getAuthHeader = (authorization) => {
-  return authorization ? { Authorization: authorization } : {};
-};
 
 class DeliveryPartnerService {
-  async createDeliveryPartner(data, authorization) {
-    const userId = await this.resolveUserId(data, authorization);
-
-    if (!UUID_PATTERN.test(userId)) {
-      throw new AppError("Valid auth user UUID is required", 400);
-    }
-
-    if (!data.vehicle_number) {
-      throw new AppError("Vehicle number is required", 400);
-    }
-
-    if (!data.vehicle_type) {
-      throw new AppError("Vehicle type is required", 400);
-    }
-
-    if (!data.max_active_orders || Number(data.max_active_orders) <= 0) {
-      throw new AppError("max_active_orders must be greater than 0", 400);
-    }
-
+  async createDeliveryPartner(data, user) {
+    const userId = user.user_id;
+ 
     const existingPartner = await DeliveryPartnerRepository.getDeliveryPartnerByUserId(userId);
     if (existingPartner) {
       throw new AppError("Delivery partner already exists for this user", 409);
@@ -55,65 +34,36 @@ class DeliveryPartnerService {
     });
   }
 
-  async resolveUserId(data, authorization) {
-    if (data.user_id) {
-      return data.user_id;
-    }
-
-    if (data.auth_user?.uuid) {
-      return data.auth_user.uuid;
-    }
-
-    if (!data.auth_user) {
-      throw new AppError("user_id or auth_user is required", 400);
-    }
-
-    const authUser = await this.createAuthUser(data.auth_user, authorization);
-    const user = authUser?.user || authUser;
-    const uuid = user?.uuid || user?.user_uuid || user?.id;
-
-    if (!uuid) {
-      throw new AppError("Auth Service did not return a user UUID", 502);
-    }
-
-    return uuid;
-  }
-
-  async createAuthUser(authUserData, authorization) {
-    const response = await fetch(`${env.AUTH_SERVICE_URL}${env.AUTH_CREATE_USER_PATH}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(authorization)
-      },
-      body: JSON.stringify(authUserData)
+  async getAllDeliveryPartnersByZoneId(zone_id) {
+    const partner =
+    await DeliveryPartnerRepository.findOne({
+        status: "ACTIVE",
+        zone_id: zoneId,
+        current_active_orders: {
+            [Op.lt]: Sequelize.col("max_active_orders")
+        },
+        order: [
+            ["current_active_orders", "ASC"]
+        ]
     });
+    return partner; 
+    
+  }
+  async getAvalableDeliveryPartners(warehouseId) {
+    const response = await fetch(`http://localhost:3003/warehouses/${warehouseId}`);
 
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok || result.success === false) {
-      throw new AppError(result.message || "Failed to create auth user", response.status || 502);
+    const zoneId =response.data.data.zone_id
+    const partners=await this.getAllDeliveryPartnersByZoneId(zoneId);
+    if (!partners || partners.length === 0) {
+      throw new AppError("No active delivery partners available in the zone", 404);
     }
 
-    return result.data || result;
-  }
+ const riderWithDistance =partners.map(partner=>{
+     const distance = calculateDistance(response.data.data.latitude,response.data.data.longitude, partner.current_latitude, partner.current_longitude);
+     return {...partner, distance};
+ }) 
+ return riderWithDistance.sort((a, b) => a.distance - b.distance);
 
-  async getAllDeliveryPartners(limit, offset) {
-    const { count, rows } = await DeliveryPartnerRepository.getAllDeliveryPartners(limit, offset);
-    const currentPage = Math.floor(offset / limit) + 1;
-    const totalPages = Math.ceil(count / limit);
-
-    return {
-      deliveryPartners: rows,
-      pagination: {
-        totalItems: count,
-        totalPages,
-        currentPage,
-        limit,
-        hasNextPage: currentPage < totalPages,
-        hasPrevPage: currentPage > 1
-      }
-    };
   }
 
   async getDeliveryPartnerById(id) {
@@ -150,10 +100,6 @@ class DeliveryPartnerService {
   }
 
   async updateLocation(id, data) {
-    if (data.current_latitude === undefined || data.current_longitude === undefined) {
-      throw new AppError("current_latitude and current_longitude are required", 400);
-    }
-
     await this.getDeliveryPartnerById(id);
 
     await DeliveryPartnerRepository.updateDeliveryPartner(id, {
