@@ -19,10 +19,6 @@ router.put(
   validate("updateWarehouseSchema"),
   WarehouseController.updateWarehouse,
 );
-router.delete(
-  "/:id",
-  authenticateToken,
-  WarehouseController.deleteWarehouse,
-);
+router.delete("/:id", authenticateToken, WarehouseController.deleteWarehouse);
 
 export default router;

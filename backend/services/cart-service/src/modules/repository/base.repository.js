@@ -19,10 +19,7 @@ class BaseRepository {
         return await model.create(data, options);
     }
 
-    async findOne(options = {}) {
-        const model = await this.getModel();
-        return await model.findOne(options);
-    }
+c
 
     async findAll(options = {}) {
         const model = await this.getModel();
@@ -42,6 +39,10 @@ class BaseRepository {
     async findByPk(id, options = {}) {
         const model = await this.getModel();
         return await model.findByPk(id, options);
+    }
+    async findOne(options={}){
+        const model=await this.getModel();
+        return await model.findOne(options)
     }
 }
 

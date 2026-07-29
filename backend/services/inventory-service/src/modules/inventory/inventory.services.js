@@ -4,11 +4,11 @@ import AppError from "../../utils/appError.js";
 
 const fetchVariantDetails = async (variantId) => {
   try {
-    const response = await fetch(
+    const variantResponse = await fetch(
       `http://localhost:3002/product-variant/variants/${variantId}`,
     );
-    if (response.ok) {
-      const result = await response.json();
+    if (variantResponse.ok) {
+      const result = await variantResponse.json();
       return result.data;
     }
     return null;
@@ -21,6 +21,7 @@ const fetchVariantDetails = async (variantId) => {
 };
 
 class InventoryServices {
+
   async getAllInventory(limit, offset) {
     try {
       if (limit <= 0 || offset < 0) {
@@ -37,7 +38,7 @@ class InventoryServices {
       const inventoryWithVariants = await Promise.all(
         rows.map(async (item) => {
           const itemJson = item.toJSON();
-          itemJson.variant = await fetchVariantDetails(item.variantId);
+          itemJson.variant = await fetchVariantDetails(item.variant_id);
           return itemJson;
         }),
       );
@@ -96,7 +97,7 @@ class InventoryServices {
         throw new AppError("Inventory not found for this variant", 404);
       }
 
-      return inventory;
+      return inventory.rows;
     } catch (error) {
       throw new AppError(
         `Failed to fetch inventory by variantId: ${error.message}`,

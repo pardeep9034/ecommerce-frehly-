@@ -60,7 +60,7 @@ export default (sequelize) => {
       foreignKey: "delivery_partner_id",
       as: "assignments"
     });
-   DeliveryPartner.belongsTo(DeliveryZone,{
+   DeliveryPartner.belongsTo(models.DeliveryZone,{
     foreignKey:"zone_id",
     as:"zone"
 });

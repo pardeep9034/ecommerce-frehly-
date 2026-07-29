@@ -45,5 +45,5 @@ async function initializeModels() {
   return dbPromise;
 }
 
-export { initializeModels };
+export default initializeModels ;
 

@@ -3,6 +3,9 @@ import CartItemRepository from "../repository/cartItem.repository.js";
 import axios from "axios";
 import { env } from "../../config/env.js";
 import AppError from "../../utils/AppError.js";
+import cartRepository from "../repository/cart.repository.js";
+import cartItemRepository from "../repository/cartItem.repository.js";
+import { number } from "zod";
 
 
 
@@ -21,8 +24,8 @@ class addToCartService {
         }
 
 
-        const cart =
-            await this.getOrCreateCart(user);
+        const cart = await this.getOrCreateCart(user);
+            console.log("user cart",cart)
 
         if (!cart) {
             throw new AppError("cart not created", 400);
@@ -143,6 +146,8 @@ class addToCartService {
 
         let cart =
             await CartRepository.getCartByUserId(userId);
+            console.log("old cart",cart);
+            
 
         if (!cart) {
 
@@ -153,7 +158,7 @@ class addToCartService {
 
 
 
-        return cart.dataValues
+        return (cart.toJSON( ))
 
 
 
@@ -298,6 +303,84 @@ class addToCartService {
             message: "Cart item removed successfully"
         };
     }
+    async cartByUserId(userId){
+        if(!userId){
+            throw new AppError("user id not found")
+        }
+        const cart=await cartRepository.getCartByUserId(userId);
+        return cart;
+    }
+   async increaseQuantity(userId, cartItemId) {
+  const cart = await cartRepository.getCartByUserId(userId);
 
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  const cartItem = await cartItemRepository.findOne({
+    id: cartItemId,
+    cart_id: cart.id
+  });
+
+  if (!cartItem) {
+    throw new AppError("Cart item not found", 404);
+  }
+  const variantInventoryResponse = await fetch(`${env.INVENTORY_SERVICE_URL}/inventory/variant/${cartItem.variant_id}`)
+  const vaiantInventory=await variantInventoryResponse.json()
+  if(!variantInventoryResponse.ok){
+    throw new AppError("item not in inventory")
+  }
+  if(!vaiantInventory.success){
+    throw new AppError("item not in inventory")
+  }
+  const remainingStock=number(vaiantInventory.current_stock)-number(vaiantInventory.reserved_stock)
+  if(remainingStock>=1){
+ cartItem.quantity += 1;
+  await cartItem.save();
+  }
+
+ 
+
+  return cartItem;
+}
+async decreaseQuantity(userId,cartItemId){
+    const cart = await cartRepository.getCartByUserId(userId);
+    console.log();
+    
+
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  let cartItem = await cartItemRepository.findOne({
+    id: cartItemId,
+    cart_id: cart.id
+  });
+ 
+const cartItemData = cartItem.toJSON();
+//   console.log(cartItem)
+
+  if (!cartItem) {
+    throw new AppError("Cart item not found", 404);
+  }
+  const variantInventoryResponse = await fetch(`${env.INVENTORY_SERVICE_URL}/inventory/variant/${cartItemData.variant_id}`)
+  const vaiantInventory=await variantInventoryResponse.json()
+  if(!variantInventoryResponse.ok){
+    throw new AppError("item not in inventory")
+  }
+  if(!vaiantInventory.success){
+    throw new AppError("item not in inventory")
+  }
+  const remainingStock=number(vaiantInventory.current_stock)-number(vaiantInventory.reserved_stock)
+
+ cartItem.quantity -= 1;
+ if(cartItem.quantity==0){
+    await this.removeCartItem(cartItem.id);
+ }else{
+  await cartItem.save();
+ }
+  return cartItem;
+
+}
 }
 export default new addToCartService();

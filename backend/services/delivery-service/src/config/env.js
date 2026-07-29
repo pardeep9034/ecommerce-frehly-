@@ -32,7 +32,8 @@ const envSchema = Joi.object({
   ORDER_SERVICE_URL: Joi.string()
     .uri()
     .default("http://localhost:3004/orders"),
-  INVENTORY_SERVICE_WAREHOUSE_URL:joi.string().uri()
+  INVENTORY_SERVICE_WAREHOUSE_URL:Joi.string().uri(),
+  DELIVERY_SERVICE_URL:Joi.string().uri()
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

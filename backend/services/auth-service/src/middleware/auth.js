@@ -33,12 +33,13 @@ const authenticateToken = async (req, res, next) => {
                     const db = await initializeModels();
 
                     const user = await userRepository.findById(decoded.user_id);
+                
 
                     if (user) {
 
-                        if (user.is_active === true) {
+                        if (user.dataValues.is_active === true) {
 
-                            req.user = user;
+                            req.user = user.dataValues;
                             return next();
 
                         } else {

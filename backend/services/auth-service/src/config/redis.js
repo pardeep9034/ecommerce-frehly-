@@ -24,7 +24,7 @@ class RedisManager {
     });
 
     this.client.on('error', (err) => {
-      console.error('❌ Auth Service: Redis error:', err.message);
+      // console.error('❌ Auth Service: Redis error:', err.message);
     });
 
     return this.client;

@@ -42,12 +42,7 @@ class DeliveryZoneService {
 
     return zone;
   }
-  async getDeliveryZonesByWarehouse(lat, lng) {
-    if(!lat || !lng){
-      throw new AppError("Latitude and Longitude are required", 400);
-    }
-    const zones = await DeliveryZoneRepository.getDeliveryZonesByWarehouse(lat, lng);
-  }
+
 
   async updateDeliveryZone(id, data) {
     await this.getDeliveryZoneById(id);

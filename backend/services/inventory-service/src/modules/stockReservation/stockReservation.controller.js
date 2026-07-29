@@ -102,6 +102,7 @@ class StockReservationController {
     }
   }
 
+
   async confirmStockReservation(req, res, next) {
     try {
       const result = await StockReservationServices.confirmStockReservation(

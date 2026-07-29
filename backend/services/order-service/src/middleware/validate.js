@@ -7,41 +7,20 @@ const schema = {
   }),
 
   createOrder: Joi.object({
-    user_id: Joi.number().integer().positive().optional(),
-    address: Joi.object({
-      full_name: Joi.string().max(255).allow(null, "").optional(),
-      phone: Joi.string().max(20).allow(null, "").optional(),
-      address_line_1: Joi.string().max(255).allow(null, "").optional(),
-      address_line_2: Joi.string().max(255).allow(null, "").optional(),
-      landmark: Joi.string().max(255).allow(null, "").optional(),
-      city: Joi.string().max(100).allow(null, "").optional(),
-      state: Joi.string().max(100).allow(null, "").optional(),
-      postal_code: Joi.string().max(20).allow(null, "").optional(),
-      country: Joi.string().max(100).allow(null, "").optional()
-    }).required(),
-    items: Joi.array().items(
-      Joi.object({
-        product_id: Joi.number().integer().positive().optional(),
-        variant_id: Joi.number().integer().positive().required(),
-        sku: Joi.string().max(100).allow(null, "").optional(),
-        product_name: Joi.string().max(255).optional(),
-        variant_name: Joi.string().max(255).optional(),
-        unit: Joi.string().max(50).allow(null, "").optional(),
-        quantity: Joi.number().positive().precision(3).required(),
-        mrp: Joi.number().precision(2).optional(),
-        selling_price: Joi.number().precision(2).optional()
-      })
-    ).min(1).required(),
+  
+    address_id: Joi.number().required(),
+    cart_id:Joi.number().required(),
     payment_method: Joi.string()
       .valid("COD", "UPI", "CARD", "NET_BANKING", "WALLET")
       .optional(),
     delivery_fee: Joi.number().min(0).precision(2).default(0),
-    discount_amount: Joi.number().min(0).precision(2).default(0)
+    discount_amount: Joi.number().min(0).precision(2).default(0),
+    warehouse_id:Joi.number()
   }),
 
   updateOrderStatus: Joi.object({
     status: Joi.string()
-      .valid("PLACED", "CONFIRMED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED")
+      .valid("PLACED", "CONFIRMED","READY_FOR_ASSIGNMENT","ASSIGNED","PICKED_UP", "OUT_FOR_DELIVERY","HANDOVER_IN_PROGRESS", "DELIVERED", "CANCELLED","DELIVERY_FAILED","PENDING_PAYMENT","PAYMENT_FAILED","PAYMENT_EXPIRED")
       .required(),
     remarks: Joi.string().allow(null, "").optional(),
     changed_by: Joi.number().integer().positive().optional()

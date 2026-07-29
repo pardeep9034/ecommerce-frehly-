@@ -28,8 +28,14 @@ const envSchema = Joi.object({
 
   INVENTORY_SERVICE_URL: Joi.string()
     .uri()
-    .default("http://localhost:3003")
-}).unknown(true);
+    .default("http://localhost:3003"),
+     CART_SERVICE_URL: Joi.string()
+    .uri()
+    .default("http://localhost:3005"),
+    AUTH_SERVICE_URL:Joi.string().uri().default("http://localhost:3000")
+
+}).unknown(true)
+
 
 const { error, value } = envSchema.validate(process.env);
 

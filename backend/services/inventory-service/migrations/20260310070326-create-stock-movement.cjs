@@ -62,6 +62,9 @@ module.exports = {
 
   async down (queryInterface, Sequelize) {
     await queryInterface.dropTable("stock_movements")
+    await queryInterface.sequelize.query(
+  'DROP TYPE IF EXISTS "enum_stock_movements_movement_type";'
+);
    
   }
 };

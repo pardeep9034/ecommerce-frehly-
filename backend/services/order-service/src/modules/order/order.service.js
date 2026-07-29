@@ -11,9 +11,14 @@ const ORDER_STATUS = {
   PENDING_PAYMENT: "PENDING_PAYMENT",
   PLACED: "PLACED",
   CONFIRMED: "CONFIRMED",
+  READY_FOR_ASSIGNMENT:"READY_FOR_ASSIGNMENT",
+  ASSIGNED:"ASSIGNED",
+  PICKED_UP:"PICKED_UP",
   OUT_FOR_DELIVERY: "OUT_FOR_DELIVERY",
+  HANDOVER_IN_PROGRESS:"HANDOVER_IN_PROGRESS",
   DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
+  DELIVERY_FAILED:"DELIVERY_FAILED",
   PAYMENT_FAILED: "PAYMENT_FAILED",
   PAYMENT_EXPIRED: "PAYMENT_EXPIRED"
 };
@@ -28,8 +33,12 @@ const PAYMENT_STATUS = {
 
 const ALLOWED_TRANSITIONS = {
   [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.PLACED],
-  [ORDER_STATUS.PLACED]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PLACED]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED,ORDER_STATUS.READY_FOR_ASSIGNMENT],
+  [ORDER_STATUS.READY_FOR_ASSIGNMENT]:[ORDER_STATUS.ASSIGNED,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.ASSIGNED]:[ORDER_STATUS.PICKED_UP,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.PICKED_UP]:[ORDER_STATUS.OUT_FOR_DELIVERY,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.PICKED_UP]:[ORDER_STATUS.HANDOVER_IN_PROGRESS,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED]
 };
 
@@ -49,7 +58,7 @@ const getUserId = (user, fallback) => {
     return user;
   }
 
-  return user?.id || user?.user_id || user?.userId || user?.sub || fallback;
+  return  user?.user_id || fallback;
 };
 
 const getAuthHeader = (authorization) => {
@@ -81,13 +90,36 @@ class OrderService {
     if (!userId) {
       throw new AppError("User id is required", 400);
     }
+    const cartItemsResponse=await fetch(`${env.CART_SERVICE_URL}/cart/${data.cart_id}`,{
+  headers: {
+    "Content-Type":"application/json",
+    Authorization: authorization
+  }    })
+  if(!cartItemsResponse.ok){
+    throw new AppError("cart items not found");
+  }
+const cartItems= await cartItemsResponse.json();
+console.log("cart items",cartItems)
+const userAddressResponse=await fetch(`${env.AUTH_SERVICE_URL}/user-addresses`,{
+  method:"GET",
+  headers:{
+    Authorization:authorization
+  }
+})
+if(!userAddressResponse.ok){
+  throw new AppError("user address not found",404)
+}
+const userAddress=await userAddressResponse.json()
+if(!userAddress.success){
+  throw new AppError("user address not found",404)
+}
 
     const db = await initializeModels();
     const reservationIds = [];
 
     try {
       return await db.sequelize.transaction(async (transaction) => {
-        const snapshotItems = await this.buildOrderItems(data.items);
+        const snapshotItems = await this.buildOrderItems(cartItems.data.items);
         const totals = this.calculateTotals(snapshotItems, data);
 
         const order = await OrderRepository.createOrder({
@@ -111,8 +143,18 @@ class OrderService {
         );
 
         await OrderAddressRepository.createOrderAddress({
-          ...data.address,
-          order_id: order.id
+          order_id:order.id,
+          full_name:userAddress.data.full_name,
+          phone:userAddress.data.phone,
+          address_line_1:userAddress.data.address_line_1,
+          address_line_2:userAddress.data.address_line_2 || null,
+          landmark:userAddress.data.landmark || null,
+          city:userAddress.data.city,
+          state:userAddress.data.state,
+          postal_code:userAddress.data.postal_code,
+          country:userAddress.data.country,
+          latitude:userAddress.data.latitude,
+          longitude:userAddress.data.longitude,
         }, { transaction });
 
         await OrderStatusHistoryRepository.createStatusHistory({
@@ -135,6 +177,7 @@ class OrderService {
           const reservation = await this.createReservation(
             order.id,
             item.variant_id,
+            data.warehouse_id,
             item.quantity,
             authorization
           );
@@ -259,6 +302,7 @@ class OrderService {
     this.validateOrderAccess(order, user);
 
     const orderJson = toJson(order);
+    
     orderJson.payments = [...(orderJson.payments || [])].sort(
       (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
@@ -583,24 +627,45 @@ class OrderService {
     return result.data;
   }
 
-  async createReservation(orderId, variantId, quantity, authorization) {
-    const data = await this.requestInventory(
-      "/stock-reservations",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          order_id: orderId,
-          variant_id: variantId,
-          quantity,
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
-        })
+ async createReservation(orderId, variantId, warehouseId, quantity, authorization) {
+  const inventoryResponse = await fetch(
+    `${env.INVENTORY_SERVICE_URL}/stock-reservations`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorization,
       },
-      authorization
-    );
+      body: JSON.stringify({
+        order_id: orderId,
+        variant_id: variantId,
+        warehouse_id: warehouseId,
+        quantity,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      }),
+    }
+  );
 
-    return data?.stockReservation || data;
+  const inventory = await inventoryResponse.json();
+
+  console.log("Inventory response:", inventory);
+
+  if (!inventoryResponse.ok) {
+    throw new AppError(
+      inventory.message || "Inventory reservation failed",
+      inventoryResponse.status
+    );
   }
 
+  if (!inventory.success) {
+    throw new AppError(
+      inventory.message || "Inventory reservation failed",
+      400
+    );
+  }
+
+  return inventory.data.stockReservation;
+}
   async getReservations(orderId, authorization) {
     const data = await this.requestInventory(
       `/stock-reservations/order/${orderId}?limit=100&offset=0`,

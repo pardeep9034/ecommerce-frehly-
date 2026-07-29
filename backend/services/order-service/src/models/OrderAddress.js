@@ -45,7 +45,7 @@ export default (sequelize) => {
         type: DataTypes.DECIMAL(10, 8),
         allowNull: true
       },
-      latitude: {
+      longitude: {
         type: DataTypes.DECIMAL(11, 8),
         allowNull: true
       }

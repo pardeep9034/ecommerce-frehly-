@@ -2,9 +2,13 @@ import UserAddressService from "./userAddress.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class UserAddressController {
-  async createAddress(req, res) {
-    const address = await UserAddressService.createAddress(req.user.id, req.body);
-    return ResponseUtil.success(res, address, "Address created", 201);
+  async createAddress(req, res,next) {
+    console.log(req.user);
+   try{ const address = await UserAddressService.createAddress(req.user.id, req.body);
+    return ResponseUtil.success(res, address, "Address created", 201);}
+    catch(error){
+      next(error);
+    }
   }
 
   async getUserAddresses(req, res) {

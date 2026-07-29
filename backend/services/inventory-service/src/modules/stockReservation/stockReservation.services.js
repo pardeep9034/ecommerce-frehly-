@@ -86,7 +86,7 @@ class StockReservationServices {
   }
 
   async createStockReservation(reservationData) {
-    const { order_id, variant_id, quantity, expires_at } = reservationData;
+    const { order_id, variant_id,warehouse_id, quantity, expires_at } = reservationData;
 
     const variantExists = await fetchVariantDetails(variant_id);
     if (!variantExists) {
@@ -96,9 +96,17 @@ class StockReservationServices {
     const db = await initializeModels();
 
     return await db.sequelize.transaction(async (transaction) => {
-      let inventory =
-        await InventoryRepository.getInventoryByVariantId(variant_id, 0, 1);
-      inventory = inventory?.rows?.[0] || null;
+     const inventoryModel =
+  await InventoryRepository.getInventoryByVariantIdAndWarehouseId(
+    variant_id,
+    warehouse_id
+  );
+
+if (!inventoryModel) {
+  throw new AppError("Inventory not found for this variant", 404);
+}
+
+const inventory = inventoryModel.toJSON();
 
       if (!inventory) {
         throw new AppError("Inventory not found for this variant", 404);
@@ -117,6 +125,7 @@ class StockReservationServices {
           {
             order_id,
             variant_id,
+            warehouse_id,
             quantity,
             status: "ACTIVE",
             expires_at,

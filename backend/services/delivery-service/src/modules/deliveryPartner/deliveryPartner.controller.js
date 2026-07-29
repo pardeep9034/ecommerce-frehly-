@@ -20,7 +20,7 @@ class DeliveryPartnerController {
       // const page = Number.parseInt(req.query.page, 10) || 1;
       // const limit = Number.parseInt(req.query.limit, 10) || 10;
       const zone_id = Number.parseInt(req.query.zone_id, 10);
-      const
+    
       const offset = (page - 1) * limit;
       const result = await DeliveryPartnerService.getAllDeliveryPartnersByZoneId(zone_id);
 

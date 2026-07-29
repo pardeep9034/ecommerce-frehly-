@@ -35,9 +35,7 @@ export default (sequelize) => {
       old_partner_confirmed_at : {
         type: DataTypes.DATE
       },
-      old_partner_confirmed_at  : {
-        type: DataTypes.DATE
-      },
+    
       status:{
         type:DataTypes.ENUM("PENDING","OLD_PARTNER_CONFIRMED","COMPLETED","CANCELLED"),
         defaultValue:"PENDING" ,

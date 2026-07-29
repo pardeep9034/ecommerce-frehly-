@@ -31,17 +31,7 @@ class DeliveryZoneController {
        next(error);
     }
   }
-  async getDeliveryZonesByWarehouse(req, res, next){
-    try{
-
-      const lat= req.query.lat;
-      const lng= req.query.lng;
-      const result=await DeliveryZoneService.getDeliveryZonesByWarehouse(lat,lng);
-      return ResponseUtil.success(res, result, "Delivery zones fetched");
-    }catch(error){
-      next(error);
-    }
-  }
+  
 
   async updateDeliveryZone(req, res, next) {
     try {

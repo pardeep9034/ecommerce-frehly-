@@ -15,6 +15,7 @@ const schemas={
         reserved_stock:joi.number().integer().optional(),
         low_stock_threshold:joi.number().integer().optional(),
         last_stock_update_at:joi.date().optional(),
+        warehouse_id:joi.number().optional()
     }),
     deleteInventorySchema:joi.object({
         id:joi.number().integer().required(),
@@ -34,9 +35,27 @@ const schemas={
     createStockReservationSchema:joi.object({
         order_id:joi.number().integer().required(),
         variant_id:joi.number().integer().required(),
+        warehouse_id:joi.number().integer().required(),
         quantity:joi.number().integer().positive().required(),
         expires_at:joi.date().optional(),
     }),
+    createWarehouseSchema:joi.object({
+        code:joi.string().required(),
+        name:joi.string().required(),
+        address:joi.string(),
+        city:joi.string(),
+        state:joi.string(),
+        country:joi.string(),
+        zone_id:joi.number(),
+        latitude:joi.string().required(),
+        longitude:joi.string().required(),
+        contact_person:joi.string(),
+        contact_phone:joi.string(),
+        is_active:joi.string()
+
+
+
+    })
     
 };
 

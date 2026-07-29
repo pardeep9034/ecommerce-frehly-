@@ -42,7 +42,8 @@ const envSchema = Joi.object({
 
     LOCK_TIME: Joi.number()
         .integer()
-        .default(7200000)
+        .default(7200000),
+    INVENTORY_SERVICE_URL:Joi.string().uri()
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

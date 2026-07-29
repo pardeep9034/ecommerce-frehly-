@@ -18,7 +18,7 @@ async function initializeModels() {
             Inventory: InventoryModel(sequelize),
             StockMovement: StockMovementModel(sequelize),
             StockReservation: StockReservationModel(sequelize),
-            warehouse: Warehouse(sequelize)
+            Warehouse: Warehouse(sequelize)
 
         };
 

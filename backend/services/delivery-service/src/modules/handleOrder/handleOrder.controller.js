@@ -22,6 +22,52 @@ class HandleOrderController {
       next(error)
     }
   }
+  async handOver(req,res,next){
+    try{
+      const assignmentId=req.params.assignmentId;
+      const user=req.user;
+      const result=await HandleOrderService.handOver(req.body,assignmentId,user);
+      return ResponseUtil.success(res,result,"order re-assigned succesfuly");
+
+
+    }
+    catch{
+next(error)
+    }
+  }
+  async confirmHandover(req,res,next){
+    try{
+      const id=req.params.id;
+    const result=await HandleOrderService.confirmHandover(id,req.body)
+    return ResponseUtil.success(res,result,"handover initiated ")
+    }
+    catch(error){
+      next(error)
+    }
+  }
+  async confirmReciept(req,res,next){
+    try{
+      const id=req.params.id;
+      const user=req.user;
+      const result=await HandleOrderService.confirmReciept(id,req.body,user,req.header.authorization)
+      return ResponseUtil.success(res,result,"handover completed succesfuly")
+
+    }catch(error){
+      next(error)
+    }
+  }
+  async updateStatus(req,res,next){
+    try{
+      const id=req.assignmentId;
+      const user=req.user;
+      const result= await HandleOrderService.updateStatus(id,req.body,user,req.header.authorization)
+      return ResponseUtil.success(res,result,"assignment updated succesfuly")
+
+    }
+    catch(error){
+      next(error)
+    }
+  }
 }
 
 export default new HandleOrderController();

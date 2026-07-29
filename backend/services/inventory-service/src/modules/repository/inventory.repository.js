@@ -24,6 +24,10 @@ class InventoryRepository extends BaseRepository{
   return await this.findAndCountAll({variant_id: variantId}, { limit, offset, order: [["created_at", "DESC"]] });
   }
 
+  async getInventoryByVariantIdAndWarehouseId(variant_id,warehouse_id){
+    return await this.findOne({variant_id,warehouse_id})
+  }
+
   async createInventory(inventoryData, options = {}) {
 
     return await this.create(inventoryData, options);

@@ -343,5 +343,12 @@ module.exports = {
     await queryInterface.dropTable("delivery_assignments");
     await queryInterface.dropTable("delivery_slots");
     await queryInterface.dropTable("delivery_partners");
+
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_delivery_assignments_assignment_source";'
+    );
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_delivery_assignments_status";'
+    );
   }
 };

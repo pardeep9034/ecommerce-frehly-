@@ -14,7 +14,7 @@ export default (sequelize) => {
         allowNull:false
       },
       assignment_id :{
-        data:DataTypes.UUID,
+        type:DataTypes.UUID,
         allowNull:false
       },
       action :{

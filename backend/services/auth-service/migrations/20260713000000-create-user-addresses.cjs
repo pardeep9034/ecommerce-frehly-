@@ -94,7 +94,6 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('user_addresses', ['user_id']);
     await queryInterface.addIndex('user_addresses', ['user_id', 'is_default']);
   },
 

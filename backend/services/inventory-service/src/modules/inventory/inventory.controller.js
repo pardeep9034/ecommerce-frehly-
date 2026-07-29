@@ -42,8 +42,8 @@ class InventoryController {
     try {
       const result = await InventoryServices.getInventoryByVariantId(
         variantId,
-        limit,
         offset,
+        limit,
       );
 
       return ResponseUtil.success(

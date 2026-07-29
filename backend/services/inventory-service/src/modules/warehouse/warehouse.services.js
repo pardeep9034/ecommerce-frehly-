@@ -1,5 +1,6 @@
 import WarehouseRepository from "../repository/warehouse.repository.js";
 import AppError from "../../utils/appError.js";
+import { env } from "../../config/env.js";
 
 class WarehouseService {
   async getAllWarehouses(limit, offset) {
@@ -15,6 +16,16 @@ class WarehouseService {
   }
 
   async createWarehouse(data) {
+    
+    const zoneResponse=await fetch(`${env.DELIVERY_SERVICE_URL}/delivery-zones/${data.zone_id}`)
+    // console.log(zoneResponse)
+    if(!zoneResponse.ok){
+      throw new AppError("zone not found",404);
+    }
+    const zone=await zoneResponse.json();
+    if(!zone.success){
+      throw new AppError("zone not found",404);
+    }
     return await WarehouseRepository.createWarehouse(data);
   }
 

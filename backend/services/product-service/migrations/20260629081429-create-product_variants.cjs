@@ -79,6 +79,6 @@ module.exports = {
 
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable("product_variants")
-    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS 'enum_product_variants_status'`)
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_product_variants_status"`)
   }
 };

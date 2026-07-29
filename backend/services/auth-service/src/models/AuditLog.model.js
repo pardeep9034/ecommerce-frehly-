@@ -84,7 +84,9 @@ export default (sequelize) => {
         {
             tableName: "auth_audit_logs",
             underscored: true,
-            timestamps: false
+            timestamps: true,
+            createdAt:"created_at",
+            updatedAt:false
         }
     );
 

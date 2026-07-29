@@ -63,7 +63,7 @@ class OTPRepository extends BaseRepository {
         logger.warn("Redis unavailable. Using DB only.");
       }
     }catch(error){
-      logger.error(`❌ Redis error: ${error.message}`);
+      // logger.error(`❌ Redis error: ${error.message}`);
     }
     return otp;
   }

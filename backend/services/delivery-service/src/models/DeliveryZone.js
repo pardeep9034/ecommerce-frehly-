@@ -71,7 +71,7 @@ export default (sequelize) => {
       as: "partnerZones"
     });
 
- DeliveryZone.hasMany(DeliveryPartner,{
+ DeliveryZone.hasMany(models.DeliveryPartner,{
     foreignKey:"zone_id",
     as:"partners"
 });
