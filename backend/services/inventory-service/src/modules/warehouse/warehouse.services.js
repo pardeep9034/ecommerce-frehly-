@@ -1,6 +1,6 @@
 import WarehouseRepository from "../repository/warehouse.repository.js";
-import AppError from "../../utils/appError.js";
-import { env } from "../../config/env.js";
+import AppError from "../../utils/AppError.js";
+import {env} from "../../config/env.js";
 
 class WarehouseService {
   async getAllWarehouses(limit, offset) {

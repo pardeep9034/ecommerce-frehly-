@@ -6,6 +6,8 @@ import OrderItemRepository from "../repository/orderItem.repository.js";
 import OrderAddressRepository from "../repository/orderAddress.repository.js";
 import OrderStatusHistoryRepository from "../repository/orderStatusHistory.repository.js";
 import PaymentRepository from "../repository/payment.repository.js";
+import {publisher} from "../../messaging/index.js"
+import OrderEvents from "../../messaging/events/order.events.js";
 
 const ORDER_STATUS = {
   PENDING_PAYMENT: "PENDING_PAYMENT",
@@ -90,7 +92,7 @@ class OrderService {
     if (!userId) {
       throw new AppError("User id is required", 400);
     }
-    const cartItemsResponse=await fetch(`${env.CART_SERVICE_URL}/cart/${data.cart_id}`,{
+    const cartItemsResponse=await fetch(`${env.API_GATEWAY_URL}/cart/${data.cart_id}`,{
   headers: {
     "Content-Type":"application/json",
     Authorization: authorization
@@ -100,7 +102,9 @@ class OrderService {
   }
 const cartItems= await cartItemsResponse.json();
 console.log("cart items",cartItems)
-const userAddressResponse=await fetch(`${env.AUTH_SERVICE_URL}/user-addresses`,{
+
+
+const userAddressResponse=await fetch(`${env.API_GATEWAY_URL}/user-addresses/${data.address_id}`,{
   method:"GET",
   headers:{
     Authorization:authorization
@@ -172,6 +176,9 @@ if(!userAddress.success){
           status: PAYMENT_STATUS.PENDING,
           gateway_response: null
         }, { transaction });
+        const orderData=order.toJSON()
+
+                await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
 
         for (const item of snapshotItems) {
           const reservation = await this.createReservation(
@@ -181,6 +188,12 @@ if(!userAddress.success){
             item.quantity,
             authorization
           );
+          const reservationData={
+            order_id: order.id,
+            variant_id:item.variant_id,
+            warehouse_id:data.warehouse_id
+          }
+
 
           if (reservation?.id) {
             reservationIds.push(reservation.id);
@@ -593,7 +606,7 @@ if(!userAddress.success){
   }
 
   async fetchVariant(variantId) {
-    const response = await fetch(`${env.PRODUCT_SERVICE_URL}/product-variant/variants/${variantId}`);
+    const response = await fetch(`${env.API_GATEWAY_URL}/product-variant/variants/${variantId}`);
 
     if (!response.ok) {
       throw new AppError(`Variant ${variantId} not found`, 404);
@@ -609,7 +622,7 @@ if(!userAddress.success){
   }
 
   async requestInventory(path, options = {}, authorization) {
-    const response = await fetch(`${env.INVENTORY_SERVICE_URL}${path}`, {
+    const response = await fetch(`${env.API_GATEWAY_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -629,7 +642,7 @@ if(!userAddress.success){
 
  async createReservation(orderId, variantId, warehouseId, quantity, authorization) {
   const inventoryResponse = await fetch(
-    `${env.INVENTORY_SERVICE_URL}/stock-reservations`,
+    `${env.API_GATEWAY_URL}/stock-reservations`,
     {
       method: "POST",
       headers: {

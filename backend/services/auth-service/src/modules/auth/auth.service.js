@@ -4,18 +4,18 @@ import OtpRepository from "../repository/otp.repository.js";
 import AuditRepository from "../repository/audit.repository.js";
 import OtpService from "../otp/otp.service.js";
 import TokenService from "../token/token.service.js";
-import kafkaManager from "../../config/kafka.js";
 import initializeModels from "../../models/index.js";
 import logger from "../../utils/Logger.js";
 import AppError from "../../utils/AppError.js";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
-import { emitEvent, TOPICS } from "../../events/producer.js";
 import redisManager from "../../config/redis.js";
 import UserSessionRepository from "../repository/userSession.repository.js";
 import bcrypt from "bcryptjs"
 import { v4 as uuidv4 } from "uuid";
 import refreshTokenRepository from "../repository/refreshToken.repository.js";
+import {publisher} from "../../messaging/index.js";
+import userEvent from "../../messaging/events/user.events.js";
 
 class AuthService {
 
@@ -432,7 +432,7 @@ console.log("existingUser",existingUser)
     
   }
 
-  async loginWithPassword(phone, password, deviceId = null, userAgent = null) {
+  async loginWithPassword(phone, password, guest_cart = null, warehouseId, deviceId = null, userAgent = null, ) {
     if (!phone ) throw new AppError("Phone number required", 400);
 
     const user = await UserRepository.findByPhone(phone);
@@ -553,12 +553,12 @@ console.log("existingUser",existingUser)
       } catch (auditErr) {
         logger.warn(`⚠️ Audit log failed: ${auditErr.message}`);
       }
+      //emit event 
+console.log({user_id: user.id, guest_cart,warehouse_id:warehouseId})
+      await publisher.publish(userEvent.USER_LOGGED_IN, {user_id: user.id, guest_cart,warehouse_id:warehouseId})
+      
+      
 
-      kafkaManager.sendEvent("auth.events", {
-        type: "USER_LOGIN",
-        userId: user.id,
-        timestamp: new Date().toISOString(),
-      }).catch(err => logger.error(`Kafka error: ${err.message}`));
 
       logger.info(`✅ User ${user.id} logged in`);
 
@@ -569,7 +569,9 @@ console.log("existingUser",existingUser)
         data: { accessToken, refreshToken: rawRefresh },
       };
     } catch (error) {
-      await transaction.rollback();
+   if (!transaction.finished) {
+        await transaction.rollback();
+    }
       logger.error(`❌ Login error: ${error.message}`);
       throw error;
     }

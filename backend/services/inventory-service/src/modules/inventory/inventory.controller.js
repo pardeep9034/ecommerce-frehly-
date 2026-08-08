@@ -1,5 +1,6 @@
 import InventoryServices from "./inventory.services.js";
 import ResponseUtil from "../../utils/response.js";
+import inventoryServices from "./inventory.services.js";
 
 class InventoryController {
   async getAllInventory(req, res, next) {
@@ -36,12 +37,14 @@ class InventoryController {
 
   async getInventoryByVariantId(req, res, next) {
     const { variantId } = req.params;
+    const warehouseId=req.headers["x-warehouse-id"];
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     try {
       const result = await InventoryServices.getInventoryByVariantId(
         variantId,
+        warehouseId,
         offset,
         limit,
       );
@@ -55,6 +58,17 @@ class InventoryController {
     } catch (error) {
       next(error);
     }
+  }
+  async inventoryValidate(req,res,next){
+    const variantIds=req.body.variantIds;
+     const warehouseId=req.headers["x-warehouse-id"];
+     try{
+      const result = await inventoryServices.inventoryValidate(variantIds,warehouseId)
+      return ResponseUtil.success(res,result,"inventory fetched",200)
+         }
+         catch(error){
+          next(error);
+         }
   }
 
   async createInventory(req, res, next) {

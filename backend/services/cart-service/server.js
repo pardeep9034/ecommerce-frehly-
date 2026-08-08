@@ -1,5 +1,7 @@
 import app from "./app.js";
 import initializeModels from "./src/models/index.js";
+import { initializeTopology } from "./src/messaging/index.js";
+import {registerCartConsumers} from "./src/modules/addToCart/registerConsumers.js";
 
 const PORT = process.env.PORT || 3002;
 
@@ -12,6 +14,10 @@ async function startServer() {
     await initializeModels();
 
     console.log("✅ Cart Service: Database and models initialized");
+    await initializeTopology();
+    console.log("✅ Cart Service: Messaging topology initialized");
+    await registerCartConsumers();
+    console.log("✅ Cart Service: Consumers registered");
 
     /* ================= START SERVER ================= */
 

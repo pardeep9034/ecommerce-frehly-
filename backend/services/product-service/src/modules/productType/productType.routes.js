@@ -1,5 +1,5 @@
 import express from 'express';
-import ProductTypeController from './productTypes.controller.js'
+import ProductTypeController from './productType.controller.js'
 import { authenticateToken } from '../../middleware/auth.js';
 import validate from '../../middleware/validate.js';
 

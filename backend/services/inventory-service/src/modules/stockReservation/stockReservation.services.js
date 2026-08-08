@@ -2,14 +2,14 @@ import initializeModels from "../../models/index.js";
 import InventoryRepository from "../repository/inventory.repository.js";
 import StockReservationRepository from "../repository/stockReservation.repository.js";
 import AppError from "../../utils/AppError.js";
+import {env} from "../../config/env.js";
 
-const VARIANT_SERVICE_URL =
-  process.env.PRODUCT_SERVICE_URL || "http://localhost:3002";
+
 
 const fetchVariantDetails = async (variantId) => {
   try {
     const response = await fetch(
-      `${VARIANT_SERVICE_URL}/product-variant/variants/${variantId}`,
+      `${env.API_GATEWAY_URL}/product-variant/variants/${variantId}`,
     );
 
     if (!response.ok) {

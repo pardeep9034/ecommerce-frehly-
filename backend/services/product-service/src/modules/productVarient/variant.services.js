@@ -14,6 +14,17 @@ const VariantServices = {
            throw new AppError("Failed to search variants",400)
         }
     },
+    async validateVariant(variantIds){
+        console.log("variants ids",variantIds)
+        try{
+            const variants = await variantRepository.findAll({id:variantIds,status:"ACTIVE"}) 
+            return variants;
+
+        }catch(error){
+            throw new AppError("failed to validate the variants");
+        }
+
+    },
 
     async getAllVariants(productId,offset,limit) {
         try {

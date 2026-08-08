@@ -56,11 +56,12 @@ class AuthController {
   async loginWithPassword(req,res,next){
 
     try {
-      const { phone, password } = req.body;
+      const { phone, password ,guest_cart} = req.body;
+      const warehouseId=req.headers["x-warehouse-id"]
       const deviceId = req.headers["x-device-id"] || null;
       const userAgent = req.headers["user-agent"] || null;
 
-      const result = await AuthService.loginWithPassword(phone, password, deviceId, userAgent);
+      const result = await AuthService.loginWithPassword(phone, password,guest_cart,warehouseId, deviceId, userAgent );
       res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
       return ResponseUtil.success(res, result.data, result.message, 200);
     } catch (error) {

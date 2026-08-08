@@ -14,7 +14,7 @@ RUN npm install --production
 COPY . .
 
 # Document the port used by the service
-EXPOSE 3000 
+EXPOSE 3003
 
 # Start the inventory service
 CMD ["sh", "-c", "NODE_OPTIONS=--dns-result-order=ipv4first npm start"]

@@ -1,3 +1,4 @@
+import { where } from "sequelize";
 import initializeModels from "../../models/index.js";
 
 class BaseRepository {
@@ -23,6 +24,10 @@ class BaseRepository {
   async findOne(query = {}, options = {}) {
     const Model = await this.getModel();
     return await Model.findOne({ where: query, ...options });
+  }
+  async findAll(query={},option={}){
+    const Model= await this.getModel();
+    return await Model.findAll({where:query}) 
   }
 
   async update(query, data, options = {}) {

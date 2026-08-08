@@ -1,11 +1,21 @@
 import InventoryRepository from "../repository/inventory.repository.js";
 import ResponseUtil from "../../utils/response.js";
-import AppError from "../../utils/appError.js";
+import AppError from "../../utils/AppError.js";
+import { consumer } from "../../messaging/index.js";
+import queues from "../../messaging/topology/queues.js";
+import { initializeTopology } from "../../messaging/index.js";
+import {env} from "../../config/env.js";
+import inventoryRepository from "../repository/inventory.repository.js";
+await initializeTopology()
+await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name,async(event)=>{
+  console.log("event consumed ")
+
+})
 
 const fetchVariantDetails = async (variantId) => {
   try {
     const variantResponse = await fetch(
-      `http://localhost:3002/product-variant/variants/${variantId}`,
+      `${env.API_GATEWAY_URL}/product-variant/variants/${variantId}`,
     );
     if (variantResponse.ok) {
       const result = await variantResponse.json();
@@ -81,7 +91,7 @@ class InventoryServices {
     }
   }
 
-  async getInventoryByVariantId(variantId, offset, limit) {
+  async getInventoryByVariantId(variantId,warehouseId, offset, limit) {
     try {
       if (!variantId) {
         throw new AppError("variantId is required", 400);
@@ -89,6 +99,7 @@ class InventoryServices {
 
       const inventory = await InventoryRepository.getInventoryByVariantId(
         variantId,
+        warehouseId,
         offset,
         limit,
       );
@@ -97,13 +108,29 @@ class InventoryServices {
         throw new AppError("Inventory not found for this variant", 404);
       }
 
-      return inventory.rows;
+      return inventory;
     } catch (error) {
+    if (error instanceof AppError) {
+        throw error;
+    }
+
       throw new AppError(
-        `Failed to fetch inventory by variantId: ${error.message}`,
-        500,
+        `Failed to fetch inventory by variantId`,500,
       );
     }
+  }
+  async inventoryValidate(variantIds,warehouseId){
+    if(variantIds.length ===0){
+      throw new AppError("variantIds not  found")
+    }
+    if(!warehouseId){
+      throw new AppError("warehouse not found")
+    }
+    const inventories= await inventoryRepository.findAll({variant_id:variantIds,warehouse_id:warehouseId})
+  if(!inventories){
+    throw new  AppError("inventory not fount for variants")
+  }
+  return inventories;
   }
 
   async createInventory(inventoryData) {

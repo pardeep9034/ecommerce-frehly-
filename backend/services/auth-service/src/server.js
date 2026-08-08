@@ -1,10 +1,9 @@
 import app from './app.js';
 import initializeModels from './models/index.js';
 import redisManager from './config/redis.js';
-import kafkaManager from './config/kafka.js';
+import { initializeTopology } from './messaging/index.js';
 import logger from './utils/Logger.js';
 import { env } from './config/env.js';
-import { startOtpConsumer } from './events/consumer.js';
 
 const PORT = env.PORT || 3001;
 
@@ -13,6 +12,8 @@ async function startServer() {
     // 1. Initialize database and models
     await initializeModels();
     logger.info('✅ Auth Service: Database and models initialized');
+
+    
 
     // 2. Connect Redis (non-blocking — service works without it)
     if (env.REDIS_URL) {
@@ -25,12 +26,12 @@ async function startServer() {
       logger.warn('⚠️ REDIS_URL not set — token blacklisting/sessions disabled');
     }
 
-    // 3. Connect Kafka Consumers
+    // 3. Connect rabbitmq
     try {
-      await startOtpConsumer();
-      logger.info('✅ Auth Service: OTP Consumer started');
+      await initializeTopology();
+      logger.info('✅ Auth Service: RabbitMQ topology initialized');
     } catch (err) {
-      logger.error(`❌ Failed to start OTP Consumer: ${err.message}`);
+      logger.error(`❌ Failed to initialize RabbitMQ topology: ${err.message}`);
     }
 
     // 4. Connect HTTP server
@@ -43,7 +44,7 @@ async function startServer() {
       logger.info(`${signal} received — shutting down gracefully`);
       server.close(async () => {
         await redisManager.disconnect().catch(() => {});
-        await kafkaManager.disconnect().catch(() => {});
+        await initializeTopology().disconnect().catch(() => {});
         logger.info('✅ Auth Service shut down cleanly');
         process.exit(0);
       });

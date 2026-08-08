@@ -25,6 +25,7 @@ const envSchema = Joi.object({
   PRODUCT_SERVICE_URL: Joi.string()
     .uri()
     .default("http://localhost:3002"),
+    RABBITMQ_URL:Joi.string(),
 
   INVENTORY_SERVICE_URL: Joi.string()
     .uri()
@@ -32,7 +33,8 @@ const envSchema = Joi.object({
      CART_SERVICE_URL: Joi.string()
     .uri()
     .default("http://localhost:3005"),
-    AUTH_SERVICE_URL:Joi.string().uri().default("http://localhost:3000")
+    AUTH_SERVICE_URL:Joi.string().uri().default("http://localhost:3000"),
+  API_GATEWAY_URL:Joi.string().uri().optional()
 
 }).unknown(true)
 

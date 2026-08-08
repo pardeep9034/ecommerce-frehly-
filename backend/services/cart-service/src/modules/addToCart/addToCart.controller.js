@@ -4,7 +4,8 @@ class addToCartController{
     async addToCart(req,res,next){
         try {
             const user=req.user;
-            const result=await addToCartService.add(user,req.body);
+            const warehouseId = req.headers["x-warehouse-id"];
+            const result=await addToCartService.add(user,req.body,warehouseId);
             
         return responseUtil.success(res, result, "Added to cart", 200);
 

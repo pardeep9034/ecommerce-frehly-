@@ -9,9 +9,16 @@ const registerProxies = (app) => {
       service.route,
       createProxyMiddleware({
         target: service.target,
+        pathRewrite: (path) => `${service.route}${path}`,
         changeOrigin: true,
-        
-        logLevel: "debug"
+        logLevel: "debug",
+        on:{
+          error: (err, req, res) => {
+            console.error(`Error proxying request to ${service.name}:`, err);
+            res.status(500).send("service temprorarily unavailable");
+          }
+
+        }
       })
     );
 

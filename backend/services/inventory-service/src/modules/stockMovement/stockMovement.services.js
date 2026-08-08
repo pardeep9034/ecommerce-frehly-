@@ -2,9 +2,9 @@ import initializeModels from "../../models/index.js";
 import InventoryRepository from "../repository/inventory.repository.js";
 import StockMovementRepository from "../repository/stockMovement.repository.js";
 import AppError from "../../utils/AppError.js";
+import {env} from "../../config/env.js";
 
-const VARIANT_SERVICE_URL =
-  process.env.PRODUCT_SERVICE_URL || "http://localhost:3002";
+
 
 const INCREASE_TYPES = new Set(["STOCK_IN", "RETURN"]);
 const DECREASE_TYPES = new Set(["SALE", "DAMAGE"]);
@@ -12,7 +12,7 @@ const DECREASE_TYPES = new Set(["SALE", "DAMAGE"]);
 const fetchVariantDetails = async (variantId) => {
   try {
     const response = await fetch(
-      `${VARIANT_SERVICE_URL}/product-variant/variants/${variantId}`,
+      `${env.API_GATEWAY_URL}/product-variant/variants/${variantId}`,
     );
 
     if (!response.ok) {

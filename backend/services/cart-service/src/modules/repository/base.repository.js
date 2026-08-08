@@ -18,8 +18,10 @@ class BaseRepository {
         const model = await this.getModel();
         return await model.create(data, options);
     }
-
-c
+    async bulkCreate(data, options = {}) {
+        const model = await this.getModel();
+        return await model.bulkCreate(data, options);
+    }
 
     async findAll(options = {}) {
         const model = await this.getModel();

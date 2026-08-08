@@ -1,13 +1,19 @@
 import app from "./app.js";
 import initializeModels from "./src/models/index.js";
-
+import { initializeTopology } from "./src/messaging/index.js";
+import dotenv from "dotenv";
+dotenv.config()
 const PORT = process.env.PORT || 3004;
 
 async function startServer() {
   try {
     await initializeModels();
 
+
     console.log("Order Service: Database and models initialized");
+    await initializeTopology();
+    console.log("rabbitmq topology initialized");
+    
 
     const server = app.listen(PORT, () => {
       console.log(`Order Service running on port ${PORT}`);

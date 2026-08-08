@@ -28,7 +28,7 @@ const envSchema = Joi.object({
     REDIS_URL: Joi.string()
         .uri()
         .optional(),
-
+RABBITMQ_URL:Joi.string().uri(),
     KAFKA_BROKERS: Joi.string()
         .default("localhost:9092"),
 
@@ -43,7 +43,8 @@ const envSchema = Joi.object({
     LOCK_TIME: Joi.number()
         .integer()
         .default(7200000),
-    DELIVERY_SERVICE_URL:Joi.string().uri()
+    DELIVERY_SERVICE_URL:Joi.string().uri().optional(),
+    API_GATEWAY_URL:Joi.string().uri().optional()
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

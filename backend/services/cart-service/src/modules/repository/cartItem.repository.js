@@ -17,6 +17,9 @@ class CartItemRepository extends BaseRepository {
             }
         });
     }
+    async bulkInsert(cartItems) {
+        return await this.bulkCreate(cartItems);
+    }
 
     async updateQuantity(cartItemId, quantity) {
         return await this.update({ quantity: quantity }, { where: { id: cartItemId } });

@@ -14,6 +14,16 @@ const VariantController = {
       next(error);
     }
   },
+  async validateVariant (req,res,next){
+    try{
+      const vaiantIds=req.body.variantIds;
+      const result=await VariantServices.validateVariant(vaiantIds);
+      return ResponseUtil.success(res,result,"variants validated successfuly")
+    }catch(error){
+      next(error)
+    }
+
+  },
 
   async getAllVariants(req, res,next) {
     try{

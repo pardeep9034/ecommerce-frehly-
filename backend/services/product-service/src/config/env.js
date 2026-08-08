@@ -42,7 +42,11 @@ const envSchema = Joi.object({
 
     LOCK_TIME: Joi.number()
         .integer()
-        .default(7200000)
+        .default(7200000),
+
+    API_GATEWAY_URL: Joi.string()
+        .uri()
+        .default("http://localhost:4000")
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

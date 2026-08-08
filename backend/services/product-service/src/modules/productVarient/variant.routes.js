@@ -6,6 +6,7 @@ import validate from "../../middleware/validate.js";
 const router = express.Router({ mergeParams: true });
 
 router.get("/variants/search", VariantController.searchVariants);
+router.post("/variants/validate",VariantController.validateVariant)
 router.get("/:productId/variants", VariantController.getAllVariants);
 router.get("/variants/:id", VariantController.getVariantById);
 router.post("/:productId/variants",authenticateToken,validate("createVariantSchema"), VariantController.createVariant);

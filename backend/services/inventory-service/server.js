@@ -9,6 +9,7 @@ async function startServer() {
     await initializeModels();
     console.log("✅ Inventory Service: Database and models initialized");
 
+
     /* ================= START SERVER ================= */
     const server = app.listen(PORT, () => {
       console.log(`🚀 Inventory Service running on port ${PORT}`);

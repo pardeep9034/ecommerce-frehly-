@@ -1,3 +1,4 @@
+import { where } from "sequelize";
 import initializeModels from "../../models/index.js";
 
 class BaseRepository {
@@ -48,6 +49,10 @@ class BaseRepository {
   async findAndCountAll(query = {}, options = {}) {
     const Model = await this.getModel();
     return await Model.findAndCountAll({ where: query, ...options });
+  }
+  async findAll(query={},options={}){
+    const Model = await this.getModel();
+    return await Model.findAll({where:query,...options});
   }
 }
 
