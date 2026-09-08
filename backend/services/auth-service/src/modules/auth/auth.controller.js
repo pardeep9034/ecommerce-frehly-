@@ -32,8 +32,11 @@ class AuthController {
   }
 
   async register(req, res, next) {
+    console.log(req.body);
     try {
+      
       const result = await AuthService.register(req,req.body);
+      
         if (result.data?.refreshToken) {
         res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
       }

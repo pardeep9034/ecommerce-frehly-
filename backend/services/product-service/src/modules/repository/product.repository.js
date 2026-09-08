@@ -44,6 +44,10 @@ class ProductRepository extends BaseRepository{
     async getAllProducts(limit = 0, offset = 0) {
     
         return await this.findAndCountAll({},{
+           include: [
+    { association: "variants" },
+    { association: "category" }
+],
             limit,
             offset,
             order: [["created_at", "DESC"]],
@@ -58,22 +62,60 @@ class ProductRepository extends BaseRepository{
             ]
         });
     }
-
-    async createProduct(productData) {
-       
-        return await this.create(productData);
+    async searchProductsByName(search) {
+        return await this.findAll(
+            {
+                name: { [Op.iLike]: `%${search}%` },
+            },
+            {
+                include: [
+                    {
+                        association: "variants",
+                        attributes: ["id"]
+                    }
+                ],
+                order: [["created_at", "DESC"]],
+            }
+        );
+    }
+    async getProductSelection(search, limit, offset) {
+        const whereClause = search ? { name: { [Op.iLike]: `%${search}%` } } : {};
+        return await this.findAndCountAll(whereClause, {
+            limit,
+            offset,
+            attributes: ["id", "name" ],
+            order: [["created_at", "DESC"]],
+        });
     }
 
-    async getProductById(id) {
-       
-        return await this.findById(id,{include:{
-         
-         association:"variants",
-          attributes:["id","quantity","price","mrp","status"]
-        }
-        }); 
-    };
-    
+        async getProductById(id) {
+        
+            return await this.findById(id,{include:[{
+            
+            association:"variants",
+            attributes:["id","quantity","price","mrp","status"]
+            },
+        {
+            association:"category",
+            attributes:["id","name","parent_id","image_url","sort_order"]
+        },
+    {
+        association:"brand",
+        attributes:["id","name"]
+    }
+    ,{
+        association:"productType",
+        attributes:["id","name","is_active"]
+    },{
+        association:"productAttributes",
+        attributes:["id","attribute_name","attribute_value","data_type","sort_order"]
+    }]
+            }); 
+        };
+        
+        async createProduct(productData) {
+        return await this.create(productData);
+    }
 
     async updateProduct(id, productData) {
        

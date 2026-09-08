@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import OrderApi from "../apis/orderApi";
 
 const useOrder = () => {
@@ -12,6 +12,19 @@ const useOrder = () => {
     queryKey: ["my-orders"],
     queryFn: () => OrderApi.fetchMyOrders(),
   });
+   const placeOrderMutation = useMutation({
+    mutationFn: (data) => OrderApi.placeOrder(data),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["my-orders"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["cart"],
+      });
+    },
+  });
 
   return {
     orders: orders?.data || [],
@@ -19,6 +32,7 @@ const useOrder = () => {
     isError,
     error,
     refetch,
+    placeOrder:placeOrderMutation
   };
 };
 
@@ -41,5 +55,6 @@ export const useOrderDetail = (orderId) => {
     error,
   };
 };
+
 
 export default useOrder;

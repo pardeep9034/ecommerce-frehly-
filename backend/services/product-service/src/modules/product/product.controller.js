@@ -40,6 +40,30 @@ class ProductController  {
 
     // Logic to get all products
   }
+
+  async searchProductsByName(req, res, next) {
+    try {
+      const search = req.query.name || req.query.q;
+      const result = await ProductServices.searchProductsByName(search);
+      return ResponseUtil.success(res, result, "Matching products fetched successfully", 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getProductSelection(req, res, next) {
+    try{
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+      const search = req.query.search ;
+      const result = await ProductServices.getProductSelection(search, limit, offset);
+      return ResponseUtil.success(res, result, "Product selection fetched successfully", 200);
+
+    }catch(error){
+      next(error)
+    }
+  }
   
   async getProductById(req, res,next) {
     try{

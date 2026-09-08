@@ -3,13 +3,11 @@ import { Edit2, Trash2, Package } from "lucide-react";
 const formatVariant = (variant) => {
     if (!variant) return "Unknown Variant";
     
-    const productName = variant.Product?.name || variant.product?.name || "";
+    const productName = variant.product?.name ||"";
     const prefix = productName ? `${productName} - ` : "";
 
-    const { unitType, value, unit } = variant;
-    if (unitType === "piece") return `${prefix}${value} pc`;
-    if (unitType === "pack") return `${prefix}Pack of ${value}`;
-    return `${prefix}${value} ${unit}`;
+   
+    return `${prefix}${variant.quantity} ${variant.measurementUnit.code}`;
 };
 
 const InventoryTable = ({ inventory, onEdit, onDelete }) => {
@@ -39,23 +37,23 @@ const InventoryTable = ({ inventory, onEdit, onDelete }) => {
                                             <span className="block font-medium text-[#1f2937]">
                                                 {formatVariant(item.variant)}
                                             </span>
-                                            <span className="text-xs text-[#6b7280]">ID: {item.variantId}</span>
+                                            <span className="text-xs text-[#6b7280]">ID: {item.variant_id}</span>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-5 py-4 sm:px-6 font-medium text-[#1f2937]">{item.stock}</td>
-                                <td className="px-5 py-4 text-[#6b7280] sm:px-6">{item.reservedStock}</td>
+                                <td className="px-5 py-4 sm:px-6 font-medium text-[#1f2937]">{item.current_stock}</td>
+                                <td className="px-5 py-4 text-[#6b7280] sm:px-6">{item.reserved_stock}</td>
                                 <td className="px-5 py-4 sm:px-6">
-                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.stock <= item.lowStockAlert ? "bg-red-100 text-red-600" : "bg-blue-50 text-blue-600"}`}>
-                                        {item.lowStockAlert}
+                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.current_stock <= item.low_stock_threshold ? "bg-red-100 text-red-600" : "bg-blue-50 text-blue-600"}`}>
+                                        {item.low_stock_threshold}
                                     </span>
                                 </td>
                                 <td className="px-5 py-4 sm:px-6">
                                     <span
-                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.stock > item.lowStockAlert ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#b8860b]/10 text-[#b8860b]"
+                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.current_stock > item.low_stock_threshold ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#b8860b]/10 text-[#b8860b]"
                                             }`}
                                     >
-                                        {item.stock > item.lowStockAlert ? "In Stock" : item.stock > 0 ? "Low Stock" : "Out of Stock"}
+                                        {item.current_stock > item.low_stock_threshold ? "In Stock" : item.current_stock > 0 ? "Low Stock" : "Out of Stock"}
                                     </span>
                                 </td>
                                 <td className="px-5 py-4 sm:px-6">

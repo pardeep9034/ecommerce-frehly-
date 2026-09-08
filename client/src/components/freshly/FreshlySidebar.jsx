@@ -34,8 +34,11 @@ const navigationSections = [
   { label: "Management", items: managementItems },
 ];
 
-const FreshlySidebar = ({ collapsed, onToggle, isMobile = false }) => {
+const FreshlySidebar = ({ collapsed, onToggle, user, isMobile = false }) => {
   const location = useLocation();
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.name || "Admin";
+  const contactDetail = user?.email || user?.phone || "Store Admin";
+  const role = user?.role || "Store Admin";
 
   const positionClasses = isMobile
     ? "fixed left-0 top-0 z-30 h-screen"
@@ -116,8 +119,9 @@ const FreshlySidebar = ({ collapsed, onToggle, isMobile = false }) => {
       <div className="px-3 pb-3">
         {!collapsed && (
           <div className="mb-2 rounded-xl border border-white/12 bg-white/8 p-3">
-            <p className="text-xs font-semibold text-white">John Doe</p>
-            <p className="mt-0.5 text-[11px] text-white/70">Store Admin</p>
+            <p className="truncate text-xs font-semibold text-white">{fullName}</p>
+            <p className="mt-0.5 truncate text-[11px] text-white/70">{contactDetail}</p>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#f7d984]">{role}</p>
           </div>
         )}
 

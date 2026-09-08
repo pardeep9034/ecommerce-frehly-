@@ -178,7 +178,7 @@ if(!userAddress.success){
         }, { transaction });
         const orderData=order.toJSON()
 
-                await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
+      
 
         for (const item of snapshotItems) {
           const reservation = await this.createReservation(
@@ -206,6 +206,7 @@ if(!userAddress.success){
             expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
           })
         }, { transaction });
+           await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
 
         const details = await this.getOrderDetails(order.id, user, { transaction });
 

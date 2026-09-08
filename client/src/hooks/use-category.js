@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchCategories, createCategory, updateCategory, deleteCategory } from "@/apis/categoryApi";
+import { fetchCategories, createCategory, updateCategory, deleteCategory ,fetchAllCategories} from "@/apis/categoryApi";
 
-const useCategory = (page = 1, limit = 10) => {
+const useCategory = (page = 1, limit = 10, searchTerm = "") => {
   const queryClient = useQueryClient();
 
   // GET - fetch categories with pagination
@@ -12,6 +12,15 @@ const useCategory = (page = 1, limit = 10) => {
   } = useQuery({
     queryKey: ["categories", page, limit],
     queryFn: () => fetchCategories(page, limit),
+  });
+  // GET - fetch all categories for selection
+  const {
+    data: allCategories,
+    isLoading: isLoadingAllCategories,
+    error: errorAllCategories,
+  } = useQuery({
+    queryKey: ["allCategories", page, limit,searchTerm],
+    queryFn: () => fetchAllCategories(page,limit,searchTerm),
   });
 
   // POST - create category
@@ -42,6 +51,9 @@ const useCategory = (page = 1, limit = 10) => {
     categories,
     isLoading,
     error,
+    allCategories,
+    isLoadingAllCategories,
+    errorAllCategories,
     createCategory: createMutation,
     updateCategory: updateMutation,
     deleteCategory: deleteMutation,

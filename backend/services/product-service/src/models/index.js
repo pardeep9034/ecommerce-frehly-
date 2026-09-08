@@ -21,7 +21,7 @@ if(!dbPromise){
 
         sequelize = await database.connect();
 
-      const  db = {
+        const  db = {
             sequelize,
             Sequelize: database.Sequelize,
 

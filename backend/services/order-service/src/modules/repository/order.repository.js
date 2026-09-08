@@ -36,7 +36,8 @@ class OrderRepository extends BaseRepository {
   async getOrderHistory(where = {}, limit = 10, offset = 0) {
     return await this.findAndCountAll(where, {
       include: [
-        { association: "payments", limit: 1, order: [["created_at", "DESC"]] }
+        { association: "payments", limit: 1, order: [["created_at", "DESC"]] },
+        {association:"items"}
       ],
       order: [["created_at", "DESC"]],
       limit,

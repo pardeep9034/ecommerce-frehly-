@@ -19,6 +19,7 @@ import { useOrderDetail } from "../hooks/use-order";
 const OrderDetail = () => {
   const { orderId } = useParams();
   const { order, isLoading, isError } = useOrderDetail(orderId);
+  console.log("order detail",order)
 
   const handleDownloadInvoice = () => {
     window.print();
@@ -103,25 +104,25 @@ const OrderDetail = () => {
               </div>
               <div className="p-8">
                 <div className="relative">
-                  {order.statusSteps.map((step, index) => (
+                  {order.statusHistory.map((step, index) => (
                     <div key={index} className="flex gap-4 pb-8 last:pb-0">
                       <div className="relative flex flex-col items-center">
                          <div className={`z-10 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white shadow-sm ${
-                           step.status === 'completed' ? 'bg-[#0f5132] text-white' : 'bg-gray-200 text-gray-400'
+                           step.new_status === 'completed' ? 'bg-[#0f5132] text-white' : 'bg-gray-200 text-gray-400'
                          }`}>
-                           {step.status === 'completed' ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                           {step.new_status === 'completed' ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                          </div>
-                         {index !== order.statusSteps.length - 1 && (
+                         {index !== order.statusHistory.length - 1 && (
                             <div className={`absolute top-8 h-full w-0.5 ${
-                              step.status === 'completed' ? 'bg-[#0f5132]' : 'bg-gray-200'
+                              step.new_status === 'completed' ? 'bg-[#0f5132]' : 'bg-gray-200'
                             }`} />
                          )}
                       </div>
                       <div className="flex flex-col">
-                        <p className={`text-sm font-bold ${step.status === 'completed' ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {step.label}
+                        <p className={`text-sm font-bold ${step.new_status === 'completed' ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {step.new_status}
                         </p>
-                        <p className="text-xs text-gray-500">{step.date}</p>
+                        <p className="text-xs text-gray-500">{new Date(step.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                   ))}
@@ -141,16 +142,16 @@ const OrderDetail = () => {
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-6 p-6">
                     <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-                      <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                      <img src={item.image} alt={item.product_name} className="h-full w-full object-cover" />
                     </div>
                     <div className="flex flex-1 flex-col">
-                      <h4 className="font-bold text-gray-900">{item.name}</h4>
+                      <h4 className="font-bold text-gray-900">{item.product_name}</h4>
                       <p className="text-sm text-gray-500">Unit: {item.unit}</p>
-                      <p className="mt-1 text-xs font-medium text-gray-400">Qty: {item.quantity}</p>
+                      <p className="mt-1 text-xs font-medium text-gray-400">Qty: {Number(item.quantity)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-[#0f5132]">₹{item.price * item.quantity}</p>
-                      <p className="text-xs text-gray-400">₹{item.price} / unit</p>
+                      <p className="text-lg font-bold text-[#0f5132]">₹{item.line_total}</p>
+                      <p className="text-xs text-gray-400">₹{item.selling_price} / unit</p>
                     </div>
                   </div>
                 ))}
@@ -172,26 +173,26 @@ const OrderDetail = () => {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Bag Total (MRP)</span>
-                  <span className="font-medium text-gray-900">₹{order.priceBreakdown.mrp}</span>
+                  <span className="font-medium text-gray-900">₹{order.subtotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Bag Discount</span>
-                  <span className="font-medium text-green-600">-₹{order.priceBreakdown.discount}</span>
+                  <span className="font-medium text-green-600">-₹{order.discount_amount}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                {/* <div className="flex justify-between text-sm">
                   <span className="text-gray-500">GST (Estimated)</span>
                   <span className="font-medium text-gray-900">₹{order.priceBreakdown.gst}</span>
-                </div>
+                </div> */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Delivery Charges</span>
-                  <span className="font-medium text-gray-900">₹{order.priceBreakdown.delivery}</span>
+                  <span className="font-medium text-gray-900">₹{order.delivery_fee}</span>
                 </div>
                 <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between">
                   <span className="text-base font-bold text-gray-900">Total Amount</span>
-                  <span className="text-xl font-extrabold text-[#0f5132]">₹{order.priceBreakdown.total}</span>
+                  <span className="text-xl font-extrabold text-[#0f5132]">₹{order.total_amount}</span>
                 </div>
                 <div className="mt-4 rounded-lg bg-green-50 p-3 text-center">
-                  <p className="text-xs font-bold text-[#0f5132]">You saved ₹{order.priceBreakdown.discount} on this order!</p>
+                  <p className="text-xs font-bold text-[#0f5132]">You saved ₹{order.discount_amount} on this order!</p>
                 </div>
               </div>
             </div>
@@ -205,10 +206,10 @@ const OrderDetail = () => {
                 </h3>
               </div>
               <div className="p-6">
-                <p className="font-bold text-gray-900">{order.shippingAddress.name}</p>
-                <p className="mt-1 text-sm text-gray-600">{order.shippingAddress.street}</p>
-                <p className="text-sm text-gray-600">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
-                <p className="mt-3 text-sm font-medium text-gray-900">{order.shippingAddress.phone}</p>
+                <p className="font-bold text-gray-900">{order.address.full_name}</p>
+                <p className="mt-1 text-sm text-gray-600">{order.address.address_line_1}</p>
+                <p className="text-sm text-gray-600">{order.address.city}, {order.address.state} - {order.address.postal_code}</p>
+                <p className="mt-3 text-sm font-medium text-gray-900">{order.address.phone}</p>
               </div>
             </div>
 
@@ -223,12 +224,12 @@ const OrderDetail = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                    <p className="text-sm text-gray-500">Method</p>
-                   <p className="text-sm font-bold text-gray-900">{order.paymentMethod}</p>
+                   <p className="text-sm font-bold text-gray-900">{order.latest_payment.payment_method}</p>
                 </div>
                 <div className="flex items-center justify-between">
                    <p className="text-sm text-gray-500">Status</p>
-                   <p className={`text-xs font-bold px-2 py-0.5 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                     {order.paymentStatus}
+                   <p className={`text-xs font-bold px-2 py-0.5 rounded-full ${order.latest_payment.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                     {order.latest_payment.status}
                    </p>
                 </div>
               </div>
@@ -273,7 +274,7 @@ const OrderDetail = () => {
              <h2 className="text-2xl font-bold uppercase text-gray-400">Tax Invoice</h2>
              <div className="mt-4 text-sm">
                 <p><span className="font-bold">Order ID:</span> {order.id}</p>
-                <p><span className="font-bold">Date:</span> {new Date(order.date).toLocaleDateString()}</p>
+                <p><span className="font-bold">Date:</span> {new Date(order.created_at).toLocaleDateString()}</p>
                 <p><span className="font-bold">Status:</span> {order.status}</p>
              </div>
           </div>
@@ -283,16 +284,16 @@ const OrderDetail = () => {
         <div className="grid grid-cols-2 gap-12 mb-10 pb-8 border-b border-gray-100">
           <div>
              <h3 className="text-xs font-bold uppercase text-[#0f5132] mb-3">Shipping To</h3>
-             <p className="font-black text-lg">{order.shippingAddress.name}</p>
-             <p className="mt-1 text-gray-700">{order.shippingAddress.street}</p>
-             <p className="text-gray-700">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
-             <p className="mt-2 font-bold">{order.shippingAddress.phone}</p>
+             <p className="font-black text-lg">{order.address.full_name}</p>
+             <p className="mt-1 text-gray-700">{order.address.address_line_1}</p>
+             <p className="text-gray-700">{order.address.city}, {order.address.state} - {order.address.postal_code}</p>
+             <p className="mt-2 font-bold">{order.address.phone}</p>
           </div>
           <div className="text-right flex flex-col items-end">
              <h3 className="text-xs font-bold uppercase text-[#0f5132] mb-3">Payment Information</h3>
-             <p className="font-bold text-gray-900">{order.paymentMethod}</p>
-             <p className={`text-xs font-bold mt-1 px-2 py-0.5 rounded ${order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                {order.paymentStatus}
+             <p className="font-bold text-gray-900">{new Date(order.created_at).toLocaleDateString().payment_method}</p>
+             <p className={`text-xs font-bold mt-1 px-2 py-0.5 rounded ${order.latest_payment.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {order.latest_payment.status}
              </p>
           </div>
         </div>
@@ -311,12 +312,12 @@ const OrderDetail = () => {
              {order.items.map((item) => (
                <tr key={item.id}>
                   <td className="py-5">
-                    <p className="font-bold text-gray-900">{item.name}</p>
+                    <p className="font-bold text-gray-900">{item.product_name}</p>
                     <p className="text-[10px] text-gray-400 mt-0.5">{item.unit}</p>
                   </td>
-                  <td className="py-5 font-bold">₹{item.price}</td>
-                  <td className="py-5 text-center font-bold">{item.quantity}</td>
-                  <td className="py-5 text-right font-bold">₹{item.price * item.quantity}</td>
+                  <td className="py-5 font-bold">₹{item.selling_price}</td>
+                  <td className="py-5 text-center font-bold">{Number(item.quantity)}</td>
+                  <td className="py-5 text-right font-bold">₹{item.line_total}</td>
                </tr>
              ))}
           </tbody>
@@ -327,23 +328,23 @@ const OrderDetail = () => {
            <div className="w-64 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Bag Total (MRP)</span>
-                <span className="font-medium">₹{order.priceBreakdown.mrp}</span>
+                <span className="font-medium">₹{order.subtotal}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Bag Discount</span>
-                <span className="font-medium text-green-600">-₹{order.priceBreakdown.discount}</span>
+                <span className="font-medium text-green-600">-₹{order.discount_amount}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              {/* <div className="flex justify-between text-sm">
                 <span className="text-gray-500">GST (Estimated)</span>
                 <span className="font-medium">₹{order.priceBreakdown.gst}</span>
-              </div>
+              </div> */}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Delivery Charges</span>
-                <span className="font-medium">₹{order.priceBreakdown.delivery}</span>
+                <span className="font-medium">₹{order.delivery_fee}</span>
               </div>
               <div className="flex justify-between pt-4 border-t-2 border-[#0f5132]">
                 <span className="text-md font-black uppercase text-[#0f5132]">Grand Total</span>
-                <span className="text-xl font-black text-[#0f5132]">₹{order.priceBreakdown.total}</span>
+                <span className="text-xl font-black text-[#0f5132]">₹{order.total_amount}</span>
               </div>
            </div>
         </div>

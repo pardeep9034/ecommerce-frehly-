@@ -1,6 +1,7 @@
 import queues from "../../messaging/topology/queues.js";
 import { consumer } from "../../messaging/index.js";
 import { onUserLoggedIn } from "./handlers/userLoggedIn.handler.js";
+import  onCartEmpty  from "./handlers/orderCreated.handler.js";
 
 export async function registerCartConsumers() {
 
@@ -10,6 +11,11 @@ export async function registerCartConsumers() {
 
         onUserLoggedIn
 
+    );
+    await consumer.subscribe(
+
+        queues.CART_EMPTY_QUEUE.name,
+        onCartEmpty
     );
 
 }

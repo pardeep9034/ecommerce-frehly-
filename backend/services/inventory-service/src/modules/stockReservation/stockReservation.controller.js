@@ -104,9 +104,11 @@ class StockReservationController {
 
 
   async confirmStockReservation(req, res, next) {
+       const warehouseId = req.headers["x-warehouse-id"];
     try {
       const result = await StockReservationServices.confirmStockReservation(
         req.params.id,
+        warehouseId
       );
 
       return ResponseUtil.success(
@@ -120,9 +122,11 @@ class StockReservationController {
   }
 
   async releaseStockReservation(req, res, next) {
+    const warehouseId = req.headers["x-warehouse-id"];
     try {
       const result = await StockReservationServices.releaseStockReservation(
         req.params.id,
+        warehouseId
       );
 
       return ResponseUtil.success(
@@ -136,9 +140,11 @@ class StockReservationController {
   }
 
   async expireStockReservation(req, res, next) {
+       const warehouseId = req.headers["x-warehouse-id"];
     try {
       const result = await StockReservationServices.expireStockReservation(
         req.params.id,
+        warehouseId
       );
 
       return ResponseUtil.success(

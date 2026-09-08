@@ -233,22 +233,22 @@ class AuthService {
 
     const isValid = OtpService.compareOtp(otp, otpRecord.code_hash);
 
-    try {
-      const redisClient = redisManager.getClient();
-     if(redisClient.isReady){
-       const redisTest = await redisClient.get(`otp:${user.id}`);
-      if (redisTest) {
-        logger.info(`✅ Redis Hit! OTP found for user ${user.id}`);
-      } else {
-        logger.warn(`⚠️ Redis Miss! OTP not found for user ${user.id}`);
-      }
-     }
-     else{
-      logger.warn("Redis unavailable. Using DB only.");
-     }
-    } catch (err) {
-      logger.warn(`Redis GET error: ${err.message}`);
-    }
+    // try {
+    //   // const redisClient = redisManager.getClient();
+    //  if(redisClient.isReady){
+    //    const redisTest = await redisClient.get(`otp:${user.id}`);
+    //   if (redisTest) {
+    //     logger.info(`✅ Redis Hit! OTP found for user ${user.id}`);
+    //   } else {
+    //     logger.warn(`⚠️ Redis Miss! OTP not found for user ${user.id}`);
+    //   }
+    //  }
+    //  else{
+    //   logger.warn("Redis unavailable. Using DB only.");
+    //  }
+    // } catch (err) {
+    //   logger.warn(`Redis GET error: ${err.message}`);
+    // }
     if (!isValid) {
       await OtpRepository.incrementAttempts(otpRecord.id);
       throw new AppError("Invalid OTP", 400);
@@ -281,14 +281,14 @@ class AuthService {
         await transaction.commit();
 
         // Emit Kafka event
-        kafkaManager.sendEvent("auth.events", {
-          type: "USER_REGISTERED",
-          userId: user.id,
-          phone: user.phone,
-          timestamp: new Date().toISOString(),
-        }).catch(err => logger.error(`Kafka error: ${err.message}`));
+        // kafkaManager.sendEvent("auth.events", {
+        //   type: "USER_REGISTERED",
+        //   userId: user.id,
+        //   phone: user.phone,
+        //   timestamp: new Date().toISOString(),
+        // }).catch(err => logger.error(`Kafka error: ${err.message}`));
 
-        logger.info(`✅ User ${user.id} verified and registered`);
+        // logger.info(`✅ User ${user.id} verified and registered`);
 
         return {
           success: true,
@@ -337,7 +337,7 @@ class AuthService {
       throw new AppError("profile is completed",400);
     }
     if (!existingUser) throw new AppError("User not found", 404);
-console.log("existingUser",existingUser)
+     console.log("existingUser",existingUser)
     if (!first_name && !password) {
       throw new AppError("No data provided to update", 400);
     }
@@ -351,13 +351,13 @@ console.log("existingUser",existingUser)
     existingUser.profile_complete = true;
  
   const db=await initializeModels();
-  const transaction=db.sequelize.transaction()
-   
-     const savedUser = await existingUser.save(transaction);
+  const transaction= await db.sequelize.transaction()
+   try{
+     const savedUser = await existingUser.save({ transaction });
 
     
         const accessToken = TokenService.generateAccessToken({
-          user_id: existingUser.user_id,
+          user_id: existingUser.id,
           phone: existingUser.phone,
           role: existingUser.role,
         });
@@ -368,7 +368,7 @@ console.log("existingUser",existingUser)
         const ipAddress = req.ip ||req.socket.remoteAddress;
 
         await RefreshTokenRepository.create({
-          user_id: existingUser.user_id,
+          user_id: existingUser.id,
           user_agent:userAgent,
           ip_address:ipAddress,
           token_hash: TokenService.hashRefreshToken(rawRefresh),
@@ -378,10 +378,13 @@ console.log("existingUser",existingUser)
 
          await transaction.commit();
         
-         
+        }
+    catch(err){
+      await transaction.rollback();
+      throw new AppError("Failed to complete profile", 500);}
          
 
-    logger.info(`✅ User ${existingUser.user_id} profile completed`);
+    logger.info(`✅ User ${existingUser.id} profile completed`);
 
     return {
       success: true,

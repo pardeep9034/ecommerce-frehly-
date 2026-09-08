@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Outlet, useLocation } from "react-router-dom";
 import FreshlySidebar from "./FreshlySidebar";
 import FreshlyHeader from "./FreshlyHeader";
@@ -18,6 +19,8 @@ const DashboardLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const user = useSelector((state) => state.auth.user);
+  console.log("dash",user)
   const title = pageTitles[location.pathname] || "Freshly";
 
   useEffect(() => {
@@ -38,11 +41,11 @@ const DashboardLayout = () => {
         />
       )}
 
-      {mobileOpen && <FreshlySidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} isMobile />}
+      {mobileOpen && <FreshlySidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} user={user} isMobile />}
 
       <div className="relative min-h-screen lg:flex">
         <div className="hidden shrink-0 lg:block">
-          <FreshlySidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+          <FreshlySidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} user={user} />
         </div>
 
         <div className="relative min-h-screen w-full lg:flex-1">
@@ -50,6 +53,7 @@ const DashboardLayout = () => {
             title={title}
             sidebarCollapsed={collapsed}
             onMenuClick={() => setMobileOpen(!mobileOpen)}
+            user={user}
           />
 
           <main className="relative min-h-[calc(100vh-4rem)] w-full overflow-x-hidden  ">

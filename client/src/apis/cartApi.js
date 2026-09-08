@@ -10,3 +10,13 @@ export const addToCartApi = async (cartItem) => {
         throw error;
     }
 }
+export const getUserCart = async () => {
+    try{
+        const response = await api.get("/cart");
+        return response.data;
+    }
+    catch(error){
+        console.error("get user cart error:", error);
+        throw error;
+    }
+}

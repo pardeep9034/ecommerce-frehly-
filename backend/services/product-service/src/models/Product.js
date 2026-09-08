@@ -97,6 +97,10 @@ export default (sequelize) => {
             foreignKey: "product_id",
             as: "images"
         });
+        Product.hasMany(models.ProductAttribute,{
+           foreignKey:"product_id" ,
+           as:"productAttributes"
+        })
 
     };
 

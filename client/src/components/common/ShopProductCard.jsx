@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@/redux/cartSlice";
+import { useQuery } from "@tanstack/react-query";
+import VariantApi from "@/apis/variantApi";
+import ProductApi from "@/apis/productApi";
 import { useAddToCartMutation } from "@/hooks/use-addToCart";
 
 
 const ShopProductCard = ({ product, viewMode = "grid" }) => {
-  console.log("product",product)
+  console.log("test product",product)
   const {
     id,
     name,
@@ -20,33 +23,64 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
     variants = []
   } = (product.Product || product);
   const dispatch = useDispatch();
+  console.log("variants on home",variants)
 
-  const [selectedVariant, setSelectedVariant] = useState(variants?.[0] || {});
+
   // const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart") || "[]"))
-  
-  const currentPrice = selectedVariant.price || price;
-  const currentMrp = selectedVariant.mrp || oldPrice;
-  const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
+
 
   const isList = viewMode === "list";
   const addToCartMutation = useAddToCartMutation();
-
+  const { data: productResponse, isLoading: productLoading, error: productError } = useQuery({
+      queryKey: ["product", product?.id],
+      queryFn: () => ProductApi.getProductById(product?.id),
+      enabled: !!product?.id,
+    });
+  
+    const productData =productResponse?.data;
+    const variant=productData?.variants|| [];
+    const variantIds=variant.map((variant)=>
+      variant.id
+    )
+  
+  const {
+    data: variantInfoData,
+    isLoading: isVariantInfoLoading,
+    isError: isVariantInfoError,
+    error: variantInfoError,
+  } = useQuery({
+    queryKey: ["variantInfo", variantIds],
+    queryFn: () => VariantApi.variantsInfo(variantIds),
+    enabled: variantIds.length > 0,
+  });
+  const variantData=variantInfoData?.data
+  const [selectedVariant, setSelectedVariant] = useState(variantData?.[0] || {});
+  console.log("selected variant",selectedVariant)
+  useEffect(() => {
+  if (variantData?.length > 0) {
+    setSelectedVariant(variantData[0]);
+  }
+}, [variantData]);
+    
+  const currentPrice = selectedVariant.price || price;
+  const currentMrp = selectedVariant.mrp || oldPrice;
+  const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
 const handleAddToCart = () => {
   dispatch(
     addToCart({
-      productId: product.id,
-      variantId: selectedVariant.id,
-      name: name,
+      product_id: product.id,
+      variant_id: selectedVariant.id,
+      product_name: name,
       image: image,
-      variantName: `${selectedVariant.value}${selectedVariant.unit}`,
+      variant_name: selectedVariant.variant_name,
       quantity: 1,
-      priceSnapshot: currentPrice
+      price: currentPrice
     })
   );
 
 addToCartMutation.mutate({
-  productId: product.id,
-  variantId: selectedVariant.id,
+  // product_id: product.id,
+  variant_id: selectedVariant.id,
   quantity:1
 })
     
@@ -119,16 +153,16 @@ addToCartMutation.mutate({
         </div>
 
         {/* Variant Selector - Compact on mobile */}
-        {variants?.length > 1? (
+        {variantData?.length > 1? (
           <div className="mb-3 sm:mb-6">
             <select
-              value={variants.indexOf(selectedVariant)}
-              onChange={(e) => setSelectedVariant(variants[e.target.value])}
+              value={variantData.indexOf(selectedVariant)}
+              onChange={(e) => setSelectedVariant(variantData[e.target.value])}
               className="w-full rounded-lg sm:rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-[#4b5563] outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/5"
             >
-              {variants.map((v, index) => (
+              {variantData.map((v, index) => (
                 <option key={index} value={index}>
-                  {v.value}{v.unit} - ₹{v.price}
+                 {v.variant_name} - ₹{v.price}
                 </option>
               ))}
             </select>
@@ -136,7 +170,7 @@ addToCartMutation.mutate({
         ):
         (
           <div className="mb-3 sm:mb-6">
-            <span className="w-full rounded-lg sm:rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-[#4b5563] outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/5">{variants[0].value}{variants[0].unit}</span>
+            <span className="w-full rounded-lg sm:rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-[#4b5563] outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/5">{selectedVariant?.variant_name}</span>
             
             </div>
         )

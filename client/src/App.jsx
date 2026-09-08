@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Navigate, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./components/common/loginPage";
 import SignUp from "./pages/SignUp";
@@ -23,10 +23,19 @@ import Contact from "./pages/Contact";
 import PublicLayout from "./components/layout/PublicLayout";
 import DashboardLayout from "./components/freshly/DashboardLayout";
 import CartPage from "./pages/CartPage";
+import PhoneLoginPage from "./components/common/phoneLoginPage";
+import AdminLogin from "./pages/AdminLogin";
+import Units from "./pages/unitsPage";
 import "./styles/app.css";
 import { useEffect } from "react";
 import { loginSuccess, logout } from "./redux/authSlice";
 import { useDispatch } from "react-redux";
+import Brand from "./pages/brandPage";
+import ProductType from "./pages/productTypePage";
+import ProductAttribute from "./pages/productAttributePage";
+import ProductVariant from "./pages/variantPage";
+import Warehouse from "./pages/warehousePage";
+import StockMovement from "./pages/stockMovementPage.";
 
 function App() {
   const dispatch = useDispatch();
@@ -42,6 +51,8 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/admin/login" element={<AdminLogin />} />
+
         {/* PUBLIC ROUTES */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
@@ -54,24 +65,37 @@ function App() {
           <Route path="/orders/:orderId" element={<OrderDetail />} />
           <Route path="/products/:productId" element={<ShopProductDetail />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/phone-login" element={<PhoneLoginPage />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/otp" element={<OtpPage />} />
           <Route path="/forgot-password" element={<ForgetPassword />} />
         </Route>
 
         {/* DASHBOARD ROUTES */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route
+          path="/dashboard"
+          element={localStorage.getItem("token") ? <DashboardLayout /> : <Navigate to="/admin/login" replace />}
+        >
           <Route index element={<Dashboard />} />
           <Route path="products" element={<Products />} />
           <Route path="products/:productId" element={<ProductDetail />} />
           <Route path="categories" element={<Categories />} />
           <Route path="inventory" element={<Inventory />} />
+          <Route path="inventory/warehouses" element={<Warehouse />} />
+          <Route path="inventory/stock-movement" element={<StockMovement />} />
           <Route path="orders" element={<PlaceholderPage />} />
           <Route path="customers" element={<PlaceholderPage />} />
           <Route path="promotions" element={<Promotions />} />
           <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
           <Route path="assign-promotions" element={<AssignPromotions />} />
           <Route path="settings" element={<PlaceholderPage />} />
+          <Route path="products/units"element={<Units/>}/>
+          <Route path="products/brands"element={<Brand/>}/>
+          <Route path="products/category" element={<Categories/>}/>
+          <Route path="products/product-type"element={<ProductType/>}/>
+          <Route path="products/product-attribute"element={<ProductAttribute/>}/>
+          <Route path="products/variants"element={<ProductVariant/>}/>
+
         </Route>
 
         {/* 404 - FALLBACK */}

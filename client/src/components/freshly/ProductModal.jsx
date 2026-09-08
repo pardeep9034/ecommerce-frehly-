@@ -1,33 +1,40 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import useCategory from "@/hooks/use-category";
+import useProductType from "@/hooks/use-productType";
+import SearchableSelector from "../common/searchableSelect";
+import useBrand from "@/hooks/use-brand";
+
 
 const EMPTY_PRODUCT = {
   name: "",
   description: "",
-  categoryId: "",
-  productType: "",
-  brand: "Freshly",
-  isOrganic: false,
-  image: "",
-  status: true,
+   category_id: "",
+  product_type_id: "",
+  brand_id: "",
+  short_description:"",
+  is_organic: false,
+  is_featured:false,
+  sort_order:0,
+
+  status: "",
 };
 
 const ProductModal = ({ open, onClose, product, onSave }) => {
   const [form, setForm] = useState(EMPTY_PRODUCT);
   const isEditMode = Boolean(product);
-
+  const [searchQuery,setSearchQuery]=useState("")
   const { categories: categoriesData } = useCategory();
+  const {data}=useProductType();
+  const {brandsData}=useBrand()
   const categoriesList = categoriesData?.data?.categories || [];
 
   useEffect(() => {
     if (product) {
-      setForm({
-        ...product,
-        categoryId: String(product.categoryId || ""),
-        isOrganic: Boolean(product.isOrganic),
-        status: Boolean(product.status),
-      });
+      setForm(
+        product
+     
+      );
       return;
     }
     setForm(EMPTY_PRODUCT);
@@ -47,10 +54,11 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
 
   const onSubmit = (event) => {
     event.preventDefault();
-    onSave({
-      ...form,
-      categoryId: Number(form.categoryId),
-    });
+    onSave(
+      form
+     
+
+    );
     onClose();
   };
 
@@ -94,7 +102,7 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="text-sm font-medium text-[#1f2937]" htmlFor="image">
               Image
             </label>
@@ -106,9 +114,24 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
               className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
               placeholder="Enter product image"
             />
-          </div>
+          </div> */}
 
           {/* Description */}
+          <div>
+            <label className="text-sm font-medium text-[#1f2937]" htmlFor="short_description">
+              Short Description
+            </label>
+            <textarea
+              id="short_description"
+              name="short_description"
+              value={form.short_description}
+              onChange={onChangeField}
+              rows={3}
+              required
+              className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132] resize-none"
+              placeholder="Enter product short description"
+            />
+          </div>
           <div>
             <label className="text-sm font-medium text-[#1f2937]" htmlFor="description">
               Description
@@ -127,7 +150,7 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
 
           {/* Category & Product Type */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
+            {/* <div>
               <label className="text-sm font-medium text-[#1f2937]" htmlFor="categoryId">
                 Category
               </label>
@@ -146,61 +169,68 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
                   </option>
                 ))}
               </select>
-            </div>
+            </div> */}
+<SearchableSelector
+data={categoriesData.data?.categories}
+labelKey="name"
+valueKey="id"
+placeholder="search category"
+onSelect={(id)=>
+  setForm((prev)=>
+  ({
+    ...prev,
+    category_id:id
+  })
+  )
+}
 
-            <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="productType">
-                Product Type
-              </label>
-              <select
-                id="productType"
-                name="productType"
-                value={form.productType}
-                onChange={onChangeField}
-                required
-                className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
-              >
-                <option value="" disabled>Select type</option>
-                <option value="Fresh">Fresh</option>
-                <option value="Frozen">Frozen</option>
-                <option value="Packaged">Packaged</option>
-                <option value="Beverage">Beverage</option>
-                <option value="Bakery">Bakery</option>
-              </select>
-            </div>
+
+/>
+<SearchableSelector
+data={data.data?.productTypes}
+placeholder="search types"
+onSelect={(id)=>
+  setForm((prev)=>
+  ({
+    ...prev,
+    product_type_id:id
+  })
+  )
+}
+/>
           </div>
 
           {/* Brand & Status */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="brand">
-                Brand
-              </label>
-              <input
-                id="brand"
-                name="brand"
-                value={form.brand}
-                onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
-                placeholder="e.g. Freshly"
-              />
-            </div>
+          <div className="grid grid-cols-1 pt-4 gap-4 md:grid-cols-2">
+       <SearchableSelector
+data={brandsData.data?.brand}
+placeholder="search brand"
+onSelect={(id)=>
+  setForm((prev)=>
+  ({
+    ...prev,
+    brand_id:id
+  })
+  )
+}
+/>
 
             <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="status">
-                Status
-              </label>
+             
               <select
                 id="status"
                 name="status"
-                value={form.status ? "true" : "false"}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, status: e.target.value === "true" }))
+                value={form.status}
+                onChange={
+                  onChangeField
                 }
                 className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
               >
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="">select status</option>
+                <option value="DRAFT">DRAFT</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+                <option value="ARCHIVED">ARCHIVED</option>
               </select>
             </div>
           </div>
@@ -211,7 +241,7 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
               id="isOrganic"
               name="isOrganic"
               type="checkbox"
-              checked={form.isOrganic}
+              checked={form.is_organic}
               onChange={onChangeField}
               className="h-4 w-4 rounded border-[#e5e7eb] accent-[#0f5132]"
             />

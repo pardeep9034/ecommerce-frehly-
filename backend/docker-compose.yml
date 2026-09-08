@@ -22,7 +22,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: freshly
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
   # kafka:
     # image: confluentinc/cp-kafka:7.5.0
     # container_name: kafka
@@ -96,12 +106,15 @@ services:
     env_file:
       - ./services/inventory-service/.env
     restart: always
-  # delivery-service:
-  #   build: ./services/delivery-service
-  #   container_name: delivery-service
-  #   env_file:
-  #     - ./services/delivery-service/.env
-  #   restart: always
+  delivery-service:
+    build: ./services/delivery-service
+    container_name: delivery-service
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - ./services/delivery-service/.env
+    restart: always
 
   # user-service:
   #   build: ./services/user-service
@@ -141,4 +154,4 @@ services:
 
 volumes:
   rabbitmq_data:
-
+  postgres_data:

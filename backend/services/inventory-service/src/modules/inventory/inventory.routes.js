@@ -8,8 +8,9 @@ const router = express.Router();
 // Define inventory-related routes
 router.get("/", InventoryController.getAllInventory);
 // ⚠️ Specific routes MUST come before /:id wildcard
-
 router.get("/variant/:variantId", InventoryController.getInventoryByVariantId);
+// Get inventory filtered by warehouse id (paginated)
+router.get("/warehouse/:warehouseId", InventoryController.getInventoryByWarehouseId);
 router.post("/validate",inventoryController.inventoryValidate)
 router.get("/:id", InventoryController.getInventoryById);
 router.post("/",authenticateToken,validate("createInventorySchema"),InventoryController.createInventory);

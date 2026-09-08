@@ -152,19 +152,19 @@ const inventory = inventoryModel.toJSON();
     });
   }
 
-  async confirmStockReservation(id) {
-    return await this.updateReservationStatus(id, "CONFIRMED");
+  async confirmStockReservation(id, warehouseId) {
+    return await this.updateReservationStatus(id, "CONFIRMED", warehouseId);
   }
 
-  async releaseStockReservation(id) {
-    return await this.updateReservationStatus(id, "RELEASED");
+  async releaseStockReservation(id, warehouseId) {
+    return await this.updateReservationStatus(id, "RELEASED", warehouseId);
   }
 
-  async expireStockReservation(id) {
-    return await this.updateReservationStatus(id, "EXPIRED");
+  async expireStockReservation(id, warehouseId) {
+    return await this.updateReservationStatus(id, "EXPIRED", warehouseId );
   }
 
-  async updateReservationStatus(id, nextStatus) {
+  async updateReservationStatus(id, nextStatus, warehouseId = null) {
     const db = await initializeModels();
 
     return await db.sequelize.transaction(async (transaction) => {
@@ -187,10 +187,11 @@ const inventory = inventoryModel.toJSON();
       let inventory =
         await InventoryRepository.getInventoryByVariantId(
           reservation.variant_id,
+          reservation.warehouse_id,
           0,
           1,
         );
-      inventory = inventory?.rows?.[0] || null;
+   
 
       if (!inventory) {
         throw new AppError("Inventory not found for this variant", 404);

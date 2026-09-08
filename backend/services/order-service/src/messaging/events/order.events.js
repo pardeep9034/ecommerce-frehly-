@@ -47,7 +47,7 @@ export default {
         orderId: order.id,
         items: order.items,
         totalAmount: order.totalAmount,
-        customerId: order.customerId,
+        user_id: order.user_id,
       });
     },
   },

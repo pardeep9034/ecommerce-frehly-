@@ -20,6 +20,12 @@ class VariantRepository extends BaseRepository {
           {   product_id:productId},
              {limit: limit,
             offset: offset,
+            include:[
+                 {
+                    association:"measurementUnit",
+                    attributes:["id","name","code","category"]
+                }
+            ],
             order: [["created_at", "DESC"]]}
         );
     }
@@ -38,7 +44,7 @@ class VariantRepository extends BaseRepository {
                 },
                 {
                     association:"measurementUnit",
-                    attributes:["id","name","code"]
+                    attributes:["id","name","code","category"]
                 }
             ]
             
@@ -54,13 +60,14 @@ class VariantRepository extends BaseRepository {
         
         return await this.deleteById(id);
     }
-    async findExistingVariant(name,sku){
+    async findExistingVariant(sku, barcode) {
            return await this.findOne(
      {
         [Op.or]: [
-          { name },
-          { sku }
-        ]
+          { sku },
+          { barcode }
+ ]
+        
       
         });
     }

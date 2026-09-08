@@ -6,36 +6,45 @@ import { createAddress, updateAddress } from "../../apis/userApi";
 const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    fullName: "",
+    full_name: "",
     phone: "",
-    pincode: "",
+    postal_code: "",
     state: "",
     city: "",
-    addressLine1: "",
-    addressLine2: "",
+    country:"India",
+    latitude:null,
+    longitude:null,
+    address_line_1: "",
+    address_line_2: "",
     landmark: "",
-    addressType: "HOME",
-    isDefault: false,
+    address_type: "HOME",
+    delivery_instructions: "",
+    is_default: false,
+    is_active: true,
   });
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         ...initialData,
-        addressType: initialData.addressType || "HOME",
+        address_type: initialData.address_type || "HOME",
       });
     } else {
       setFormData({
-        fullName: "",
+        full_name: "",
         phone: "",
-        pincode: "",
+        postal_code: "",
         state: "",
         city: "",
-        addressLine1: "",
-        addressLine2: "",
+        country:"India",
+        latitude:null,
+        longitude:null,
+        delivery_instructions: "",
+        address_line_1: "",
+        address_line_2: "",
         landmark: "",
-        addressType: "HOME",
-        isDefault: false,
+        address_type: "HOME",
+        is_default: false,
       });
     }
   }, [initialData, isOpen]);
@@ -44,7 +53,7 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
     mutationFn: (data) =>
       initialData
         ? updateAddress(initialData.id, data)
-        : createAddress({ ...data, userId }),
+        : createAddress( data ),
     onSuccess: () => {
       queryClient.invalidateQueries(["addresses", userId]);
       onClose();
@@ -111,8 +120,8 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                     <input
                         required
                         type="text"
-                        name="fullName"
-                        value={formData.fullName}
+                        name="full_name"
+                        value={formData.full_name}
                         onChange={handleChange}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/10"
                         placeholder="John Doe"
@@ -141,8 +150,8 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                     <input
                         required
                         type="text"
-                        name="pincode"
-                        value={formData.pincode}
+                        name="postal_code"
+                        value={formData.postal_code}
                         onChange={handleChange}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/10"
                         placeholder="e.g. 560001"
@@ -184,8 +193,8 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                 <input
                     required
                     type="text"
-                    name="addressLine1"
-                    value={formData.addressLine1}
+                    name="address_line_1"
+                    value={formData.address_line_1}
                     onChange={handleChange}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/10"
                     placeholder="Flat, House no., Building, Company, Apartment"
@@ -197,8 +206,8 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Address Line 2 (Area, Street)</label>
                 <input
                     type="text"
-                    name="addressLine2"
-                    value={formData.addressLine2}
+                    name="address_line_2"
+                    value={formData.address_line_2}
                     onChange={handleChange}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-[#0f5132] focus:bg-white focus:ring-4 focus:ring-[#0f5132]/10"
                     placeholder="Area, Street, Sector, Village"
@@ -223,30 +232,30 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                 <div className="flex gap-4">
                     {["HOME", "WORK", "OTHER"].map((type) => (
                         <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                            <div className={`relative flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${formData.addressType === type ? 'border-[#0f5132]' : 'border-slate-300 group-hover:border-[#0f5132]'}`}>
-                                {formData.addressType === type && <div className="h-2.5 w-2.5 rounded-full bg-[#0f5132]" />}
+                            <div className={`relative flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${formData.address_type === type ? 'border-[#0f5132]' : 'border-slate-300 group-hover:border-[#0f5132]'}`}>
+                                {formData.address_type === type && <div className="h-2.5 w-2.5 rounded-full bg-[#0f5132]" />}
                             </div>
                             <input 
                                 type="radio" 
-                                name="addressType" 
+                                name="address_type" 
                                 value={type} 
                                 className="hidden" 
                                 onChange={handleChange} 
                             />
-                            <span className={`text-xs font-black uppercase tracking-wider ${formData.addressType === type ? 'text-[#0f5132]' : 'text-slate-500'}`}>{type}</span>
+                            <span className={`text-xs font-black uppercase tracking-wider ${formData.address_type === type ? 'text-[#0f5132]' : 'text-slate-500'}`}>{type}</span>
                         </label>
                     ))}
                 </div>
 
                 {/* Make Default */}
                 <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`flex h-6 w-11 items-center rounded-full transition-colors ${formData.isDefault ? 'bg-[#0f5132]' : 'bg-slate-200'}`}>
-                        <div className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ${formData.isDefault ? 'translate-x-5' : 'translate-x-[2px]'}`} />
+                    <div className={`flex h-6 w-11 items-center rounded-full transition-colors ${formData.is_default ? 'bg-[#0f5132]' : 'bg-slate-200'}`}>
+                        <div className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ${formData.is_default ? 'translate-x-5' : 'translate-x-[2px]'}`} />
                     </div>
                     <input
                         type="checkbox"
-                        name="isDefault"
-                        checked={formData.isDefault}
+                        name="is_default"
+                        checked={formData.is_default}
                         onChange={handleChange}
                         className="hidden"
                     />

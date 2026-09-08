@@ -13,6 +13,8 @@ import {
 import useProduct from "../hooks/use-product";
 import useCategory from "../hooks/use-category";
 import ShopProductCard from "../components/common/ShopProductCard";
+import { useQuery } from "@tanstack/react-query";
+import VariantApi from "@/apis/variantApi";
 
 const Shop = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,6 +31,7 @@ const Shop = () => {
     isLoading: productsLoading,
     error: productsError,
   } = useProduct(currentPage, pageSize);
+  // const variantIds=pro
 
   const {
     categories: categoriesData,
@@ -43,24 +46,99 @@ const Shop = () => {
     return ["All", ...cats];
   }, [categoriesList]);
 
-  const filteredAndSortedProducts = useMemo(() => {
-    let result = productsList.filter((product) => {
-      const name = product.name || "";
-      const category = product.Category?.name || product.category?.name || product.category || "";
-      const searchMatch = name.toLowerCase().includes(searchTerm.toLowerCase());
-      const categoryMatch = categoryFilter === "All" || category === categoryFilter;
-      return searchMatch && categoryMatch;
-    });
+const filteredAndSortedProducts = useMemo(() => {
+  let result = productsList.filter((product) => {
+    const name = product.name || "";
 
-    // Simple sorting logic (can be expanded based on API capabilities)
-    if (sortBy === "price-low") {
-      result.sort((a, b) => (a.price || 0) - (b.price || 0));
-    } else if (sortBy === "price-high") {
-      result.sort((a, b) => (b.price || 0) - (a.price || 0));
-    }
+    const category =
+      product.Category?.name ||
+      product.category?.name ||
+      product.category ||
+      "";
 
-    return result;
-  }, [productsList, searchTerm, categoryFilter, sortBy]);
+    const searchMatch = name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const categoryMatch =
+      categoryFilter === "All" ||
+      category === categoryFilter;
+
+    return searchMatch && categoryMatch;
+  });
+
+  if (sortBy === "price-low") {
+    result = [...result].sort(
+      (a, b) => (a.price || 0) - (b.price || 0)
+    );
+  } else if (sortBy === "price-high") {
+    result = [...result].sort(
+      (a, b) => (b.price || 0) - (a.price || 0)
+    );
+  }
+
+  return result;
+}, [
+  productsList,
+  searchTerm,
+  categoryFilter,
+  sortBy,
+]);
+const variantIds = useMemo(() => {
+  return [
+    ...new Set(
+      filteredAndSortedProducts.flatMap(
+        (product) =>
+          (product.variants || []).map(
+            (variant) => variant.id
+          )
+      )
+    ),
+  ];
+}, [filteredAndSortedProducts]);
+const {
+  data: variantInfoData,
+  isLoading: isVariantInfoLoading,
+  isError: isVariantInfoError,
+  error: variantInfoError,
+} = useQuery({
+  queryKey: ["variantInfo", variantIds],
+  queryFn: () => VariantApi.variantsInfo(variantIds),
+  enabled: variantIds.length > 0,
+});
+const variantInfoMap = useMemo(() => {
+  const variants = variantInfoData?.data || [];
+
+  return new Map(
+    variants.map((variant) => [
+      Number(variant.id),
+      variant,
+    ])
+  );
+}, [variantInfoData]);
+const productsWithVariantInfo = useMemo(() => {
+  return filteredAndSortedProducts.map((product) => ({
+    ...product,
+
+    variants: (product.variants || []).map(
+      (variant) => {
+        const info = variantInfoMap.get(
+          Number(variant.id)
+        );
+
+        return {
+          ...variant,
+          ...info,
+          variant_name:
+            info?.variant_name || null,
+        };
+      }
+    ),
+  }));
+}, [
+  filteredAndSortedProducts,
+  variantInfoMap,
+]);
 
   const totalPages = pagination.totalPages || 1;
 
@@ -229,12 +307,12 @@ const Shop = () => {
                   </div>
                 ))}
               </div>
-            ) : filteredAndSortedProducts.length > 0 ? (
+            ) : productsWithVariantInfo.length > 0 ? (
               <div className={viewMode === "grid" 
                 ? "grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3" 
                 : "flex flex-col gap-4 sm:gap-6"
               }>
-                {filteredAndSortedProducts.map((product) => (
+                {productsWithVariantInfo.map((product) => (
                   <ShopProductCard key={product.id} product={product} viewMode={viewMode} />
                 ))}
               </div>

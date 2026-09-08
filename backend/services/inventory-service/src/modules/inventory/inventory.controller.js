@@ -59,6 +59,29 @@ class InventoryController {
       next(error);
     }
   }
+  async getInventoryByWarehouseId(req, res, next) {
+    try {
+      const { warehouseId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const result = await InventoryServices.getInventoryByWarehouseId(
+        warehouseId,
+        offset,
+        limit,
+      );
+
+      return ResponseUtil.success(
+        res,
+        result,
+        "Inventory fetched successfully",
+        200,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
   async inventoryValidate(req,res,next){
     const variantIds=req.body.variantIds;
      const warehouseId=req.headers["x-warehouse-id"];

@@ -1,14 +1,22 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import InventoryTable from "@/components/freshly/InventoryTable";
 import InventoryModal from "@/components/freshly/InventoryModal";
+import SearchableSelector from "@/components/common/searchableSelect";
+import WarehouseApi from "@/apis/warehouseApi";
 import useInventory from "@/hooks/use-inventory";
+import { toast } from "@/components/ui/sonner";
+import { Plus, Search,Ruler,Notebook, List,AlertCircle, RefreshCw,ChartBarStacked } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 
 const Inventory = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
+    const [warehouseId, setWarehouseId] = useState("");
+    const navigate = useNavigate();
 
     const pageSize = 10;
 
@@ -19,17 +27,30 @@ const Inventory = () => {
         createInventory,
         updateInventory,
         deleteInventory,
-    } = useInventory(currentPage, pageSize);
+    } = useInventory(currentPage, pageSize, warehouseId);
 
-    const inventoryList = inventoryData?.data?.inventory || [];
+    const { data: warehousesResponse, isLoading: isWarehousesLoading } = useQuery({
+        queryKey: ["warehouses"],
+        queryFn: WarehouseApi.getAllWarehouses,
+    });
+
+    const warehouseData = warehousesResponse?.data ?? warehousesResponse;
+    const warehouses = Array.isArray(warehouseData)
+        ? warehouseData
+        : warehouseData?.warehouses ?? warehouseData?.rows ?? [];
+
+    const inventoryPayload = inventoryData?.data ?? inventoryData;
+    const inventoryList = Array.isArray(inventoryPayload)
+        ? inventoryPayload
+        : inventoryPayload?.inventory ?? inventoryPayload?.variants ?? inventoryPayload?.rows ?? [];
     const pagination = inventoryData?.data?.pagination || {};
 
     const filteredInventory = useMemo(() => {
         return inventoryList.filter((item) => {
             const searchMatch =
-                item.variantId.toString().includes(searchTerm.toLowerCase()) ||
+                item.variant_id.toString().includes(searchTerm.toLowerCase()) ||
                 (item.variant && (
-                    item.variant.unitType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.variant.measurementUnit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.variant.unit?.toLowerCase().includes(searchTerm.toLowerCase())
                 ));
             return searchMatch;
@@ -49,13 +70,22 @@ const Inventory = () => {
     };
 
     const saveInventory = (payload) => {
+        const action = editingItem ? "update" : "create";
+        const onError = (requestError) => {
+            toast.error(`Unable to ${action} inventory`, {
+                description: requestError?.response?.data?.message || "Please review the inventory details and try again.",
+            });
+        };
+        const onSuccess = () => {
+            setIsModalOpen(false);
+            setEditingItem(null);
+        };
+
         if (editingItem) {
-            updateInventory.mutate({ id: editingItem.id, data: payload });
+            updateInventory.mutate({ id: editingItem.id, data: payload }, { onSuccess, onError });
         } else {
-            createInventory.mutate(payload);
+            createInventory.mutate(payload, { onSuccess, onError });
         }
-        setIsModalOpen(false);
-        setEditingItem(null);
     };
 
     const handleDelete = (id) => {
@@ -84,6 +114,56 @@ const Inventory = () => {
 
     return (
         <div className="space-y-6 lg:space-y-7">
+              <div className="flex justify-around w-full gap-4 rounded-xl bg-[#0f5132] py-4">
+        <button
+          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          onClick={()=>navigate("/dashboard/inventory/warehouses")}
+        >
+          <ChartBarStacked className="h-5 w-5 text-gray-500" />
+          <span className="text-sm font-medium">warehouse</span>
+        </button>
+       <button
+          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          onClick={()=>navigate("/dashboard/inventory/stock-movement")}
+        >
+          <Ruler className="h-5 w-5 text-gray-500" />
+          <span className="text-sm font-medium">Stock Movement</span>
+        </button>
+       {/* 
+        <button
+          onClick={()=>navigate("/dashboard/products/brands")}
+          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <Notebook className="h-5 w-5 text-gray-500" />
+          <span className="text-sm font-medium">Brands</span>
+        </button>
+      
+        <button
+        onClick={()=>navigate("/dashboard/products/category")}
+          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <List className="h-5 w-5 text-gray-500" />
+          <span className="text-sm font-medium">Category</span>
+        </button>
+      
+        <button
+        onClick={()=>navigate("/dashboard/products/product-type")}
+          className="flex h-20 min-w-28 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <List className="h-5 w-5 text-gray-500" />
+          <span className="text-center text-sm font-medium">Product Type</span>
+        </button>
+      
+        <button
+        onClick={()=>navigate("/dashboard/products/product-attribute")}
+          className="flex h-20 min-w-32 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[#0f5132] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <List className="h-5 w-5 text-gray-500" />
+          <span className="text-center text-sm font-medium">
+            Product Attribute
+          </span>
+        </button> */}
+      </div>
             <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-card sm:p-6">
                 <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                     <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
@@ -100,6 +180,20 @@ const Inventory = () => {
                                 className="w-full bg-transparent text-sm text-[#1f2937] outline-none placeholder:text-[#6b7280]"
                             />
                         </div>
+                        <div className="w-full min-w-[240px] sm:max-w-sm">
+                            <SearchableSelector
+                                data={warehouses}
+                                labelKey="name"
+                                valueKey="id"
+                                onSelect={(id) => {
+                                    setWarehouseId(id);
+                                    setCurrentPage(1);
+                                }}
+                                placeholder={isWarehousesLoading ? "Loading warehouses..." : "Search and select a warehouse"}
+                                disabled={isWarehousesLoading}
+                                className="w-full rounded-lg border border-[#e5e7eb] bg-white px-3.5 py-2.5 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132] disabled:bg-gray-50 disabled:text-gray-500"
+                            />
+                        </div>
                     </div>
 
                     <button
@@ -113,9 +207,21 @@ const Inventory = () => {
                 </div>
             </div>
 
-            <InventoryTable inventory={filteredInventory} onEdit={openEditModal} onDelete={handleDelete} />
+            {!warehouseId && (
+                <p className="rounded-xl border border-[#e5e7eb] bg-[#f8faf8] px-5 py-3 text-sm text-[#6b7280]">
+                    Select a warehouse to manage its variant inventory.
+                </p>
+            )}
 
-            {totalPages > 1 && (
+            {/* {warehouseId && (
+                <p className="rounded-xl border border-[#0f5132]/15 bg-[#0f5132]/5 px-5 py-3 text-sm text-[#0f5132]">
+                    Warehouse selected. Variant inventory loading will be connected when the warehouse inventory API is available.
+                </p>
+            )} */}
+
+            {warehouseId && <InventoryTable inventory={filteredInventory} onEdit={openEditModal} onDelete={handleDelete} />}
+
+            {warehouseId && totalPages > 1 && (
                 <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
                     <p className="text-sm text-[#6b7280]">
                         Page {currentPage} of {totalPages} ({pagination.totalItems} total)
@@ -144,6 +250,9 @@ const Inventory = () => {
                 }}
                 inventory={editingItem}
                 onSave={saveInventory}
+                warehouses={warehouses}
+                selectedWarehouseId={warehouseId}
+                isWarehousesLoading={isWarehousesLoading}
             />
         </div>
     );

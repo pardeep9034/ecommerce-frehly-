@@ -1,17 +1,20 @@
 import React, { useState  } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/loginPage.css';
 import { useMutation } from '@tanstack/react-query';
-import { login } from '@/apis/authApi';
+import { loginWithPassword } from '@/apis/authApi';
 import { loginSuccess } from '@/redux/authSlice';
 import { useDispatch } from 'react-redux';
+import {setCart} from '@/redux/cartSlice';
 import { Link } from 'react-router-dom';
+import { getUserCart } from '@/apis/cartApi';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({
-    phoneNumber: '',
+    phoneNumber: location.state?.phone || '',
     password: ''
   });
 
@@ -25,8 +28,8 @@ const LoginPage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: login,
-    onSuccess: (data) => {
+    mutationFn: loginWithPassword,
+    onSuccess: async (data) => {
       localStorage.setItem("token", data.data.accessToken);
       setIsLoggedIn(true);
       navigate('/');
@@ -35,7 +38,11 @@ const LoginPage = () => {
         // user: data.user,
         token: data.data.accessToken,
       })
+      
     );
+      const response = await getUserCart();
+      dispatch(setCart(response.data.items));
+
     },
     onError: (err) => {
       setErrors((prev) => ({
@@ -90,10 +97,11 @@ const LoginPage = () => {
     setErrors(newErrors);
 
     if (newErrors.phoneNumber || newErrors.password) return;
-
+const guest_cart = localStorage.getItem('cart');
     mutate({
       phone: cleanPhone,
-      password: formData.password
+      password: formData.password,
+      guest_cart: guest_cart ? JSON.parse(guest_cart) : []
     });
   };
 

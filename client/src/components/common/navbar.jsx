@@ -61,7 +61,7 @@ const cartCount = cartItems.length;
     queryKey: ["profile"],
     queryFn: async () => {
       const res = await getProfile();
-      return res.data.data;
+      return res;
     },
     enabled: !!token,
   });
@@ -244,7 +244,7 @@ const cartCount = cartItems.length;
             </div>
           ) : (
             <div className="auth-buttons">
-              <Link to="/login" className="btn btn-outline btn-sm" onClick={closeAllMenus}>
+              <Link to="/phone-login" className="btn btn-outline btn-sm" onClick={closeAllMenus}>
                 Login
               </Link>
               <Link to="/signup" className="btn btn-primary btn-sm" onClick={closeAllMenus}>

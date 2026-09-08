@@ -1,6 +1,16 @@
 import { Bell, Search, Menu } from "lucide-react";
 
-const FreshlyHeader = ({ title, onMenuClick }) => {
+const FreshlyHeader = ({ title, onMenuClick, user }) => {
+  console.log('admin',user)
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.name || "Admin";
+  const initials = fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#e5e7eb] bg-white px-4 shadow-soft sm:px-6 lg:px-8">
       <div className="flex items-center gap-4">
@@ -28,8 +38,14 @@ const FreshlyHeader = ({ title, onMenuClick }) => {
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#b8860b]" />
         </button>
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0f5132] text-sm font-semibold text-white">
-          JD
+        <div className="flex items-center gap-2">
+          <div className="hidden text-right sm:block">
+            <p className="max-w-32 truncate text-sm font-semibold text-[#1f2937]">{fullName}</p>
+            <p className="text-xs text-[#6b7280]">Store Admin</p>
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0f5132] text-sm font-semibold text-white">
+            {initials}
+          </div>
         </div>
       </div>
     </header>

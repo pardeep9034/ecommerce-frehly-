@@ -42,14 +42,16 @@ class addToCartController{
     async cartByUserId(req,res,next){
         try{
             const result=await addToCartService.cartByUserId(req.user);
+            
           return  responseUtil.success(res,result,"user cart fetched successfully",200)
         }catch(error){
             next(error);
         }
     }
     async increaseQuantity(req,res,next){
+          const warehouseId = req.headers["x-warehouse-id"];
         try{
-            const result=await addToCartService.increaseQuantity(req.user,req.params.cartItemId);
+            const result=await addToCartService.increaseQuantity(req.user,req.params.cartItemId,warehouseId);
             return responseUtil.success(res,result,"item quantity increased ",200)
 
         }catch(error){
@@ -57,8 +59,10 @@ class addToCartController{
         }
     }
     async decreaseQuantity(req,res,next){
+          const warehouseId = req.headers["x-warehouse-id"];
         try{
-            const result = await addToCartService.decreaseQuantity(req.user,req.params.cartItemId);
+
+            const result = await addToCartService.decreaseQuantity(req.user,req.params.cartItemId,warehouseId);
            return responseUtil.success(res,result,"item quantity decrease ",200)
 
         }catch(error){

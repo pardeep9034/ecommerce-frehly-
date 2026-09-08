@@ -12,6 +12,18 @@ const InventoryApi = {
     return response.data;
   },
 
+  async fetchInventoryByWarehouse(warehouseId) {
+    const response = await api.get(`inventory/warehouse/${warehouseId}`);
+    return response.data;
+  },
+
+  async fetchVariantStock(variantId, warehouseId) {
+    const response = await api.get(`/inventory/variant/${variantId}`, {
+      headers: { "x-warehouse-id": warehouseId },
+    });
+    return response.data;
+  },
+
   async createInventory(inventoryData) {
     const response = await api.post("/inventory", inventoryData);
     return response.data;

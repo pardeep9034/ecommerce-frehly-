@@ -65,7 +65,52 @@ class ProductServices {
         throw new AppError(error.message,500)
     }
     }
-    
+
+    async searchProductsByName(search) {
+        try {
+            if (!search || !search.trim()) {
+                throw new AppError("Search term is required", 400);
+            }
+
+            const products = await ProductRepository.searchProductsByName(search.trim());
+
+            return products.map((product) => {
+                const productData = product.toJSON ? product.toJSON() : product;
+                const { variants, ...rest } = productData;
+
+                return {
+                    ...rest,
+                    variantIds: Array.isArray(variants)
+                        ? variants.map((variant) => variant.id)
+                        : [],
+                };
+            });
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            throw new AppError(error.message || "Failed to search products by name", 500);
+        }
+    }
+    async getProductSelection(search, limit, offset) {
+        try {
+            const { count, rows } = await ProductRepository.getProductSelection(search, limit, offset);
+            const currentPage = Math.floor(offset / limit) + 1;
+            const totalPages = Math.ceil(count / limit);
+            return {
+                products: rows,
+                pagination: {
+                    totalItems: count,
+                    totalPages,
+                    currentPage,
+                    limit,
+                    hasNextPage: currentPage < totalPages,
+                    hasPrevPage: currentPage > 1,
+                },
+            };
+        } catch (error) {
+            throw new AppError(error.message || "Failed to fetch product selection", 500);
+        }
+    }
+
     async getProductById(id) {
         try{
             const product = await  ProductRepository.getProductById(id);

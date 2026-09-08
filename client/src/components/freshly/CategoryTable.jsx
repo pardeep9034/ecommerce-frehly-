@@ -40,10 +40,10 @@ const CategoryTable = ({ categories, onEdit, onDelete }) => {
                 <td className="px-5 py-4 sm:px-6">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      category.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
+                      category.is_active ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
                     }`}
                   >
-                    {category.status ? "Active" : "Inactive"}
+                    {category.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>
                 <td className="px-5 py-4 sm:px-6">

@@ -1,12 +1,11 @@
-import { Edit2, Trash2,Tag } from "lucide-react";
+import { Edit2, Eye, Trash2 } from "lucide-react";
 
 const formatUnit = (variant) => {
-  if (variant.unitType === "piece") return `${variant.value} pc`;
-  if (variant.unitType === "pack") return `Pack of ${variant.value}`;
-  return `${variant.value} ${variant.unit}`;
+  const measurementUnit = variant.measurementUnit;
+  return `${variant.quantity} ${measurementUnit?.code}`;
 };
 
-const VariantTable = ({ variants, onEdit, onDelete, onAssignPromotion }) => {
+const VariantTable = ({ variants, onEdit, onDelete, onViewStock }) => {
   return (
     <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-card">
       <div className="overflow-x-auto">
@@ -32,7 +31,7 @@ const VariantTable = ({ variants, onEdit, onDelete, onAssignPromotion }) => {
                   <td className="px-5 py-4 font-medium text-[#1f2937] sm:px-6">{formatUnit(variant)}</td>
                   <td className="px-5 py-4 sm:px-6">
                     <span className="inline-flex rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-xs font-medium capitalize text-[#6b7280]">
-                      {variant.unitType}
+                      {variant.measurementUnit.category}
                     </span>
                   </td>
                   <td className="px-5 py-4 font-medium text-[#1f2937] sm:px-6">₹{variant.price.toFixed(2)}</td>
@@ -52,24 +51,33 @@ const VariantTable = ({ variants, onEdit, onDelete, onAssignPromotion }) => {
                         variant.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
                       }`}
                     >
-                      {variant.status ? "Active" : "Inactive"}
+                      {variant?.status}
                     </span>
                   </td>
                   <td className="px-5 py-4 font-medium sm:px-6">
-                    <span className={variant.stock === 0 ? "text-red-600" : "text-[#1f2937]"}>
-                      {variant.stock || 0}
-                    </span>
+                    <div className="flex items-center gap-2">
+                    
+                      <button
+                        type="button"
+                        onClick={() => onViewStock?.(variant.id)}
+                        className="rounded-lg p-1 text-[#6b7280] transition-colors hover:bg-[#0f5132]/10 hover:text-[#0f5132]"
+                        title="View stock by warehouse"
+                        aria-label={`View stock for variant ${variant.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                   <td className="px-5 py-4 sm:px-6">
                     <div className="flex items-center justify-end gap-1">
-                       <button
+                       {/* <button
                       type="button"
                       onClick={() => onAssignPromotion(variant.id)}
                       className="rounded-lg p-1.5 text-[#6b7280] transition-colors hover:bg-green-100 hover:text-green-700"
                       title="Assign Promotion"
                     >
                       <Tag className="h-4 w-4" />
-                    </button>
+                    </button> */}
                       <button
                         type="button"
                         onClick={() => onEdit(variant)}
@@ -91,7 +99,7 @@ const VariantTable = ({ variants, onEdit, onDelete, onAssignPromotion }) => {
             })}
             {variants.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-sm text-[#6b7280]">
+                <td colSpan={8} className="px-6 py-10 text-center text-sm text-[#6b7280]">
                   No variants added yet.
                 </td>
               </tr>

@@ -67,7 +67,7 @@ export default {
           'x-dead-letter-routing-key':'cart_empty_queue.dead'
         }
       }
-    }
+    },
 
   // The actual DLQ — where dead-lettered messages end up for inspection.
   // Not consumed automatically; a human or a reprocessing job checks this.

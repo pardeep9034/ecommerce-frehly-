@@ -119,6 +119,44 @@ class InventoryServices {
       );
     }
   }
+  async getInventoryByWarehouseId(warehouseId, offset = 0, limit = 10) {
+    try {
+      if (!warehouseId) {
+        throw new AppError("warehouseId is required", 400);
+      }
+
+      const { count, rows } = await InventoryRepository.getInventoryByWarehouse(
+        warehouseId,
+        limit,
+        offset,
+      );
+
+      const inventoryWithVariants = await Promise.all(
+        rows.map(async (item) => {
+          const itemJson = item.toJSON();
+          itemJson.variant = await fetchVariantDetails(item.variant_id);
+          return itemJson;
+        }),
+      );
+
+      const currentPage = Math.floor(offset / limit) + 1;
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        inventory: inventoryWithVariants,
+        pagination: {
+          totalItems: count,
+          totalPages,
+          currentPage,
+          limit,
+          hasNextPage: currentPage < totalPages,
+          hasPrevPage: currentPage > 1,
+        },
+      };
+    } catch (error) {
+      throw new AppError(`Failed to fetch inventory by warehouse: ${error.message}`, 500);
+    }
+  }
   async inventoryValidate(variantIds,warehouseId){
     if(variantIds.length ===0){
       throw new AppError("variantIds not  found")
@@ -140,16 +178,16 @@ class InventoryServices {
           inventoryData.variant_id,
         );
         const existingInventory =
-          await InventoryRepository.getInventoryByVariantId(
+          await InventoryRepository.getInventoryByVariantIdAndWarehouseId(
             inventoryData.variant_id,
-            0,
-            1,
+            inventoryData.warehouse_id
+           
           );
 
         if (!variantexists) {
           throw new AppError("Variant does not exist", 404);
         }
-        if (existingInventory && existingInventory.count > 0) {
+        if (existingInventory ) {
           throw new AppError("Inventory for this variant already exists", 400);
         }
 
@@ -159,7 +197,8 @@ class InventoryServices {
         return inventory;
       }
     } catch (error) {
-      throw new AppError(`Failed to create inventory: ${error.message}`, 500);
+        if (error instanceof AppError) throw error;
+            throw new AppError(error.message || "Failed to create inventory", 500);
     }
   }
 
@@ -174,12 +213,13 @@ class InventoryServices {
       if (!variantExists) {
         throw new AppError("Variant does not exist", 404);
       }
-      const existingInventory = await InventoryRepository.getInventoryById(id);
+      const existingInventory = await InventoryRepository.getInventoryByVariantIdAndWarehouseId(id,inventoryData.warehouse_id);
 
       const updated = await InventoryRepository.updateInventory(
         id,
         inventoryData,
       );
+      return updated;
     } catch (error) {
       throw new AppError(`Failed to update inventory: ${error.message}`, 500);
     }

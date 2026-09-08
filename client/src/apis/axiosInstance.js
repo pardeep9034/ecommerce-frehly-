@@ -7,6 +7,7 @@ const api = axios.create({
   withCredentials: true, // MUST be here (not inside headers)
   headers: {
     "Content-Type": "application/json",
+    "x-warehouse-id":"8"
   },
 });
 

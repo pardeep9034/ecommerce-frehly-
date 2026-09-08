@@ -8,8 +8,10 @@ const parsePositiveInt = (value) => {
 
 class OrderController {
   async createOrder(req, res, next) {
+    const warehouse_id=req.headers["x-warehouse-id"]
+    const data=req.body
     try {
-      const result = await orderService.createOrder(req.user, req.body, req.headers.authorization);
+      const result = await orderService.createOrder(req.user,{...data,warehouse_id}, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order created successfully", 201);
     } catch (error) {
       return next(error);

@@ -7,6 +7,8 @@ const router = express.Router();
 
 // Define product-related routes
 router.get("/", ProductController.getAllProducts);
+router.get("/search", ProductController.searchProductsByName);
+router.get("/selection", ProductController.getProductSelection);
 router.get("/category",ProductController.getProductsBycategory)
 router.get("/:id", ProductController.getProductById);
 //check product and varient id exist or not

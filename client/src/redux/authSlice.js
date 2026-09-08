@@ -20,6 +20,7 @@ const authSlice = createSlice({
       state.token = null;
       state.isAuthenticated = false;
       localStorage.removeItem("token");
+      localStorage.removeItem("cart");
     },
     setUser: (state, action) => {
       state.user = action.payload;

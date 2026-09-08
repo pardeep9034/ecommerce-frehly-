@@ -1,12 +1,77 @@
-# React + Vite
+# Freshly Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Freshly client is a React single-page application for the storefront and
+operations dashboard. It communicates with the backend through the API gateway.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React 19 and Vite
+- React Router
+- Redux Toolkit and React Query
+- Tailwind CSS, Material UI, and Radix UI
+- Axios
 
-## Expanding the ESLint configuration
+## Prerequisites
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Node.js 20 or later
+- npm
+- A running Freshly backend API gateway (default: `http://localhost:4000`)
+
+## Getting started
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a `.env` file in this directory:
+
+```env
+VITE_API_BASE_URL=http://localhost:4000
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Vite prints the local URL after starting, typically `http://localhost:5173`.
+
+## Available scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Starts the Vite development server. |
+| `npm run build` | Creates a production build in `dist/`. |
+| `npm run preview` | Serves the production build locally. |
+| `npm run lint` | Runs ESLint over the project. |
+
+## Project structure
+
+```text
+src/
+  apis/         API clients and Axios configuration
+  components/   Reusable storefront, dashboard, and UI components
+  hooks/        React Query hooks for backend resources
+  pages/        Route-level page components
+  redux/        Authentication and cart state
+  styles/       Component styles
+```
+
+## Main routes
+
+- Storefront: `/`, `/shop`, `/products/:productId`, `/cart`, `/orders`
+- Account: `/login`, `/signup`, `/profile`, `/forgot-password`
+- Operations dashboard: `/dashboard`, `/dashboard/products`,
+  `/dashboard/categories`, `/dashboard/inventory`, and `/dashboard/promotions`
+
+## Environment variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Yes | Base URL of the backend API gateway. |
+
+Vite exposes only variables prefixed with `VITE_` to browser code. Do not put
+secrets in this file.

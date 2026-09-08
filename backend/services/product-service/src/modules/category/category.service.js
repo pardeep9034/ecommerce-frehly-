@@ -52,7 +52,26 @@ class CategoryService {
       
     };
   }
-
+  async getCategorySelection({ offset = 0, limit = 10, search = "" }) {
+    const { count, rows } = await CategoryRepository.getCategorySelection({ offset, limit, search });
+    const currentPage = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(count / limit);
+    return {
+      categories: rows,
+      pagination: {
+        totalItems: count,
+        totalPages,
+        currentPage,
+        limit,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+      },
+    };
+  }
+async categoryProducts(catId){
+  const result=await CategoryRepository.findAll({product_id:catId},{offset:0,limit:10})
+  return result;
+}
 
   async updateCategory(id, updateData) {
  

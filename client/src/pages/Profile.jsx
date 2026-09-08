@@ -237,13 +237,13 @@ const Profile = () => {
                     {addresses?.map(address => (
                       <AddressCard 
                         key={address.id}
-                        type={address.addressType} 
-                        isDefault={address.isDefault} 
-                        name={address.fullName}
-                        address={`${address.addressLine1} ${address.addressLine2 || ''}`}
+                        type={address.address_type} 
+                        isDefault={address.is_default} 
+                        name={address.full_name}
+                        address={`${address.address_line_1} ${address.address_line_2 || ''}`}
                         city={address.city}
                         state={address.state}
-                        pincode={address.pincode}
+                        pincode={address.postal_code}
                         phone={address.phone}
                         onEdit={() => openEditModal(address)}
                         onDelete={() => deleteMutation.mutate(address.id)}

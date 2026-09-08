@@ -5,6 +5,7 @@ const schemas={
     createInventorySchema:joi.object({
         variant_id:joi.number().integer().required(),
         current_stock:joi.number().integer().required(),
+        warehouse_id:joi.number().integer().required(),
         reserved_stock:joi.number().integer().optional(),
         low_stock_threshold:joi.number().integer().optional(),
         last_stock_update_at:joi.date().optional(),
@@ -15,13 +16,14 @@ const schemas={
         reserved_stock:joi.number().integer().optional(),
         low_stock_threshold:joi.number().integer().optional(),
         last_stock_update_at:joi.date().optional(),
-        warehouse_id:joi.number().optional()
+        warehouse_id:joi.number().integer().required()
     }),
     deleteInventorySchema:joi.object({
         id:joi.number().integer().required(),
     }),
     createStockMovementSchema:joi.object({
         variant_id:joi.number().integer().required(),
+        warehouse_id:joi.number().integer().required(),
         movement_type:joi.string().valid("STOCK_IN","SALE","ADJUSTMENT","DAMAGE","RETURN").required(),
         quantity:joi.number().integer().positive().required(),
         after_stock:joi.when("movement_type", {
@@ -55,6 +57,20 @@ const schemas={
 
 
 
+    }),
+    updateWarehouseSchema:joi.object({
+        code:joi.string().optional(),
+        name:joi.string().optional(),
+        address:joi.string().optional(),
+        city:joi.string().optional(),
+        state:joi.string().optional(),
+        country:joi.string().optional(),
+        zone_id:joi.number().optional(),
+        latitude:joi.string().optional(),
+        longitude:joi.string().optional(),
+        contact_person:joi.string().optional(),
+        contact_phone:joi.string().optional(),
+        is_active:joi.boolean().optional()
     })
     
 };

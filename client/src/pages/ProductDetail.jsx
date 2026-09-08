@@ -7,7 +7,8 @@ import InventoryApi from "@/apis/inventoryApi";
 import useVariant from "@/hooks/use-variant";
 import VariantTable from "@/components/freshly/VariantTable";
 import VariantModal from "@/components/freshly/VariantModal";
-import AssignPromotionModal from "@/components/freshly/AssignPromotionModal";
+import StockModal from "@/components/freshly/StockModal";
+// import AssignPromotionModal from "@/components/freshly/AssignPromotionModal";
 
 const InfoItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
@@ -24,19 +25,21 @@ const InfoItem = ({ icon: Icon, label, value }) => (
 const ProductDetail = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
+  // const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
 
   const { data: productResponse, isLoading, error } = useQuery({
     queryKey: ["product", productId],
     queryFn: () => ProductApi.getProductById(productId),
   });
 
-  const { data: inventoryResponse, isLoading: inventoryLoading } = useQuery({
-    queryKey: ["inventory", "product", productId],
-    queryFn: () => InventoryApi.fetchInventoryByProductId(productId),
-  });
+
+  // const { data: inventoryResponse, isLoading: inventoryLoading } = useQuery({
+  //   queryKey: ["inventory", "product", productId],
+  //   queryFn: () => InventoryApi.fetchInventoryByProductId(productId),
+  // });
 
   const product = productResponse?.data;
+  console.log("product from detail page",product)
 
   // Utilize the new variant hook
   const {
@@ -46,14 +49,15 @@ const ProductDetail = () => {
     deleteVariant: deleteMutation
   } = useVariant(productId);
 
-  const inventoryItems = inventoryResponse?.data || [];
-  const variantsWithStock = variants.map(variant => {
-    const inv = inventoryItems.find(item => item.variantId === variant.id);
-    return { ...variant, stock: inv?.stock || 0 };
-  });
+  // const inventoryItems = inventoryResponse?.data || [];
+  // const variantsWithStock = variants.map(variant => {
+  //   const inv = inventoryItems.find(item => item.variantId === variant.id);
+  //   return { ...variant, stock: inv?.stock || 0 };
+  // });
 
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
+  const [stockVariantId, setStockVariantId] = useState(null);
 
   if (isLoading) {
     return (
@@ -88,12 +92,11 @@ const ProductDetail = () => {
     setEditingVariant(variant);
     setIsVariantModalOpen(true);
   };
-
-  const saveVariant = (payload) => {
+    const saveVariant = (payload) => {
     if (editingVariant) {
-      updateMutation.mutate({ id: editingVariant.id, data: payload });
+      updateMutation.mutate({ id: editingVariant.id, data: {id: editingVariant.id,product_id:productId,quantity:payload.value,price:payload.price,mrp:payload.mrp,measurement_unit_id:payload.measurement_unit_id,status:payload.status,barcode:payload.barcode} });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate({product_id:productId,quantity:payload.value,price:payload.price,mrp:payload.mrp,measurement_unit_id:payload.measurement_unit_id,status:payload.status,barcode:payload.barcode});
     }
     setIsVariantModalOpen(false);
     setEditingVariant(null);
@@ -102,6 +105,8 @@ const ProductDetail = () => {
   const deleteVariant = (variantId) => {
     deleteMutation.mutate(variantId);
   };
+
+
 
   const priceRange =
     variants.length > 0
@@ -124,7 +129,7 @@ const ProductDetail = () => {
       <div className="rounded-xl border border-[#e5e7eb] bg-white shadow-card">
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:p-7">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-4xl">
-            {product.emoji}
+            {product.name}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -138,9 +143,9 @@ const ProductDetail = () => {
                   className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${product.status ? "bg-[#0f5132]/10 text-[#0f5132]" : "bg-[#f3f4f6] text-[#6b7280]"
                     }`}
                 >
-                  {product.status ? "Active" : "Inactive"}
+                  {product.status}
                 </span>
-                {product.isOrganic && (
+                {product.is_organic && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#16a34a]/10 px-3 py-1 text-xs font-medium text-[#16a34a]">
                     <Leaf className="h-3 w-3" />
                     Organic
@@ -152,9 +157,9 @@ const ProductDetail = () => {
             <p className="mt-4 text-sm leading-relaxed text-[#6b7280]">{product.description}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <InfoItem icon={Tag} label="Category" value={product.Category?.name || product.category} />
-              <InfoItem icon={Package} label="Type" value={product.productType} />
-              <InfoItem icon={BadgeCheck} label="Brand" value={product.brand} />
+              <InfoItem icon={Tag} label="Category" value={product.category?.name || product.category} />
+              <InfoItem icon={Package} label="Type" value={product.productType?.name} />
+              <InfoItem icon={BadgeCheck} label="Brand" value={product.brand?.name} />
               <InfoItem icon={Layers} label="Price Range" value={priceRange} />
             </div>
           </div>
@@ -179,7 +184,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <VariantTable variants={variantsWithStock} onEdit={openEditVariant} onDelete={deleteVariant} onAssignPromotion={setAssignPromotingProduct} />
+      <VariantTable variants={variants} onEdit={openEditVariant} onDelete={deleteVariant} onViewStock={setStockVariantId} />
 
       <VariantModal
         open={isVariantModalOpen}
@@ -190,12 +195,17 @@ const ProductDetail = () => {
         variant={editingVariant}
         onSave={saveVariant}
       />
-       <AssignPromotionModal 
+      <StockModal
+        open={Boolean(stockVariantId)}
+        variantId={stockVariantId}
+        onClose={() => setStockVariantId(null)}
+      />
+       {/* <AssignPromotionModal 
         isOpen={!!assignPromotingProduct} 
         onClose={() => setAssignPromotingProduct(null)} 
         product={product}
         variantId={assignPromotingProduct} 
-      />
+      /> */}
     </div>
   );
 };

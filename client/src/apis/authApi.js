@@ -10,6 +10,16 @@ export const login = async (credentials) => {
     throw error;
   }
 };
+export const loginWithPassword = async (credentials) => {
+  try {
+    const response = await api.post("/auth/login/password", credentials);
+    return response.data;
+  }
+    catch (error) {
+    console.error("Login error:", error);
+    throw error;
+  }
+};
 export const signup = async (userInfo) => {
   try {
     const response = await api.post("/auth/signup", userInfo);

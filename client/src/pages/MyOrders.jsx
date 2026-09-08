@@ -14,7 +14,7 @@ import useOrder from "../hooks/use-order";
 
 const MyOrders = () => {
   const { orders, isLoading, isError } = useOrder();
-
+  const orderHistory=orders.orders
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case "delivered":
@@ -94,9 +94,9 @@ const MyOrders = () => {
         </div>
 
         {/* Orders List */}
-        {orders.length > 0 ? (
+        {orderHistory.length > 0 ? (
           <div className="space-y-6">
-            {orders.map((order) => (
+            {orderHistory.map((order) => (
               <div 
                 key={order.id} 
                 className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
@@ -113,7 +113,7 @@ const MyOrders = () => {
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Date</p>
                         <p className="text-sm text-gray-600">
-                          {new Date(order.date).toLocaleDateString('en-IN', {
+                          {new Date(order.placed_at || order.created_at).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'long',
                             year: 'numeric'
@@ -136,17 +136,17 @@ const MyOrders = () => {
                         <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 border border-gray-100">
                           <img 
                             src={item.image} 
-                            alt={item.name} 
+                            alt={item.product_name} 
                             className="h-full w-full object-cover"
                           />
                         </div>
                         <div className="flex flex-1 flex-col">
-                          <h4 className="text-sm font-bold text-gray-900">{item.name}</h4>
-                          <p className="mt-0.5 text-xs text-gray-500">Qty: {item.quantity}</p>
+                          <h4 className="text-sm font-bold text-gray-900">{item.product_name}</h4>
+                          <p className="mt-0.5 text-xs text-gray-500">Qty: {Number(item.quantity)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-[#0f5132]">₹{item.price * item.quantity}</p>
-                          <p className="text-[10px] text-gray-400">₹{item.price} each</p>
+                          <p className="text-sm font-bold text-[#0f5132]">₹{item.line_total}</p>
+                          <p className="text-[10px] text-gray-400">₹{item.selling_price} each</p>
                         </div>
                       </div>
                     ))}
@@ -158,7 +158,7 @@ const MyOrders = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Order Total</p>
-                      <p className="text-lg font-extrabold text-[#0f5132]">₹{order.total}</p>
+                      <p className="text-lg font-extrabold text-[#0f5132]">₹{order.total_amount}</p>
                     </div>
                     <Link 
                       to={`/orders/${order.id}`}

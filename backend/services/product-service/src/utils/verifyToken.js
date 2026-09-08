@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 
   const verifyAccessToken=(token)=>{
     try {
+      console.log("Verifying token:", token);
       if (!token || typeof token !== "string" || token === "undefined" || token === "null") {
         throw new Error("malformed or missing token");
       }

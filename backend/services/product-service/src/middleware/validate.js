@@ -4,7 +4,7 @@ import ResponseUtil from "../utils/response.js";
 const schema={
     categorySchema:joi.object({
         name:joi.string().required(),
-        slug:joi.string().required(),
+        slug:joi.string().optional(),
         parent_id:joi.number().optional(),
         image_url:joi.string().required(),
         description:joi.string().optional(),
@@ -27,7 +27,7 @@ const schema={
     }),
     createBrandSchema:joi.object({
         name:joi.string().required(),
-        slug:joi.string().required(),
+        slug:joi.string().optional(),
         logo_url:joi.string().required(),
         description:joi.string().optional(),
         is_active:joi.boolean().optional()

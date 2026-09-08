@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import InventoryApi from "@/apis/inventoryApi";
 
-const useInventory = (page = 1, limit = 10) => {
+const useInventory = (page = 1, limit = 10, warehouseId) => {
   const queryClient = useQueryClient();
 
   // GET - fetch inventory with pagination
@@ -10,8 +10,9 @@ const useInventory = (page = 1, limit = 10) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["inventory", page, limit],
-    queryFn: () => InventoryApi.fetchAllInventory(page, limit),
+    queryKey: ["inventory", "warehouse", warehouseId],
+    queryFn: () => InventoryApi.fetchInventoryByWarehouse(warehouseId),
+    enabled: Boolean(warehouseId),
   });
 
   // POST - create inventory

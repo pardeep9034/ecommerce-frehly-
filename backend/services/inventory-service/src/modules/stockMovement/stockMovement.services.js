@@ -85,6 +85,7 @@ class StockMovementServices {
    
     const {
       variant_id,
+      warehouse_id,
       movement_type,
       quantity,
       reason,
@@ -106,8 +107,8 @@ class StockMovementServices {
 
     return await db.sequelize.transaction(async (transaction) => {
       let inventory =
-        await InventoryRepository.getInventoryByVariantId(variant_id, 0, 1);
-      inventory = inventory?.rows?.[0] || null;
+        await InventoryRepository.getInventoryByVariantIdAndWarehouseId(variant_id, warehouse_id);
+      
 
       if (!inventory && !INCREASE_TYPES.has(movement_type)) {
         throw new AppError("Inventory not found for this variant", 404);
@@ -122,6 +123,7 @@ class StockMovementServices {
         inventory = await InventoryRepository.createInventory(
           {
             variant_id,
+            warehouse_id,
             current_stock: 0,
             reserved_stock: 0,
             last_stock_update_at: new Date(),
@@ -151,6 +153,7 @@ class StockMovementServices {
         await StockMovementRepository.createStockMovement(
           {
             variant_id,
+            warehouse_id,
             movement_type,
             quantity,
             before_stock: beforeStock,

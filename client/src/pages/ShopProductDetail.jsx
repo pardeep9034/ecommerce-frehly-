@@ -30,13 +30,13 @@ const ShopProductDetail = () => {
     if (!selectedVariant) return;
     dispatch(
       addToCart({
-        productId: product.id,
-        variantId: selectedVariant.id,
-        name: product.name,
+        product_id: product.id,
+        variant_id: selectedVariant.id,
+        product_name: product.name,
         image: product.image,
-        variantName: `${selectedVariant.value}${selectedVariant.unit}`,
+        variant_name: `${selectedVariant.value}${selectedVariant.unit}`,
         quantity: quantity,
-        priceSnapshot: selectedVariant.price
+        price: selectedVariant.price
       })
     );
   };
@@ -48,28 +48,32 @@ const ShopProductDetail = () => {
     enabled: !!productId,
   });
 
-  const product = productResponse?.data;
+  const product =productResponse?.data;
+  const variant=product?.variants|| [];
+  const variantIds=variant.map((variant)=>
+    variant.id
+  )
 
   // Fetch Variants
-  const { variants, isLoading: variantsLoading } = useVariant(productId);
+  const { variants,variantInfo, isLoading: variantsLoading } = useVariant(productId,variantIds);
 
   // Default selection for variant
   useEffect(() => {
-    if (variants.length > 0 && !selectedVariant) {
-      setSelectedVariant(variants[0]);
+    if (variantInfo?.length > 0 && !selectedVariant) {
+      setSelectedVariant(variantInfo[0]);
     }
-  }, [variants, selectedVariant]);
+  }, [variantInfo, selectedVariant]);
 
   // Fetch Related Products (same category)
   const categoryName = product?.Category?.name || product?.category || "All";
-  const { products: allProductsData } = useProduct(1, 20);
+  console.log("category",product?.category_id)
+  const { products: allProductsData ,catProducts} = useProduct(1, 20,"",product?.category_id);
   
-  const relatedProducts = useMemo(() => {
-    if (!allProductsData?.data?.products || !product) return [];
-    return allProductsData.data.products
-      .filter(p => p.id !== product.id && (p.Category?.name === categoryName || p.category === categoryName))
-      .slice(0, 4);
-  }, [allProductsData, product, categoryName]);
+  // const relatedProducts = useMemo(() => {
+  
+  //   return catProducts
+    
+  // }, [allProductsData, product, categoryName]);
 
   const isLoading = productLoading || variantsLoading;
 
@@ -117,7 +121,7 @@ const ShopProductDetail = () => {
           
           {/* Image Section */}
           <div className="relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:shadow-lg">
-             {product.isOrganic && (
+             {product.is_Organic && (
                 <div className="absolute left-6 top-6 z-10 flex items-center gap-1.5 rounded-full bg-[#16a34a] px-3 py-1.5 text-xs font-bold text-white shadow-md">
                    <Leaf className="h-3.5 w-3.5" />
                    Organic
@@ -134,7 +138,7 @@ const ShopProductDetail = () => {
           <div className="flex flex-col">
             <div className="mb-4">
               <span className="text-sm font-bold uppercase tracking-wider text-[#6b7280]">
-                {product.Category.name}
+                {/* {product.Category.name} */}
               </span>
               <h1 className="mt-2 text-4xl font-extrabold text-[#1f2937]">
                 {product.name}
@@ -183,7 +187,7 @@ const ShopProductDetail = () => {
                       Select Pack Size
                     </label>
                     <div className="flex flex-wrap gap-3">
-                      {variants.map((v) => (
+                      {variantInfo.map((v) => (
                         <button
                           key={v.id}
                           onClick={() => setSelectedVariant(v)}
@@ -193,7 +197,7 @@ const ShopProductDetail = () => {
                               : "border-[#e5e7eb] bg-white text-[#4b5563] hover:border-[#0f5132]/30"
                           }`}
                         >
-                          <span className="text-sm font-bold">{v.value} {v.unit}</span>
+                          <span className="text-sm font-bold">{v.variant_name} </span>
                           <span className="text-xs font-medium opacity-70">₹{v.price}</span>
                         </button>
                       ))}
@@ -274,9 +278,12 @@ const ShopProductDetail = () => {
           </div>
           
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {relatedProducts.map((p) => (
-              <ShopProductCard key={p.id} product={p} />
-            ))}
+          {catProducts?.data?.products?.map((p) => (
+  <ShopProductCard
+    key={p.id}
+    product={p}
+  />
+))}
           </div>
         </div>
 

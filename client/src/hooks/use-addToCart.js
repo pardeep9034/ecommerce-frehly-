@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { addToCartApi } from "@/apis/addToCartApi";
+import { addToCartApi } from "@/apis/cartApi";
+import api from "@/apis/axiosInstance"
 
 const useAddToCartMutation = () => {
 
@@ -9,21 +10,40 @@ const useAddToCartMutation = () => {
 
             const response =
                 await addToCartApi(cartItem);
+                return response;
 
-            if (!response.ok) {
-
-                throw new Error(
-                    "Failed to add to cart"
-                );
-
+           
             }
 
-            return await response.json();
+          
 
-        }
+        
 
     });
 
 };
+const increaseQuantityMutation = () => {
+  return useMutation({
+    mutationFn: async ({ cartItemId }) => {
+      const response = await api.patch(
+        `/cart/item/${cartItemId}/increase-quantity`
+      );
 
-export { useAddToCartMutation };
+      return response.data;
+    },
+  });
+};
+const decreaseQuantityMutation = () => {
+  return useMutation({
+    mutationFn: async ({ cartItemId }) => {
+      const response = await api.patch(
+        `/cart/item/${cartItemId}/decrease-quantity`
+      );
+
+      return response.data;
+    },
+  });
+};
+
+
+export { useAddToCartMutation, increaseQuantityMutation, decreaseQuantityMutation };

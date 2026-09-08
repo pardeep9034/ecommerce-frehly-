@@ -1,24 +1,34 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import useCategory from "@/hooks/use-category";
+import SearchableSelector from "@/components/common/searchableSelect";
+
 
 const EMPTY_CATEGORY = {
   name: "",
-  slug: "",
-  image: "",
-  status: true,
+  parent_id: null,
+ 
+  image_url: "",
+  is_active: true,
+  sort_order: 0,
 };
 
 const CategoryModal = ({ open, onClose, category, onSave }) => {
   const [form, setForm] = useState(EMPTY_CATEGORY);
   const isEditMode = Boolean(category);
+  const [searchTerm, setSearchTerm] = useState("");
+  const{allCategories,isLoadingAllCategories,errorAllCategories}=useCategory(1,10,searchTerm);
+  
 
   useEffect(() => {
     if (category) {
       setForm({
         name: category.name || "",
-        slug: category.slug || "",
-        image: category.image || "",
-        status: category.status,
+    
+        image_url: category.image_url || "",
+        is_active: category.is_active,
+        parent_id: category.parent_id || null,
+        sort_order: category.sort_order ?? 0,
       });
       return;
     }
@@ -37,8 +47,10 @@ const CategoryModal = ({ open, onClose, category, onSave }) => {
 
   const onSubmit = (event) => {
     event.preventDefault();
-    const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    onSave({ ...form, slug, status: form.status === true || form.status === "true" });
+ 
+    onSave({ ...form,id:category?.id
+      
+    });
     onClose();
   };
 
@@ -76,20 +88,29 @@ const CategoryModal = ({ open, onClose, category, onSave }) => {
               placeholder="Enter category name"
             />
           </div>
-
           <div>
-            <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-slug">
-              Slug
+              <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-parent">
+              Parent Category
             </label>
-            <input
-              id="cat-slug"
-              name="slug"
-              value={form.slug}
-              onChange={onChangeField}
-              className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
-              placeholder="Auto-generated from name if empty"
+            <SearchableSelector
+              id="cat-parent"
+              labelKey="name"
+              valueKey="id"
+              onSelect={(id)=>setForm((prev)=>({...prev,parent_id:id}))}
+              onSearchChange={(q)=>setSearchTerm(q)}
+              serverSearch={true}
+              value={form.parent_id}
+              data={allCategories?.data?.categories
+                .filter((item) => item.id !== category?.id)
+
+                
+              }
+              placeholder="Select parent category"
             />
           </div>
+
+       
+         
 
           <div>
             <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-image">
@@ -97,29 +118,48 @@ const CategoryModal = ({ open, onClose, category, onSave }) => {
             </label>
             <input
               id="cat-image"
-              name="image"
-              value={form.image}
+              name="image_url"
+              value={form.image_url}
               onChange={onChangeField}
               className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
               placeholder="Enter image URL"
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-status">
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+            <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-sort-order">
+              Sort Order
+           
+            </label>
+           <input
+              id="cat-sort-order"
+              name="sort_order"
+              type="number"
+              value={form.sort_order}
+              onChange={onChangeField}
+              className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
+              placeholder="Enter sort order"
+            />
+          </div>
+           <div>
+             <label className="text-sm font-medium text-[#1f2937]" htmlFor="cat-status">
               Status
             </label>
             <select
               id="cat-status"
-              name="status"
-              value={String(form.status)}
-              onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value === "true" }))}
+              name="is_active"
+              value={String(form.is_active)}
+              onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.value === "true" }))}
               className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
             >
               <option value="true">Active</option>
               <option value="false">Inactive</option>
             </select>
           </div>
+          </div>
+      
 
           <div className="flex justify-end gap-3 pt-2">
             <button

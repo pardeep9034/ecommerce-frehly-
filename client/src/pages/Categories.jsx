@@ -79,6 +79,7 @@ const Categories = () => {
 
   return (
     <div className="space-y-6 lg:space-y-7">
+      
       <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-card sm:p-6">
         <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
@@ -152,6 +153,7 @@ const Categories = () => {
           setEditingCategory(null);
         }}
         category={editingCategory}
+    
         onSave={saveCategory}
       />
     </div>

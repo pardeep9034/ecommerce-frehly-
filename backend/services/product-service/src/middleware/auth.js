@@ -16,9 +16,10 @@ const authenticateToken = async (req, res, next) => {
             const token = authHeader.split(" ")[1];
 
             if (token) {
-
+console.log("Token extracted:", token);
                 /* ================= TOKEN VERIFICATION ================= */
                 const decoded = verifyToken(token);
+                console.log("Decoded Token:", decoded);
                 if(decoded.role){
                     if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"){
                         req.user=decoded.user;

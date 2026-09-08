@@ -4,7 +4,20 @@ import {env} from "../../config/env.js";
 
 class WarehouseService {
   async getAllWarehouses(limit, offset) {
-    return await WarehouseRepository.getAllWarehouses(limit, offset);
+    const {count,rows}= await WarehouseRepository.getAllWarehouses(limit, offset);
+    const totalPages = Math.ceil(count / limit);
+    const currentPage = Math.ceil(offset / limit) + 1;
+    return{
+     warehouses:rows,
+       pagination: {
+          totalItems: count,
+          totalPages,
+          currentPage,
+          limit,
+          hasNextPage: currentPage < totalPages,
+          hasPrevPage: currentPage > 1,
+        },
+    }
   }
 
   async getWarehouseById(id) {
@@ -17,7 +30,7 @@ class WarehouseService {
 
   async createWarehouse(data) {
     
-    const zoneResponse=await fetch(`${env.DELIVERY_SERVICE_URL}/delivery-zones/${data.zone_id}`)
+    const zoneResponse=await fetch(`${env.API_GATEWAY_URL}/delivery-zones/${data.zone_id}`)
     // console.log(zoneResponse)
     if(!zoneResponse.ok){
       throw new AppError("zone not found",404);

@@ -1,33 +1,77 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import useUnits from "@/hooks/use-units";
 
 const EMPTY_VARIANT = {
-  unitType: "weight",
-  value: "",
-  unit: "kg",
+  unitType: "",
+  quantity: "",
+  unit: "",
   price: "",
   mrp: "",
-  status: true,
+  status: "",
+  measurement_unit_id:"",
+  barcode:""
 };
 
-const UNIT_OPTIONS = {
-  weight: ["kg", "g", "lb", "oz"],
-  piece: ["pc"],
-  pack: ["pack"],
-};
+const UNIT_OPTIONS = [
+  "WEIGHT",
+  "VOLUME",
+  "COUNT",
+  "PACKAGING",
+];
 
 const VariantModal = ({ open, onClose, variant, onSave }) => {
   const [form, setForm] = useState(EMPTY_VARIANT);
+
   const isEditMode = Boolean(variant);
+
+  const { unitsData } = useUnits();
+
+  // All units coming from API
+  const units = unitsData?.data?.units || [];
+
+  /*
+   * Group units by category.
+   *
+   * Example:
+   * {
+   *   WEIGHT: [
+   *     { id: 1, code: "KG", name: "Kilogram", category: "WEIGHT" },
+   *     { id: 2, code: "G", name: "Gram", category: "WEIGHT" }
+   *   ],
+   *   VOLUME: [
+   *     { id: 3, code: "L", name: "Liter", category: "VOLUME" }
+   *   ]
+   * }
+   */
+  const unitsByCategory = units.reduce((acc, unit) => {
+    if (!acc[unit.category]) {
+      acc[unit.category] = [];
+    }
+
+    acc[unit.category].push(unit);
+
+    return acc;
+  }, {});
+
+  // Units that should be displayed in the second dropdown
+  const availableUnits = unitsByCategory[form.unitType] || [];
+console.log("variant -----" ,variant);
 
   useEffect(() => {
     if (variant) {
       setForm({
         ...variant,
-        value: String(variant.value),
-        price: String(variant.price),
-        mrp: String(variant.mrp),
+        quantity: String(variant.quantity ?? ""),
+        price: String(variant.price ?? ""),
+        mrp: String(variant.mrp ?? ""),
+        unitType: variant.measurementUnit.category ?? "",
+        unit: variant.measurementUnit.code ?? "",
+        status: variant.status ??"ARCHIVED" ,
+        measurement_unit_id:variant.measurementUnit.id??"",
+        barcode:variant.barcode??""
       });
+
       return;
     }
 
@@ -38,37 +82,56 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
 
   const onChangeField = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const onChangeUnitType = (event) => {
     const unitType = event.target.value;
-    const units = UNIT_OPTIONS[unitType];
-    setForm((prev) => ({ ...prev, unitType, unit: units[0] }));
+
+    const categoryUnits = unitsByCategory[unitType] || [];
+
+    setForm((prev) => ({
+      ...prev,
+      unitType,
+      // Automatically select first unit of selected category
+      measurement_unit_id: categoryUnits.length > 0 ? categoryUnits[0].id : "",
+    }));
   };
 
   const onSubmit = (event) => {
     event.preventDefault();
+
     onSave({
-      ...form,
-      value: Number.parseFloat(form.value) || 0,
+      quantity: Number.parseFloat(form.quantity) || 0,
       price: Number.parseFloat(form.price) || 0,
       mrp: Number.parseFloat(form.mrp) || 0,
-      status: form.status === true || form.status === "true",
+      measurement_unit_id:Number.parseInt(form.measurement_unit_id),
+      status: form.status || "ARCHIVED",
+      barcode:form.barcode
     });
+
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f2937]/35 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f2937]/35 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         className="mx-4 w-full max-w-lg rounded-xl border border-[#e5e7eb] bg-white shadow-card"
         onClick={(event) => event.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-[#e5e7eb] px-6 py-5 sm:px-7">
           <h2 className="font-display text-lg font-semibold text-[#1f2937]">
             {isEditMode ? "Edit Variant" : "Add Variant"}
           </h2>
+
           <button
             type="button"
             onClick={onClose}
@@ -78,12 +141,19 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
           </button>
         </div>
 
+        {/* Form */}
         <form onSubmit={onSubmit} className="space-y-4 p-6">
+          {/* Unit Type + Unit */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Unit Type */}
             <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-unitType">
+              <label
+                className="text-sm font-medium text-[#1f2937]"
+                htmlFor="var-unitType"
+              >
                 Unit Type
               </label>
+
               <select
                 id="var-unitType"
                 name="unitType"
@@ -91,54 +161,91 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
                 onChange={onChangeUnitType}
                 className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
               >
-                <option value="weight">Weight</option>
-                <option value="piece">Piece</option>
-                <option value="pack">Pack</option>
+                <option value="">Select unit type</option>
+
+                {UNIT_OPTIONS.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
               </select>
             </div>
 
+            {/* Unit */}
             <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-unit">
+              <label
+                className="text-sm font-medium text-[#1f2937]"
+                htmlFor="var-unit"
+              >
                 Unit
               </label>
+
               <select
                 id="var-unit"
                 name="unit"
-                value={form.unit}
+                value={form.measurement_unit_id}
                 onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
+                disabled={!form.unitType || availableUnits.length === 0}
+                className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132] disabled:bg-[#f3f4f6] disabled:text-[#9ca3af]"
               >
-                {UNIT_OPTIONS[form.unitType].map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                {!form.unitType && (
+                  <option value="">
+                    Select unit type first
+                  </option>
+                )}
+
+                {form.unitType && availableUnits.length === 0 && (
+                  <option value="">
+                    No units available
+                  </option>
+                )}
+
+                {availableUnits.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.code} 
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Value */}
           <div>
-            <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-value">
+            <label
+              className="text-sm font-medium text-[#1f2937]"
+              htmlFor="var-value"
+            >
               Value
             </label>
+
             <input
               id="var-value"
-              name="value"
+              name="quantity"
               type="number"
               step="0.01"
-              value={form.value}
+              value={form.quantity}
               onChange={onChangeField}
               required
               className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
-              placeholder={form.unitType === "pack" ? "Items in pack" : "e.g. 500"}
+              placeholder={
+                form.unitType === "PACKAGING"
+                  ? "Items in pack"
+                  : "e.g. 500"
+              }
             />
           </div>
 
+          {/* Price + MRP */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Selling Price */}
             <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-price">
+              <label
+                className="text-sm font-medium text-[#1f2937]"
+                htmlFor="var-price"
+              >
                 Selling Price
               </label>
+
               <input
                 id="var-price"
                 name="price"
@@ -152,10 +259,15 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
               />
             </div>
 
+            {/* MRP */}
             <div>
-              <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-mrp">
+              <label
+                className="text-sm font-medium text-[#1f2937]"
+                htmlFor="var-mrp"
+              >
                 MRP
               </label>
+
               <input
                 id="var-mrp"
                 name="mrp"
@@ -169,23 +281,57 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
               />
             </div>
           </div>
+           <div>
+              <label
+                className="text-sm font-medium text-[#1f2937]"
+                htmlFor="var-mrp"
+              >
+                BARCODE
+              </label>
 
+              <input
+                id="var-mrp"
+                name="barcode"
+                type="number"
+                step="1.00"
+                value={form.barcode}
+                onChange={onChangeField}
+                required
+                className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
+                placeholder="0.00"
+              />
+            </div>
+
+          {/* Status */}
           <div>
-            <label className="text-sm font-medium text-[#1f2937]" htmlFor="var-status">
+            <label
+              className="text-sm font-medium text-[#1f2937]"
+              htmlFor="var-status"
+            >
               Status
             </label>
+
             <select
               id="var-status"
               name="status"
-              value={String(form.status)}
-              onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value === "true" }))}
+              value={form.status}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  status: event.target.value,
+                }))
+              }
               className="mt-1 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#1f2937] outline-none focus:ring-2 focus:ring-[#0f5132]"
             >
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
+              <option value="">Select status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="ARCHIVED">Archived</option>
             </select>
           </div>
+          
 
+          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -194,6 +340,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
             >
               Cancel
             </button>
+
             <button
               type="submit"
               className="rounded-lg bg-[#0f5132] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0b4128]"

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate,Link } from "react-router-dom";
+import { useLocation, useNavigate,Link } from "react-router-dom";
 import "../styles/signUp.css";
 import { Button } from "@/components/ui/button";
 import OtpModal from "@/components/common/otpModal";
@@ -10,7 +10,8 @@ import { useMutation } from "@tanstack/react-query";
 
 const SignUp = () => {
 
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const location = useLocation();
+  const [phoneNumber, setPhoneNumber] = useState(location.state?.phone || "");
   const [isValid, setIsValid] = useState(true);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);

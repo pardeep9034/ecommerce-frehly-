@@ -16,20 +16,42 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { removeFromCart, updateQuantity } from "@/redux/cartSlice";
+import AddressFormModal from "@/components/profile/AddressFormModal";
 import useAddress from "@/hooks/use-address";
 import AddressCard from "@/components/common/addressCard";
+import { useQuery } from "@tanstack/react-query";
+import { getProfile } from '../apis/authApi';
+import {increaseQuantityMutation, decreaseQuantityMutation} from "@/hooks/use-addToCart"; 
+import useOrder from "@/hooks/use-order";
+
 
 const CartPage = () => {
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.items);
   const { addresses, isLoading: addressLoading } = useAddress();
-  
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [step, setStep] = useState(1); // 1: Cart, 2: Address, 3: Payment
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const increaseQuantity = increaseQuantityMutation();
+  const decreaseQuantity = decreaseQuantityMutation();
+  const token = localStorage.getItem("token");
+
+    const { data: profile, isLoading } = useQuery({
+      queryKey: ["profile"],
+      queryFn: async () => {
+        const res = await getProfile();
+        return res;
+      },
+      enabled: !!token,
+    });
+    const {
+  orders,
+  placeOrder,
+} = useOrder();
 
   // Price Calculations
   const subtotal = useMemo(() => 
-    cartItems.reduce((sum, item) => sum + (item.priceSnapshot * item.quantity), 0),
+    cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
     [cartItems]
   );
   
@@ -37,13 +59,25 @@ const CartPage = () => {
   const gst = Math.round(subtotal * 0.05);
   const total = subtotal + deliveryFee + gst;
 
-  const handleUpdateQuantity = (productId, variantId, newQty) => {
+  const handleUpdateQuantity = (product_id, variant_id, newQty) => {
     if (newQty < 1) return;
-    dispatch(updateQuantity({ productId, variantId, quantity: newQty }));
+    dispatch(updateQuantity({ product_id, variant_id, quantity: newQty }));
+  };
+  const handleIncreaseQuantity = (cartItemId) => {
+    increaseQuantity.mutate({ cartItemId });
+  };
+  const handleDecreaseQuantity = (cartItemId) => {
+    decreaseQuantity.mutate({ cartItemId });
   };
 
-  const handleRemoveItem = (productId, variantId) => {
-    dispatch(removeFromCart({ productId, variantId }));
+  const handleRemoveItem = (product_id, variant_id) => {
+    dispatch(removeFromCart({ product_id, variant_id }));
+  };
+  const createOrder=()=>{
+placeOrder.mutate({
+  cart_id:cartItems[0].cart_id,
+  address_id:selectedAddress.id
+})
   };
 
   if (cartItems.length === 0 && step === 1) {
@@ -121,7 +155,7 @@ const CartPage = () => {
                 <div className="grid grid-cols-1 gap-4">
                   {cartItems.map((item) => (
                     <div 
-                      key={`${item.productId}-${item.variantId}`}
+                      key={`${item.product_id}-${item.variant_id}`}
                       className="group relative flex gap-4 rounded-[2rem] border border-slate-100 bg-white p-4 transition-all hover:border-[#16a34a]/30 hover:shadow-xl hover:shadow-green-900/5 sm:gap-6 sm:p-6"
                     >
                       {/* Product Image */}
@@ -137,34 +171,34 @@ const CartPage = () => {
                       <div className="flex flex-1 flex-col justify-between py-1">
                         <div>
                           <div className="flex items-start justify-between">
-                            <h3 className="text-sm font-black text-slate-900 sm:text-lg tracking-tight group-hover:text-[#0f5132] transition-colors text-left">{item.name}</h3>
+                            <h3 className="text-sm font-black text-slate-900 sm:text-lg tracking-tight group-hover:text-[#0f5132] transition-colors text-left">{item.product_name}</h3>
                             <button 
-                              onClick={() => handleRemoveItem(item.productId, item.variantId)}
+                              onClick={() => handleRemoveItem(item.product_id, item.variant_id)}
                               className="rounded-full p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
                             >
                               <Trash2 className="h-5 w-5" />
                             </button>
                           </div>
-                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#0f5132]/60 text-left">{item.variantName}</p>
+                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#0f5132]/60 text-left">{item.variant_name}</p>
                         </div>
 
                         <div className="mt-4 flex items-center justify-between">
                           <div className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 shadow-inner">
                             <button 
-                              onClick={() => handleUpdateQuantity(item.productId, item.variantId, item.quantity - 1)}
+                              onClick={() => {handleUpdateQuantity(item.product_id, item.variant_id, item.quantity - 1), handleDecreaseQuantity(item.cart_id)}}
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 transition-all hover:bg-white hover:text-[#0f5132] hover:shadow-sm"
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
                             <span className="w-8 text-center text-xs font-black text-slate-900">{item.quantity}</span>
                             <button 
-                              onClick={() => handleUpdateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                              onClick={() => {handleUpdateQuantity(item.product_id, item.variant_id, item.quantity + 1), handleIncreaseQuantity(item.cart_id)}}
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 transition-all hover:bg-white hover:text-[#0f5132] hover:shadow-sm"
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </button>
                           </div>
-                          <p className="text-lg font-black text-slate-900">₹{item.priceSnapshot * item.quantity}</p>
+                          <p className="text-lg font-black text-slate-900">₹{item.price * item.quantity}</p>
                         </div>
                       </div>
                     </div>
@@ -180,13 +214,13 @@ const CartPage = () => {
                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Delivery Address</h2>
                     <p className="mt-1 text-sm font-bold text-slate-400">Where should we send your fresh items?</p>
                   </div>
-                  <button className="flex items-center gap-2 rounded-full bg-[#0f5132] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#0b4128] transition-all shadow-xl shadow-green-900/10">
+                  <button onClick={()=>{setAddressModalOpen(true)}} className="flex items-center gap-2 rounded-full bg-[#0f5132] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#0b4128] transition-all shadow-xl shadow-green-900/10">
                     <Plus className="h-4 w-4" />
                     New Address
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {addressLoading ? (
                     Array(2).fill(0).map((_, i) => (
                       <div key={i} className="h-48 animate-pulse rounded-[2rem] bg-slate-100" />
@@ -199,13 +233,13 @@ const CartPage = () => {
                         className={`cursor-pointer transition-all ${selectedAddress?.id === address.id ? "scale-[1.02]" : ""}`}
                       >
                          <AddressCard 
-                            type={address.addressType} 
-                            isDefault={address.isDefault} 
-                            name={address.fullName}
-                            address={`${address.addressLine1} ${address.addressLine2 || ''}`}
+                            type={address.address_type} 
+                            isDefault={address.is_default} 
+                            name={address.full_name}
+                            address={`${address.address_line_1} ${address.address_line_2 || ''}`}
                             city={address.city}
                             state={address.state}
-                            pincode={address.pincode}
+                            pincode={address.postal_code}
                             phone={address.phone}
                             isSelected={selectedAddress?.id === address.id}
                         />
@@ -232,6 +266,14 @@ const CartPage = () => {
                     <div className="h-8 w-12 rounded bg-slate-100 animate-pulse" />
                     <div className="h-8 w-12 rounded bg-slate-100 animate-pulse" />
                  </div>
+                   <button 
+                      disabled={!selectedAddress}
+                      onClick={createOrder}
+                      className="w-full flex h-14 items-center justify-center gap-3 rounded-full bg-[#0f5132] px-8 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-green-900/20 transition-all hover:bg-[#0b4128] hover:scale-[1.02] active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    >
+                      Place Order
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
               </div>
             )}
 
@@ -323,8 +365,20 @@ const CartPage = () => {
           
         </div>
       </div>
+        <AddressFormModal 
+        isOpen={addressModalOpen}
+        onClose={() => setAddressModalOpen(false)}
+        initialData={null} // No initial data for new address
+        onSuccess={() => {
+          setAddressModalOpen(false);
+          // Optionally, you can refetch addresses here if needed
+        }}
+        userId={profile?.id}
+      />
     </div>
+    
   );
+  
 };
 
 export default CartPage;

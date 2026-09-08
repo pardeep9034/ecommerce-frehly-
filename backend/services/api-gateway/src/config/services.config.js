@@ -80,7 +80,23 @@ export default [
     target: process.env.ORDER_SERVICE_URL || "http://order-service:3004"
   },
   {
-    route: "/delivery",
+    route: "/deliveries",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
+    route: "/delivery-partners",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
+    route: "/delivery-zones",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
+    route: "/delivery-partner-zones",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
+    route: "/handle-orders",
     target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
   },
   {

@@ -1,19 +1,71 @@
-import VariantRepository from "../repository/variant.repository.js";
+
 import AppError from "../../utils/AppError.js";
 import { generateSku } from "../../utils/helper.js";
 import variantRepository from "../repository/variant.repository.js";
+import productRepository from "../repository/product.repository.js";
 const VariantServices = {
     async searchVariantsByProductName(search) {
         try {
             if (!search || search.trim() === "") {
                throw new AppError("Search query is required",400)
             }
-            const products = await VariantRepository.searchVariantsByProductName(search.trim());
+            const products = await productRepository.searchVariantsByProductName(search.trim());
             return products;
         } catch (error) {
            throw new AppError("Failed to search variants",400)
         }
     },
+   async variantInfo(variantIds) {
+    if (!Array.isArray(variantIds) || variantIds.length === 0) {
+        throw new AppError(
+            "variantIds must be a non-empty array",
+            400
+        );
+    }
+
+    try {
+        const variants = await variantRepository.findAll(
+            {
+                id: variantIds,
+            },
+            {
+                include: [
+                    {
+                        association: "product",
+                    },
+                    {
+                        association: "measurementUnit",
+                    },
+                    {
+                        association:"images"
+                    }
+                ],
+            }
+        );
+
+        const modifiedVariants = variants.map((variant) => {
+            const data = variant.toJSON();
+
+            return {
+                id: data.id,
+        product_id: data.product_id,
+        product_name: data.product?.name ?? null,
+        variant_name: `${data.quantity} ${data.measurementUnit?.name ?? ""}`,
+        price: data.price,
+        mrp: data.mrp,
+        image: data.images.image_url??null,
+            };
+        });
+
+        return modifiedVariants;
+
+    } catch (error) {
+        throw new AppError(
+            `Failed to fetch variant information: ${error.message}`,
+            500
+        );
+    }
+},
     async validateVariant(variantIds){
         console.log("variants ids",variantIds)
         try{
@@ -31,7 +83,7 @@ const VariantServices = {
             if(!productId){
                 throw new AppError("id is required",400);
             }
-            const {count,rows} = await VariantRepository.getAllVariants(productId,offset,limit);
+            const {count,rows} = await variantRepository.getAllVariants(productId,offset,limit);
             const totalPages = Math.ceil(count / limit);
           const currentPage = Math.floor(offset / limit) + 1;
            return{
@@ -56,7 +108,7 @@ const VariantServices = {
             if(!id){
                 throw new AppError("id is required",400);
             }
-            const variant = await VariantRepository.getVariantById(id);
+            const variant = await variantRepository.getVariantById(id);
             if (!variant) {
                 throw new AppError("variant not found",404);
             }
@@ -72,8 +124,8 @@ const VariantServices = {
                 throw new AppError("Product id is required",400)
             }
             variantData.product_id = Number(productId);
-            const sku = variantData.sku || generateSku();
-            const existing = await VariantRepository.findExistingVariant(sku, variantData.barcode);
+            const sku = await generateSku();
+            const existing = await variantRepository.findExistingVariant(sku, variantData.barcode);
             if(existing){
                 throw new AppError("Variant with this SKU or barcode already exists",400)
             }
@@ -81,7 +133,7 @@ const VariantServices = {
             if(variantData.price > variantData.mrp){
                 throw new AppError("Price should be less than or equal to MRP",400);
             }
-            const variant = await VariantRepository.createVariant(variantData);
+            const variant = await variantRepository.createVariant(variantData);
             return variant;
         } catch (error) {
             if (error instanceof AppError) throw error;
@@ -92,13 +144,13 @@ const VariantServices = {
     async updateVariant(id, variantData) {
         try {
             if(!id){
-                throw new AppError("id is required",400);
+                throw new AppError(" variant id is required",400);
             }
             const existingVariant=await variantRepository.findById(id);
             if(!existingVariant){
                 throw new AppError("Variant not found",404);
             }
-            const updated = await VariantRepository.updateVariant(id, variantData);
+            const updated = await variantRepository.updateVariant(id, variantData);
             return updated;
         } catch (error) {
            throw new AppError(error.message,400);

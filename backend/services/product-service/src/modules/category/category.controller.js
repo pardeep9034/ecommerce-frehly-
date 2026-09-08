@@ -38,6 +38,30 @@ class CategoryController {
 next(error);
     }
   }
+  async getCategorySelection(req,res,next){
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    try{
+      const result=await CategoryService.getCategorySelection({offset,limit,search});
+      return ResponseUtil.success(res,result,"category selection retrieved successfully",200)
+    }catch(error){
+      next(error);
+    }
+
+
+  }
+  async categoryProducts(req,res,next){
+    const catId=req.params.id;
+    try{
+      const result=await CategoryService.categoryProducts(catId);
+      return ResponseUtil.success(res,result,"category related products",200)
+
+    }catch(error){
+      next(error);
+    }
+  }
 
   async updateCategory(req, res, next) {
     const { id } = req.params;
