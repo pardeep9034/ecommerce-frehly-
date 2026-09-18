@@ -1,5 +1,5 @@
 import AppError from "../../utils/AppError.js";
-import measurementUnitRepository from "../repository/measurementUnitRepository.js";
+import measurementUnitRepository from "../repository/measurementUnit.repository.js";
 class measurementUnitService{
  
   async createUnit(data){
@@ -11,6 +11,7 @@ class measurementUnitService{
       const result=await measurementUnitRepository.create(data);
       return result;
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(error.message,500);
     }
   }
@@ -33,6 +34,7 @@ class measurementUnitService{
 
       }
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(error.message,500);
     }
   }
@@ -41,6 +43,7 @@ class measurementUnitService{
       const result=await measurementUnitRepository.findById(id);
       return result;
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(error.message,500);
     }
   }
@@ -49,6 +52,7 @@ class measurementUnitService{
       const result=await measurementUnitRepository.updateById(id,data);
       return result;
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(error.message,500);
     }
   }
@@ -57,6 +61,7 @@ class measurementUnitService{
       const result=await measurementUnitRepository.deleteById(id);
       return result;
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(error.message,500);
     }
   }

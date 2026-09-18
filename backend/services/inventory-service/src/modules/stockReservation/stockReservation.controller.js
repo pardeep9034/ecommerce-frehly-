@@ -1,4 +1,4 @@
-import StockReservationServices from "./stockReservation.services.js";
+import StockReservationServices from "./stockReservation.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class StockReservationController {

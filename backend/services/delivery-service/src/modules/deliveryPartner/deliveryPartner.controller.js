@@ -1,4 +1,4 @@
-import DeliveryPartnerService from "./deliveryPartner.services.js";
+import DeliveryPartnerService from "./deliveryPartner.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class DeliveryPartnerController {

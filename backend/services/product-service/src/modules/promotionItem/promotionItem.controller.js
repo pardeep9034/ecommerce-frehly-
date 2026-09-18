@@ -1,5 +1,5 @@
 import ResponseUtil from "../../utils/response.js";
-import PromotionItemServices from "./promotionItem.services.js";
+import PromotionItemServices from "./promotionItem.service.js";
 
 const PromotionItemController = {
     async getAllPromotionItems(req, res) {

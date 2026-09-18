@@ -1,6 +1,6 @@
 import database from "../config/database.js";
 
-import AddressModel from "./Address.js";
+import AddressModel from "./Address.model.js";
 
 let sequelize;
 let db;

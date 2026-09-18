@@ -70,6 +70,10 @@ app.use((error, req, res, next) => {
     return ResponseUtil.error(res, "Resource already exists", 400);
   }
 
+  if (error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
+  }
+
   ResponseUtil.error(
     res,
     process.env.NODE_ENV === "development"

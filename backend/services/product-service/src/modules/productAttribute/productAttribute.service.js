@@ -19,6 +19,7 @@ class productAttributeService{
                 }
             }
         } catch (error) {
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }
@@ -27,6 +28,7 @@ class productAttributeService{
             const result=await productAttributeRepository.create(data);
             return result;
         }catch(error){
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }
@@ -35,6 +37,7 @@ class productAttributeService{
             const result=await productAttributeRepository.updateProductAttributes(id,updateData);
             return result;
         }catch(error){
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }
@@ -43,6 +46,7 @@ class productAttributeService{
             const result=await productAttributeRepository.deleteById(id);
             return result;
         }catch(error){
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }
@@ -54,6 +58,7 @@ class productAttributeService{
             }
             return existing;
         }catch(error){
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }
@@ -65,6 +70,7 @@ class productAttributeService{
             }
             return existing;
         }catch(error){
+            if (error instanceof AppError) throw error;
             throw new AppError(error.message,500);
         }
     }

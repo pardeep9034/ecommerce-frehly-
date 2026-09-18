@@ -1,16 +1,16 @@
 import database from "../config/database.js";
 
-import CategoryModel from "./Category.js";
-import ProductModel from "./product.js";
-import ProductImageModel from "./productImages.js";
-import BrandModel from "./brands.js";
-import MeasurementUnitModel from "./measurementUnit.js";
-import ProductTypeModel from "./productType.js";
-import ProductAttributeModel from "./productAttributes.js";
-import ProductVariantModel from "./productVariant.js";
-import PromotionModel from "./Promotion.js";
-import PromotionItemModel from "./PromotionItem.js";
-import ProductStatsModel from "./ProductStats.js";
+import CategoryModel from "./Category.model.js";
+import ProductModel from "./Product.model.js";
+import ProductImageModel from "./ProductImage.model.js";
+import BrandModel from "./Brand.model.js";
+import MeasurementUnitModel from "./MeasurementUnit.model.js";
+import ProductTypeModel from "./ProductType.model.js";
+import ProductAttributeModel from "./ProductAttribute.model.js";
+import ProductVariantModel from "./ProductVariant.model.js";
+import PromotionModel from "./Promotion.model.js";
+import PromotionItemModel from "./PromotionItem.model.js";
+import ProductStatsModel from "./ProductStats.model.js";
 
 let sequelize;
 let dbPromise = null;

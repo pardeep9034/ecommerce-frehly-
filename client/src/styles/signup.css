@@ -13,7 +13,7 @@ body {
 /* Container */
 .signup-container {
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: hsl(var(--background));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,13 +24,13 @@ body {
 
 /* Card */
 .signup-card {
-  background-color: white;
+  background-color: hsl(var(--card));
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   padding: 2rem;
   width: 100%;
   max-width: 400px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid hsl(var(--border));
 }
 
 /* Header */
@@ -42,12 +42,12 @@ body {
 .signup-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #1a202c;
+  color: hsl(var(--foreground));
   margin-bottom: 0.5rem;
 }
 
 .signup-subtitle {
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   font-size: 1rem;
 }
 
@@ -64,37 +64,37 @@ body {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: hsl(var(--foreground));
   margin-bottom: 0.5rem;
 }
 
 .form-input {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid hsl(var(--border));
   border-radius: 8px;
   font-size: 1rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  background-color: white;
+  background-color: hsl(var(--card));
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
 }
 
 .form-input.error {
-  border-color: #ef4444;
+  border-color: hsl(var(--destructive));
 }
 
 .form-input.error:focus {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: hsl(var(--destructive));
+  box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.1);
 }
 
 .error-message {
-  color: #ef4444;
+  color: hsl(var(--destructive));
   font-size: 0.875rem;
   margin-top: 0.5rem;
   display: block;
@@ -120,50 +120,50 @@ body {
 }
 
 .signup-btn {
-  background-color: #3b82f6;
-  color: white;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   margin-bottom: 1.5rem;
 }
 
 .signup-btn:hover {
-  background-color: #2563eb;
+  filter: brightness(0.92);
 }
 
 .signup-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.3);
 }
 
 .bsignup-btn {
-  background-color: #6b7280;
+  background-color: hsl(var(--muted-foreground));
   color: white;
 }
 
 .bsignup-btn:hover {
-  background-color: #4b5563;
+  filter: brightness(0.9);
 }
 
 .signup-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+  box-shadow: 0 0 0 3px hsl(var(--muted-foreground) / 0.3);
 }
 
 /* Footer */
 .signup-footer {
   text-align: center;
   font-size: 0.875rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   line-height: 1.5;
 }
 
 .link {
-  color: #3b82f6;
+  color: hsl(var(--primary));
   text-decoration: none;
   transition: color 0.15s ease-in-out;
 }
 
 .link:hover {
-  color: #2563eb;
+  filter: brightness(0.92);
   text-decoration: underline;
 }
 
@@ -174,7 +174,7 @@ body {
 
 .success-icon {
   font-size: 3rem;
-  color: #10b981;
+  color: hsl(var(--success));
   margin-bottom: 1rem;
   font-weight: bold;
 }
@@ -182,12 +182,12 @@ body {
 .success-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1a202c;
+  color: hsl(var(--foreground));
   margin-bottom: 1rem;
 }
 
 .success-text {
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   margin-bottom: 1rem;
   line-height: 1.5;
 }
@@ -197,16 +197,16 @@ body {
   .signup-container {
     padding: 0.5rem;
   }
-  
+
   .signup-card {
     padding: 1.5rem;
     max-width: 100%;
   }
-  
+
   .signup-title {
     font-size: 1.5rem;
   }
-  
+
   .form-input {
     font-size: 16px; /* Prevents zoom on iOS */
   }
@@ -217,11 +217,11 @@ body {
     padding: 1rem;
     border-radius: 8px;
   }
-  
+
   .signup-title {
     font-size: 1.25rem;
   }
-  
+
   .btn {
     padding: 0.875rem 1rem;
   }
@@ -240,7 +240,7 @@ body {
 .btn:focus-visible,
 .form-input:focus-visible,
 .link:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
 }
 
@@ -249,11 +249,11 @@ body {
   .signup-card {
     border: 2px solid #000;
   }
-  
+
   .form-input {
     border: 2px solid #000;
   }
-  
+
   .btn-primary {
     background-color: #000;
     border: 2px solid #000;

@@ -1,4 +1,4 @@
-import BrandServices from "./brand.services.js";
+import BrandServices from "./brand.service.js";
 import ResponseUtil from "../../utils/response.js"
 class brandController{
     async createBrand(req,res,next){

@@ -1,8 +1,8 @@
 import database from "../config/database.js";
-import InventoryModel from "./Inventory.js";
-import StockMovementModel from "./stockMovement.js";
-import StockReservationModel from "./stockReservation.js";
-import Warehouse from "./Warehouse.js";
+import InventoryModel from "./Inventory.model.js";
+import StockMovementModel from "./StockMovement.model.js";
+import StockReservationModel from "./StockReservation.model.js";
+import Warehouse from "./Warehouse.model.js";
 
 let sequelize;
 let dbPromise = null;

@@ -9,12 +9,12 @@
 }
 
 .offer-item {
-  border: 1px solid #eee;
+  border: 1px solid hsl(var(--border));
   width: 400px;
   border-radius: 5px;
   padding: 15px;
   margin-bottom: 10px;
-  background-color: #fff;
+  background-color: hsl(var(--card));
   height: 500px;
   display: flex;
   flex-direction: column;
@@ -68,7 +68,7 @@
 }
 .offer-item2 h2 {
   text-transform: uppercase;
-  color: #fcc900;
+  color: hsl(var(--accent));
   font-weight: 700;
 }
 .offer-item2 p {
@@ -94,15 +94,15 @@
   margin: 10px 0;
 }
 .highlight {
-  background-color: #1a1a1a;
-  color: #fcc900;
+  background-color: hsl(var(--foreground));
+  color: hsl(var(--accent));
   padding: 5px 10px;
   border-radius: 5px;
   font-weight: 700;
 }
 .offer-item button {
-  background-color: whitesmoke;
-  color: var(--primary-green);
+  background-color: hsl(var(--card));
+  color: hsl(var(--primary));
   font-weight: 600;
   font-size: 1.2rem;
   border: none;

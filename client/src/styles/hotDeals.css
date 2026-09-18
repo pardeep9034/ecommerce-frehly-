@@ -1,5 +1,5 @@
 .hot-deals-container {
-background-color: #FFFFFF;
+background-color: hsl(var(--card));
   border-radius: var(--radius-md, 1rem);
     box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
   padding: 10px;
@@ -16,21 +16,21 @@ background-color: #FFFFFF;
   padding-bottom: 15px;
 }
 .hot-deals {
-    
+
   display: flex;
   justify-content: space-evenly;
     flex-wrap: wrap;
   gap: 16px;
-     border: 1px solid black;
+     border: 1px solid hsl(var(--border));
 }
 .deal-card{
-    border: 1px solid black;
+    border: 1px solid hsl(var(--border));
     border-radius: 8px;
 }
 .hot-deals img{
     width: 300px;
     height: 400px;
     object-fit: cover;
-    border: 1px solid black;
+    border: 1px solid hsl(var(--border));
     border-radius: 8px;
 }

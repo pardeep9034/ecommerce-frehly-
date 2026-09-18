@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import VariantApi from "@/apis/variantApi";
 
-const useVariant = (productId,variantIds=[]) => {
+const useVariant = ({productId,variantIds=[]}) => {
   const queryClient = useQueryClient();
 
   // GET - fetch all variants for a product

@@ -1,4 +1,5 @@
 @import "tailwindcss/preflight";
+@config "../tailwind.config.js";
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
@@ -13,20 +14,68 @@
     --card-foreground: 220 20% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 15%;
-    --primary: 152 70% 17%;
+    --primary: 143 64% 24%;
     --primary-foreground: 0 0% 100%;
     --secondary: 152 40% 96%;
-    --secondary-foreground: 152 70% 17%;
+    --secondary-foreground: 143 64% 24%;
     --muted: 210 20% 96%;
     --muted-foreground: 220 10% 45%;
-    --accent: 43 90% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 220 20% 15%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 152 69% 19%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 95% 44%;
+    --warning-foreground: 220 20% 15%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 152 70% 17%;
+    --ring: 143 64% 24%;
     --radius: 1rem;
+
+    --sidebar-background: 210 20% 96%;
+    --sidebar-foreground: 220 20% 15%;
+    --sidebar-primary: 143 64% 24%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 96% 56%;
+    --sidebar-accent-foreground: 220 20% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 143 64% 24%;
+  }
+
+  .dark {
+    --background: 150 15% 9%;
+    --foreground: 150 10% 92%;
+    --card: 150 14% 12%;
+    --card-foreground: 150 10% 92%;
+    --popover: 150 14% 12%;
+    --popover-foreground: 150 10% 92%;
+    --primary: 143 50% 32%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 20% 16%;
+    --secondary-foreground: 143 50% 78%;
+    --muted: 155 10% 16%;
+    --muted-foreground: 150 8% 65%;
+    --accent: 43 90% 60%;
+    --accent-foreground: 150 20% 10%;
+    --destructive: 0 74% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 90% 55%;
+    --warning-foreground: 150 20% 10%;
+    --border: 155 10% 20%;
+    --input: 155 10% 20%;
+    --ring: 143 50% 32%;
+
+    --sidebar-background: 155 12% 11%;
+    --sidebar-foreground: 150 10% 92%;
+    --sidebar-primary: 143 50% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 90% 60%;
+    --sidebar-accent-foreground: 150 20% 10%;
+    --sidebar-border: 155 10% 20%;
+    --sidebar-ring: 143 50% 32%;
   }
 
   * {

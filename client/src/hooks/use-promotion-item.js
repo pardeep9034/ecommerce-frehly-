@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchPromotionItems, fetchAllPromotionItems, addPromotionItem, removePromotionItem } from "../apis/promotionItemApi";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/notify";
 
 export const usePromotionItemsQuery = (promotionId) => {
     return useQuery({
@@ -23,10 +23,10 @@ export const useAddPromotionItemMutation = (promotionId) => {
         mutationFn: (itemData) => addPromotionItem(promotionId, itemData),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["promotionItems", promotionId] });
-            toast.success("Product added to promotion successfully!");
+            notify.success("Product added to promotion successfully!");
         },
         onError: (error) => {
-            toast.error(error.message || "Failed to add product to promotion");
+            notify.apiError(error, "Failed to add product to promotion");
         },
     });
 };
@@ -38,10 +38,10 @@ export const useRemovePromotionItemMutation = (promotionId) => {
         onSuccess: () => {
              // Invalidate precisely the promotionItems query to re-fetch
             queryClient.invalidateQueries({ queryKey: ["promotionItems", promotionId] });
-            toast.success("Product removed from promotion");
+            notify.success("Product removed from promotion");
         },
         onError: (error) => {
-            toast.error(error.message || "Failed to remove product from promotion");
+            notify.apiError(error, "Failed to remove product from promotion");
         },
     });
 };

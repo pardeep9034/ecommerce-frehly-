@@ -1,4 +1,4 @@
-import WarehouseService from "./warehouse.services.js";
+import WarehouseService from "./warehouse.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class WarehouseController {

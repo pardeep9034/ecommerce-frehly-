@@ -1,4 +1,4 @@
-import DeliveryZoneService from "./deliveryZone.services.js";
+import DeliveryZoneService from "./deliveryZone.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class DeliveryZoneController {

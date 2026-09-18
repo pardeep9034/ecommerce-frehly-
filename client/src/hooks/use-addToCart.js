@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { addToCartApi } from "@/apis/cartApi";
 import api from "@/apis/axiosInstance"
+import { notify } from "@/lib/notify";
 
 const useAddToCartMutation = () => {
 
@@ -12,12 +13,15 @@ const useAddToCartMutation = () => {
                 await addToCartApi(cartItem);
                 return response;
 
-           
-            }
 
-          
+            },
 
-        
+        onSuccess: () => {
+            notify.success("Added to cart");
+        },
+        onError: (error) => {
+            notify.apiError(error, "Could not add item to cart");
+        },
 
     });
 

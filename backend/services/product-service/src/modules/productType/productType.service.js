@@ -11,7 +11,8 @@ class productTypeService{
             return productType;
 
         }catch(error){
-          throw new AppError(error.message,500);  
+          if (error instanceof AppError) throw error;
+          throw new AppError(error.message,500);
         }
     }
     async getAllProductTypes({page=1,limit=10}){
@@ -33,7 +34,8 @@ class productTypeService{
 
             };
         }catch(error){
-            throw new AppError(error.message,500);  
+            if (error instanceof AppError) throw error;
+            throw new AppError(error.message,500);
         }
     }
     async getProductTypeById(id){
@@ -48,7 +50,8 @@ class productTypeService{
             return productType;
 
         }catch(error){
-            throw new AppError(error.message,500);  
+            if (error instanceof AppError) throw error;
+            throw new AppError(error.message,500);
         }
     }
     async updateProductType(id,data){
@@ -64,7 +67,8 @@ class productTypeService{
             return updatedProductType;
 
         }catch(error){
-             throw new AppError(error.message,500);  
+             if (error instanceof AppError) throw error;
+             throw new AppError(error.message,500);
         }
     }
     async deleteProductType(id){
@@ -80,7 +84,8 @@ class productTypeService{
             return deletedProductType;
 
         }catch(error){
-             throw new AppError(error.message,500);  
+             if (error instanceof AppError) throw error;
+             throw new AppError(error.message,500);
         }
     }
 }

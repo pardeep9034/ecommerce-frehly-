@@ -21,13 +21,13 @@ delivery-service/
     │   ├── database.js
     │   └── env.js
     ├── models/
-    │   ├── DeliveryAssignment.js
-    │   ├── DeliveryAssignmentHistory.js
-    │   ├── DeliveryAttempt.js
-    │   ├── DeliveryHandover.js
-    │   ├── DeliveryPartner.js
-    │   ├── DeliverySlot.js
-    │   ├── DeliveryStatusHistory.js
+    │   ├── DeliveryAssignment.model.js
+    │   ├── DeliveryAssignmentHistory.model.js
+    │   ├── DeliveryAttempt.model.js
+    │   ├── DeliveryHandover.model.js
+    │   ├── DeliveryPartner.model.js
+    │   ├── DeliverySlot.model.js
+    │   ├── DeliveryStatusHistory.model.js
     │   └── index.js
     ├── modules/
     │   ├── delivery/
@@ -42,8 +42,8 @@ delivery-service/
 - Service folders use kebab-case: `delivery-service`.
 - Database tables and columns use snake_case: `delivery_partners`, `delivery_partner_id`, `created_at`.
 - Migration files use timestamp prefix plus kebab-case description: `20260712000000-create-delivery-tables.cjs`.
-- Sequelize model files use PascalCase for main entities: `DeliveryPartner.js`, `DeliveryAssignment.js`.
-- Module files use `<feature>.<layer>.js`: `delivery.controller.js`, `delivery.services.js`, `delivery.routes.js`.
+- Sequelize model files use PascalCase plus a `.model.js` suffix: `DeliveryPartner.model.js`, `DeliveryAssignment.model.js`.
+- Module files use `<feature>.<layer>.js`: `delivery.controller.js`, `delivery.service.js`, `delivery.routes.js`.
 - Repository files use `<entity>.repository.js`: `deliveryPartner.repository.js`, `deliveryAssignment.repository.js`.
 - Environment variables use UPPER_SNAKE_CASE: `DATABASE_URL`, `ALLOWED_ORIGINS`.
 

@@ -62,6 +62,23 @@ app.use((req, res) => {
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((error, req, res, next) => {
   console.error("Global error handler (User Service):", error);
+
+  if (error.name === "SequelizeValidationError") {
+    const errors = error.errors.map(err => ({
+      field: err.path,
+      message: err.message
+    }));
+    return ResponseUtil.validationError(res, errors);
+  }
+
+  if (error.name === "SequelizeUniqueConstraintError") {
+    return ResponseUtil.error(res, "Resource already exists", 409);
+  }
+
+  if (error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
+  }
+
   ResponseUtil.error(
     res,
     process.env.NODE_ENV === "development" ? error.message : "Internal server error"

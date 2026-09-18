@@ -1,4 +1,4 @@
-import ProductServices from "./product.services.js";
+import ProductServices from "./product.service.js";
 import ResponseUtil from "../../utils/response.js";
 class ProductController  {
  

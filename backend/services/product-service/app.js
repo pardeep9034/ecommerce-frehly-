@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import categoryRoutes from "./src/modules/category/category.routes.js";
 import productRoutes from "./src/modules/product/product.routes.js";
-import variantRoutes from "./src/modules/productVarient/variant.routes.js";
+import variantRoutes from "./src/modules/productVariant/productVariant.routes.js";
 import promotionRoutes from "./src/modules/promotion/promotion.routes.js";
 import promotionItemRoutes from "./src/modules/promotionItem/promotionItem.routes.js";
 import brandRoutes from "./src/modules/brand/brand.routes.js";
@@ -114,6 +114,10 @@ app.use((error, req, res, next) => {
 
   if (error.name === "SequelizeUniqueConstraintError") {
     return ResponseUtil.error(res, "Resource already exists", 400);
+  }
+
+  if (error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
   }
 
   ResponseUtil.error(

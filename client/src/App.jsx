@@ -1,41 +1,42 @@
 import { BrowserRouter as Router, Navigate, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Login from "./components/common/loginPage";
-import SignUp from "./pages/SignUp";
-import OtpPage from "./components/common/otpPage";
-import Shop from "./pages/Shop";
-import ForgetPassword from "./components/common/forgetPassword";
-import Dashboard from "./pages/Dashboard";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Categories from "./pages/Categories";
-import Inventory from "./pages/Inventory";
-import PlaceholderPage from "./pages/PlaceholderPage";
-import Promotions from "./pages/Promotions";
-import PromotionItems from "./pages/PromotionItems";
-import AssignPromotions from "./pages/AssignPromotions";
-import MyOrders from "./pages/MyOrders";
-import OrderDetail from "./pages/OrderDetail";
-import ShopProductDetail from "./pages/ShopProductDetail";
-import About from "./pages/About";
-import Profile from "./pages/Profile";
-import Contact from "./pages/Contact";
-import PublicLayout from "./components/layout/PublicLayout";
-import DashboardLayout from "./components/freshly/DashboardLayout";
-import CartPage from "./pages/CartPage";
-import PhoneLoginPage from "./components/common/phoneLoginPage";
-import AdminLogin from "./pages/AdminLogin";
-import Units from "./pages/unitsPage";
+import Home from "./pages/freshly/Home";
+import LoginPage from "./components/freshly/LoginPage";
+import SignUp from "./pages/freshly/SignUp";
+import OtpPage from "./components/freshly/OtpPage";
+import Shop from "./pages/freshly/Shop";
+import ForgetPassword from "./components/freshly/ForgetPassword";
+import Dashboard from "./pages/dashboard/Dashboard";
+import Products from "./pages/dashboard/Products";
+import ProductDetail from "./pages/dashboard/ProductDetail";
+import Categories from "./pages/dashboard/Categories";
+import Inventory from "./pages/dashboard/Inventory";
+import PlaceholderPage from "./pages/dashboard/PlaceholderPage";
+import Promotions from "./pages/dashboard/Promotions";
+import PromotionItems from "./pages/dashboard/PromotionItems";
+import AssignPromotions from "./pages/dashboard/AssignPromotions";
+import MyOrders from "./pages/freshly/MyOrders";
+import OrderDetail from "./pages/freshly/OrderDetail";
+import ShopProductDetail from "./pages/freshly/ShopProductDetail";
+import About from "./pages/freshly/About";
+import Profile from "./pages/freshly/Profile";
+import Contact from "./pages/freshly/Contact";
+import PublicLayout from "./components/freshly/PublicLayout";
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+import CartPage from "./pages/freshly/CartPage";
+import PhoneLoginPage from "./components/freshly/PhoneLoginPage";
+import AdminLogin from "./pages/dashboard/AdminLogin";
+import UnitsPage from "./pages/dashboard/UnitsPage";
 import "./styles/app.css";
 import { useEffect } from "react";
 import { loginSuccess, logout } from "./redux/authSlice";
 import { useDispatch } from "react-redux";
-import Brand from "./pages/brandPage";
-import ProductType from "./pages/productTypePage";
-import ProductAttribute from "./pages/productAttributePage";
-import ProductVariant from "./pages/variantPage";
-import Warehouse from "./pages/warehousePage";
-import StockMovement from "./pages/stockMovementPage.";
+import BrandPage from "./pages/dashboard/BrandPage";
+import ProductTypePage from "./pages/dashboard/ProductTypePage";
+import ProductAttributePage from "./pages/dashboard/ProductAttributePage";
+import VariantPage from "./pages/dashboard/VariantPage";
+import WarehousePage from "./pages/dashboard/WarehousePage";
+import StockMovementPage from "./pages/dashboard/StockMovementPage";
+import StockReservationPage from "./pages/dashboard/StockReservationPage";
 
 function App() {
   const dispatch = useDispatch();
@@ -64,7 +65,7 @@ function App() {
           <Route path="/orders" element={<MyOrders />} />
           <Route path="/orders/:orderId" element={<OrderDetail />} />
           <Route path="/products/:productId" element={<ShopProductDetail />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/phone-login" element={<PhoneLoginPage />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/otp" element={<OtpPage />} />
@@ -81,30 +82,31 @@ function App() {
           <Route path="products/:productId" element={<ProductDetail />} />
           <Route path="categories" element={<Categories />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="inventory/warehouses" element={<Warehouse />} />
-          <Route path="inventory/stock-movement" element={<StockMovement />} />
+          <Route path="inventory/warehouses" element={<WarehousePage />} />
+          <Route path="inventory/stock-movement" element={<StockMovementPage />} />
+          <Route path="inventory/stock-reservation" element={<StockReservationPage />} />
           <Route path="orders" element={<PlaceholderPage />} />
           <Route path="customers" element={<PlaceholderPage />} />
           <Route path="promotions" element={<Promotions />} />
           <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
           <Route path="assign-promotions" element={<AssignPromotions />} />
           <Route path="settings" element={<PlaceholderPage />} />
-          <Route path="products/units"element={<Units/>}/>
-          <Route path="products/brands"element={<Brand/>}/>
+          <Route path="products/units"element={<UnitsPage/>}/>
+          <Route path="products/brands"element={<BrandPage/>}/>
           <Route path="products/category" element={<Categories/>}/>
-          <Route path="products/product-type"element={<ProductType/>}/>
-          <Route path="products/product-attribute"element={<ProductAttribute/>}/>
-          <Route path="products/variants"element={<ProductVariant/>}/>
+          <Route path="products/product-type"element={<ProductTypePage/>}/>
+          <Route path="products/product-attribute"element={<ProductAttributePage/>}/>
+          <Route path="products/variants"element={<VariantPage/>}/>
 
         </Route>
 
         {/* 404 - FALLBACK */}
         <Route path="*" element={
-          <div className="flex h-screen flex-col items-center justify-center bg-[#f9fafb] text-center p-4">
-             <h1 className="text-6xl font-black text-[#0f5132]">404</h1>
+          <div className="flex h-screen flex-col items-center justify-center bg-muted text-center p-4">
+             <h1 className="text-6xl font-black text-primary">404</h1>
              <p className="mt-4 text-xl font-bold text-gray-900">Oops! Page not found.</p>
              <p className="mt-2 text-gray-500">The page you are looking for doesn't exist or has been moved.</p>
-             <a href="/" className="mt-8 rounded-xl bg-[#0f5132] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#0b4128]">
+             <a href="/" className="mt-8 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-primary/90">
                Back to Home
              </a>
           </div>

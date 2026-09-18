@@ -5,7 +5,7 @@ import App from './App.jsx'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from 'react-redux';
 import {store} from './redux/store';
-import AuthLoader from "@/components/common/authLoader";
+import AuthLoader from "@/components/common/AuthLoader";
 import { Toaster } from "@/components/ui/sonner";
 const queryClient = new QueryClient();
 

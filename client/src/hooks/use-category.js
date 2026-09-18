@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchCategories, createCategory, updateCategory, deleteCategory ,fetchAllCategories} from "@/apis/categoryApi";
+import { notify } from "@/lib/notify";
 
 const useCategory = (page = 1, limit = 10, searchTerm = "") => {
   const queryClient = useQueryClient();
@@ -28,6 +29,10 @@ const useCategory = (page = 1, limit = 10, searchTerm = "") => {
     mutationFn:(data) => createCategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      notify.success("Category created successfully");
+    },
+    onError: (error) => {
+      notify.apiError(error, "Failed to create category");
     },
   });
 
@@ -36,6 +41,10 @@ const useCategory = (page = 1, limit = 10, searchTerm = "") => {
     mutationFn: ({ id, data }) => updateCategory(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      notify.success("Category updated successfully");
+    },
+    onError: (error) => {
+      notify.apiError(error, "Failed to update category");
     },
   });
 
@@ -44,6 +53,10 @@ const useCategory = (page = 1, limit = 10, searchTerm = "") => {
     mutationFn:(id)=> deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      notify.success("Category deleted successfully");
+    },
+    onError: (error) => {
+      notify.apiError(error, "Failed to delete category");
     },
   });
 

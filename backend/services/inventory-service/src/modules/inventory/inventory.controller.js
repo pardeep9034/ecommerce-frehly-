@@ -1,6 +1,6 @@
-import InventoryServices from "./inventory.services.js";
+import InventoryServices from "./inventory.service.js";
 import ResponseUtil from "../../utils/response.js";
-import inventoryServices from "./inventory.services.js";
+import inventoryServices from "./inventory.service.js";
 
 class InventoryController {
   async getAllInventory(req, res, next) {

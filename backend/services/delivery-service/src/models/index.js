@@ -1,13 +1,13 @@
 import database from "../config/database.js";
-import DeliveryPartnerModel from "./DeliveryPartner.js";
-import DeliverySlotModel from "./DeliverySlot.js";
-import DeliveryAssignmentModel from "./DeliveryAssignment.js";
-import DeliveryAssignmentHistoryModel from "./DeliveryAssignmentHistory.js";
-import DeliveryStatusHistoryModel from "./DeliveryStatusHistory.js";
-import DeliveryAttemptModel from "./DeliveryAttempt.js";
-import DeliveryHandoverModel from "./DeliveryHandover.js";
-import DeliveryZoneModel from "./DeliveryZone.js";
-import DeliveryPartnerZoneModel from "./DeliveryPartnerZone.js";
+import DeliveryPartnerModel from "./DeliveryPartner.model.js";
+import DeliverySlotModel from "./DeliverySlot.model.js";
+import DeliveryAssignmentModel from "./DeliveryAssignment.model.js";
+import DeliveryAssignmentHistoryModel from "./DeliveryAssignmentHistory.model.js";
+import DeliveryStatusHistoryModel from "./DeliveryStatusHistory.model.js";
+import DeliveryAttemptModel from "./DeliveryAttempt.model.js";
+import DeliveryHandoverModel from "./DeliveryHandover.model.js";
+import DeliveryZoneModel from "./DeliveryZone.model.js";
+import DeliveryPartnerZoneModel from "./DeliveryPartnerZone.model.js";
 
 let sequelize;
 let dbPromise = null;

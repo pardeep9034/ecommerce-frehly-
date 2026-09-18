@@ -1,0 +1,75 @@
+import React, { useState } from 'react';
+import { Send, Bell, CheckCircle2 } from 'lucide-react';
+
+export const Newsletter = () => {
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (email) {
+      setSubscribed(true);
+      setEmail('');
+      setTimeout(() => setSubscribed(false), 5000);
+    }
+  };
+
+  return (
+    <section className="w-full bg-muted py-10 lg:py-15">
+      <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[4rem] bg-primary px-6 py-10 sm:px-16 sm:py-20 lg:flex lg:items-center lg:justify-between shadow-2xl shadow-success/40 transition-all duration-500 hover:shadow-success/50">
+          {/* Background Decorative Elements */}
+          <div className="absolute -left-10 -top-10 h-72 w-72 rounded-full bg-white/5 blur-3xl"></div>
+          <div className="absolute -right-10 -bottom-10 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl"></div>
+          
+          <div className="relative z-10 max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[8px] font-black uppercase tracking-widest text-white backdrop-blur-md border border-white/20 mb-8">
+              <Bell className="h-3 w-3 text-yellow-300 fill-yellow-300" />
+              Stay in the Loop
+            </div>
+            <h2 className="text-2xl font-black tracking-tighter text-white sm:text-3xl md:text-4xl leading-[0.95] mb-6">
+              Join our Community <br />
+              & get <span className="text-yellow-300 italic underline decoration-8 underline-offset-8">20% Off</span>
+            </h2>
+            <p className="mt-8 text-sm font-bold text-success/80 leading-relaxed max-w-lg md:text-base">
+              Subscribe for exclusive recipes, seasonal harvests, and organic living tips delivered to your inbox weekly.
+            </p>
+          </div>
+
+          <div className="relative z-10 mt-8 lg:mt-0 lg:ml-12 w-full max-w-md">
+            {subscribed ? (
+              <div className="flex items-center gap-4 rounded-[2.5rem] bg-white p-6 text-primary animate-in zoom-in duration-500 shadow-2xl">
+                 <CheckCircle2 className="h-12 w-12 text-success shrink-0" />
+                 <div>
+                    <h3 className="text-2xl font-black tracking-tight">You're Subscribed!</h3>
+                    <p className="text-sm font-bold opacity-70">Watch your inbox for your exclusive code.</p>
+                 </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:bg-white sm:rounded-full sm:p-2 sm:shadow-2xl">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="hello@yourbrand.com"
+                  className="w-full rounded-full border-none bg-white px-6 py-3 text-xs font-black text-foreground placeholder:text-gray-400 focus:ring-0 sm:bg-transparent sm:py-3"
+                />
+                <button
+                  type="submit"
+                  className="flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-xs font-black text-white transition-all hover:bg-yellow-400 hover:text-primary hover:scale-105 active:scale-95 shadow-xl sm:py-2 sm:px-8"
+                >
+                  Join Now
+                  <Send className="h-3 w-3" />
+                </button>
+              </form>
+            )}
+            <p className="mt-6 text-[10px] md:text-sm font-bold text-success/40 text-center lg:text-left tracking-widest uppercase">
+              NO SPAM. JUST PURE ORGANIC GOODNESS.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import InventoryApi from "@/apis/inventoryApi";
+import { notify } from "@/lib/notify";
 
 const useInventory = (page = 1, limit = 10, warehouseId) => {
   const queryClient = useQueryClient();
@@ -36,6 +37,10 @@ const useInventory = (page = 1, limit = 10, warehouseId) => {
     mutationFn: (id) => InventoryApi.deleteInventory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      notify.success("Inventory record deleted successfully");
+    },
+    onError: (error) => {
+      notify.apiError(error, "Failed to delete inventory record");
     },
   });
 

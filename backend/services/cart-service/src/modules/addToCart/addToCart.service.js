@@ -79,10 +79,8 @@ class addToCartService {
         data: cart,
       };
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      if (error instanceof AppError) throw error;
+      throw new AppError(error.message, 500);
     }
   }
 
@@ -150,7 +148,7 @@ class addToCartService {
       const deleteItem = await CartItemRepository.delete(existingCartItem.id);
 
       if (!deleteItem) {
-        return { success: false, message: "cart item not removed" };
+        throw new AppError("cart item not removed", 400);
       }
 
       return {
@@ -162,12 +160,12 @@ class addToCartService {
 
     // inventory validation
     if (finalQuantity > inventory.current_stock) {
-      return { success: false, message: "inventory not available" };
+      throw new AppError("inventory not available", 400);
     }
 
     // max quantity validation
     if (finalQuantity > 10) {
-      return { success: false, message: "max quantity limit exceeded" };
+      throw new AppError("max quantity limit exceeded", 400);
     }
 
     // update quantity
@@ -177,7 +175,7 @@ class addToCartService {
     );
 
     if (!updateQuantity) {
-      return { success: false, message: "cart item not updated" };
+      throw new AppError("cart item not updated", 400);
     }
 
     return {
@@ -194,12 +192,12 @@ class addToCartService {
     console.log("data in cart", cart);
     // inventory validation
     if (data.quantity > inventory.current_stock) {
-      return { success: false, message: "inventory not available" };
+      throw new AppError("inventory not available", 400);
     }
 
     // max quantity validation
     if (data.quantity > 10) {
-      return { success: false, message: "max quantity limit exceeded" };
+      throw new AppError("max quantity limit exceeded", 400);
     }
 
     data.cart_id = cart.id;
@@ -207,7 +205,7 @@ class addToCartService {
     const cartItem = await CartItemRepository.add(data);
 
     if (!cartItem) {
-      return { success: false, message: "cart item not added" };
+      throw new AppError("cart item not added", 400);
     }
 
     return {

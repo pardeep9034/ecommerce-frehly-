@@ -1,7 +1,7 @@
 .testimonial-container {
     padding: 20px;
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
+    background-color: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
     border-radius: 5px;
     max-width: 1200px;
     margin: 20px auto;
@@ -17,7 +17,7 @@
 .testimonial-item {
     margin-bottom: 15px;
     padding: 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid hsl(var(--border));
 
 }
 .testimonial-container h2 {

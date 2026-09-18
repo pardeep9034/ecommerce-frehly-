@@ -1,4 +1,4 @@
-import DeliveryServices from "./delivery.services.js";
+import DeliveryServices from "./delivery.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 const DeliveryController = {

@@ -1,4 +1,4 @@
-import StockMovementServices from "./stockMovement.services.js";
+import StockMovementServices from "./stockMovement.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class StockMovementController {

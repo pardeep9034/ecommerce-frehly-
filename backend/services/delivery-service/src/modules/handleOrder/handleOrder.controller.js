@@ -1,4 +1,4 @@
-import HandleOrderService from "./handleOrder.services.js";
+import HandleOrderService from "./handleOrder.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class HandleOrderController {

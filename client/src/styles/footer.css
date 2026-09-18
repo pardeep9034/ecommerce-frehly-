@@ -1,8 +1,8 @@
 .footer-container {
     position: relative;
-    background-color: black;
+    background-color: hsl(var(--foreground));
     height: 100px;
-color: azure;
+color: hsl(var(--primary-foreground));
     text-align: center;
     max-width: 1200px;
     margin: 0 auto;
@@ -25,6 +25,6 @@ color: azure;
     margin: 5px 0;
 }
 .footer-container a {
-    color: #fcc900;
+    color: hsl(var(--accent));
     text-decoration: none;
 }

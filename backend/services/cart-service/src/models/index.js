@@ -1,6 +1,6 @@
 import database from "../config/database.js";
-import CartModel from "./carts.js";
-import CartItemModel from "./cartItems.js";
+import CartModel from "./Cart.model.js";
+import CartItemModel from "./CartItem.model.js";
 
 let sequelize;
 

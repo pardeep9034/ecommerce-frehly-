@@ -9,7 +9,7 @@
   max-width: 1200px;
   margin: 0 auto; /* This centers the container */
   padding: 0.5rem 1rem;
-  background-color: #ffffff;
+  background-color: hsl(var(--card));
   border-radius: var(--radius-md, 1rem);
     box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
   gap: 1rem;
@@ -28,7 +28,7 @@
   font-family: var(--font-family-heading, "Poppins", sans-serif);
   font-size: var(--font-size-xs, 1rem);
   font-weight:600;
-  color: var(--text-primary, #333333);
+  color: hsl(var(--foreground));
   /* margin-bottom: var(--spacing-sm, 0.5rem); */
   /* line-height: 1.4; */
 }

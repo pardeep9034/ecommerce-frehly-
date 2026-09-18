@@ -1,10 +1,10 @@
 import database from "../config/database.js";
 
-import OrderModel from "./Order.js";
-import OrderItemModel from "./OrderItem.js";
-import OrderAddressModel from "./OrderAddress.js";
-import OrderStatusHistoryModel from "./OrderStatusHistory.js";
-import PaymentModel from "./Payment.js";
+import OrderModel from "./Order.model.js";
+import OrderItemModel from "./OrderItem.model.js";
+import OrderAddressModel from "./OrderAddress.model.js";
+import OrderStatusHistoryModel from "./OrderStatusHistory.model.js";
+import PaymentModel from "./Payment.model.js";
 
 let sequelize;
 let dbPromise = null;

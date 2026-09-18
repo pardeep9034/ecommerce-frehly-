@@ -31,18 +31,18 @@ product-service/
     │   ├── auth.js
     │   └── validate.js
     ├── models/
-    │   ├── Category.js
-    │   ├── Product.js
-    │   ├── ProductVariant.js
-    │   ├── ProductStats.js
-    │   ├── Promotion.js
-    │   ├── PromotionItem.js
-    │   ├── brands.js
-    │   ├── index.js
-    │   ├── measurementUnit.js
-    │   ├── productAttributes.js
-    │   ├── productImages.js
-    │   └── productType.js
+    │   ├── Brand.model.js
+    │   ├── Category.model.js
+    │   ├── MeasurementUnit.model.js
+    │   ├── Product.model.js
+    │   ├── ProductAttribute.model.js
+    │   ├── ProductImage.model.js
+    │   ├── ProductStats.model.js
+    │   ├── ProductType.model.js
+    │   ├── ProductVariant.model.js
+    │   ├── Promotion.model.js
+    │   ├── PromotionItem.model.js
+    │   └── index.js
     ├── modules/
     │   ├── brand/
     │   ├── category/
@@ -51,7 +51,7 @@ product-service/
     │   ├── productAttribute/
     │   ├── productImage/
     │   ├── productType/
-    │   ├── productVarient/
+    │   ├── productVariant/
     │   ├── promotion/
     │   ├── promotionItem/
     │   └── repository/
@@ -68,7 +68,7 @@ product-service/
 - Service folders use kebab-case: `product-service`, `cart-service`, `order-service`.
 - Database tables and columns use snake_case: `product_variants`, `product_id`, `created_at`.
 - Migration files use timestamp prefix plus kebab-case description: `20260629070553-create-products.cjs`.
-- Sequelize model files should use PascalCase for main entities: `Product.js`, `ProductVariant.js`, `PromotionItem.js`.
+- Sequelize model files use PascalCase plus a `.model.js` suffix: `Product.model.js`, `ProductVariant.model.js`, `PromotionItem.model.js`.
 - Module folders use camelCase by feature: `productType`, `measurementUnit`, `promotionItem`.
 - Module files use `<feature>.<layer>.js`: `category.controller.js`, `category.service.js`, `category.routes.js`.
 - Repository files use `<entity>.repository.js`: `product.repository.js`, `variant.repository.js`.
