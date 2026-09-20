@@ -90,7 +90,7 @@ class AuthService {
         }
 
       } catch (error) {
-        console.log(error);
+        logger.error(error.message, { stack: error.stack });
       }
 
       try {
@@ -107,7 +107,7 @@ class AuthService {
         );
 
       } catch (error) {
-        console.log(error);
+        logger.error(error.message, { stack: error.stack });
       }
 
       return {
@@ -164,7 +164,7 @@ class AuthService {
         );
 
       } catch (error) {
-        console.log(error);
+        logger.error(error.message, { stack: error.stack });
       }
 
       try {
@@ -187,7 +187,7 @@ class AuthService {
         }
 
       } catch (error) {
-        console.log(error);
+        logger.error(error.message, { stack: error.stack });
       }
 
       return {
@@ -337,7 +337,6 @@ class AuthService {
       throw new AppError("profile is completed",400);
     }
     if (!existingUser) throw new AppError("User not found", 404);
-     console.log("existingUser",existingUser)
     if (!first_name && !password) {
       throw new AppError("No data provided to update", 400);
     }
@@ -442,8 +441,7 @@ class AuthService {
     if (!user) {
      throw new AppError("User Not Found.", 404);
     }
-    console.log("user",user);
-    
+
 
     // Check account lock
     const lockField = user.account_locked_until;
@@ -556,8 +554,8 @@ class AuthService {
       } catch (auditErr) {
         logger.warn(`⚠️ Audit log failed: ${auditErr.message}`);
       }
-      //emit event 
-console.log({user_id: user.id, guest_cart,warehouse_id:warehouseId})
+      //emit event
+      logger.debug("USER_LOGGED_IN event", { user_id: user.id, guest_cart, warehouse_id: warehouseId });
       await publisher.publish(userEvent.USER_LOGGED_IN, {user_id: user.id, guest_cart,warehouse_id:warehouseId})
       
       

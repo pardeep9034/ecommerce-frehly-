@@ -1,8 +1,8 @@
+import logger from "../utils/Logger.js";
+
 const requestLogger = (req, res, next) => {
 
-  console.log(
-    `${req.method} ${req.originalUrl} - ${new Date().toISOString()}`
-  );
+  logger.info(`${req.method} ${req.originalUrl}`);
 
   next();
 

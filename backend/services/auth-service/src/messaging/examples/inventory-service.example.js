@@ -7,6 +7,7 @@
  */
 import { consumer, initializeTopology } from '../index.js';
 import queues from '../topology/queues.js';
+import logger from '../../utils/Logger.js';
 
 // In a real service, this would be a Sequelize model / table.
 // This in-memory set is just to demonstrate the idempotency check.
@@ -14,7 +15,7 @@ const processedEventIds = new Set();
 
 async function reserveStock(orderData) {
   // Simulate a DB call
-  console.log(`Reserving stock for order ${orderData.orderId}:`, orderData.items);
+  logger.info(`Reserving stock for order ${orderData.orderId}`, { items: orderData.items });
 }
 
 async function main() {
@@ -23,7 +24,7 @@ async function main() {
   await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name, async (event) => {
     // --- Idempotency check (at-least-once delivery means duplicates happen) ---
     if (processedEventIds.has(event.eventId)) {
-      console.log(`Duplicate event ${event.eventId} ignored.`);
+      logger.info(`Duplicate event ${event.eventId} ignored.`);
       return;
     }
 
@@ -32,10 +33,10 @@ async function main() {
     processedEventIds.add(event.eventId);
   });
 
-  console.log('Inventory Service: listening for order.created events...');
+  logger.info('Inventory Service: listening for order.created events...');
 }
 
 main().catch((err) => {
-  console.error('Inventory Service failed:', err);
+  logger.error('Inventory Service failed:', { message: err.message, stack: err.stack });
   process.exit(1);
 });

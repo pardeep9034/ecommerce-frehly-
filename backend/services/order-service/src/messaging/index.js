@@ -6,6 +6,7 @@ import queues from './topology/queues.js';
 import bindings from './topology/bindings.js';
 import { setupDeadLetterInfrastructure } from './dlq/DeadLetterSetup.js';
 import config from './rabbitmq.config.js';
+import logger from '../utils/Logger.js';
 
 /**
  * messaging/index.js
@@ -38,7 +39,7 @@ export const consumer = new Consumer(broker, {
   backoffMs: config.backoffMs,
 });
 
-console.log(`[messaging] initialized for NODE_ENV="${config.envirnmont}"`);
+logger.info(`[messaging] initialized for NODE_ENV="${config.envirnmont}"`);
 
 /**
  * Declares every exchange, queue, and binding from topology/*.js against
@@ -68,5 +69,5 @@ export async function initializeTopology() {
     await broker.bindQueue(binding.queue, binding.exchange, binding.routingKey);
   }
 
-  console.log('[messaging] topology initialized: exchanges, queues, and bindings are ready');
+  logger.info('[messaging] topology initialized: exchanges, queues, and bindings are ready');
 }

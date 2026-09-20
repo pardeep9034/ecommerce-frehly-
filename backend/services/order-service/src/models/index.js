@@ -5,6 +5,7 @@ import OrderItemModel from "./OrderItem.model.js";
 import OrderAddressModel from "./OrderAddress.model.js";
 import OrderStatusHistoryModel from "./OrderStatusHistory.model.js";
 import PaymentModel from "./Payment.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let dbPromise = null;
@@ -30,7 +31,7 @@ async function initializeModels() {
         }
       });
 
-      console.log("Order Service: Models initialized");
+      logger.info("Order Service: Models initialized");
       return db;
     })();
   }

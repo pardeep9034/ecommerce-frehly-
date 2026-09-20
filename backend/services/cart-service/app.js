@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import addToCartRoutes from "./src/modules/addToCart/addToCart.routes.js";
 import ResponseUtil from "./src/utils/response.js"
+import logger from "./src/utils/Logger.js";
 
 dotenv.config();
 
@@ -20,19 +21,12 @@ app.use(cors({
 app.use(express.json({limit:"10mb"}));
 app.use(express.urlencoded({extended:true}));
 
-app.use((req, res, next) => {
-    console.log("Body:", req.body);
-    next();
-});
-
 //REQUEST LOGGING
 
-if(process.env.NODE_ENV === "development"){
-    app.use((req,res,next)=>{
-        console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-        next();
-    })
-}
+app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.path}`);
+    next();
+});
 
 // ROUTES
 
@@ -54,7 +48,7 @@ app.get("/",(req,res)=>{
 
 app.use((error, req, res, next) => {
 
-  console.error("Global error handler:", error);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
 
   if (error.name === "SequelizeValidationError") {
 

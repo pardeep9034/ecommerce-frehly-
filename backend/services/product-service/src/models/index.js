@@ -11,6 +11,7 @@ import ProductVariantModel from "./ProductVariant.model.js";
 import PromotionModel from "./Promotion.model.js";
 import PromotionItemModel from "./PromotionItem.model.js";
 import ProductStatsModel from "./ProductStats.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let dbPromise = null;
@@ -47,7 +48,7 @@ if(!dbPromise){
             }
         });
 
-        console.log("✅ Product Service: Models initialized");
+        logger.info("✅ Product Service: Models initialized");
          return db;
   })()
 }

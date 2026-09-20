@@ -15,6 +15,7 @@ import productType from "./src/modules/productType/productType.routes.js";
 import measurementUnitRoutes from "./src/modules/measurementUnit/measurementUnit.routes.js"
 import productAttributeRoutes from"./src/modules/productAttribute/productAttribute.routes.js"
 import productImageRoutes from "./src/modules/productImage/productImage.routes.js"
+import logger from "./src/utils/Logger.js";
 dotenv.config();
 
 
@@ -52,18 +53,12 @@ app.use(limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
-  console.log("Incoming request:", req.method, req.originalUrl);
-  next();
-});
 /* ================= REQUEST LOGGING ================= */
 
-if (process.env.NODE_ENV === "development") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-  });
-}
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
 
 /* ================= ROUTES ================= */
 
@@ -100,7 +95,7 @@ app.use( (req, res) => {
 
 app.use((error, req, res, next) => {
 
-  console.error("Global error handler:", error);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
 
   if (error.name === "SequelizeValidationError") {
 

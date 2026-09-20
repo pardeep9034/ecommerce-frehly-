@@ -1,6 +1,7 @@
 import database from "../config/database.js";
 import CartModel from "./Cart.model.js";
 import CartItemModel from "./CartItem.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 
@@ -25,7 +26,7 @@ export async function initializeModels() {
             }
         });
 
-    console.log("✅ Models initialized");
+    logger.info("✅ Models initialized");
   
   return db;
 })()}

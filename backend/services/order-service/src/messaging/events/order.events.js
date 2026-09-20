@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import exchanges from '../topology/exchanges.js';
+import logger from '../../utils/Logger.js';
 
 /**
  * order.events.js
@@ -39,7 +40,7 @@ export default {
      * @param {{ id: string|number, items: array, totalAmount: number, customerId: string }} order
      */
     buildPayload(order) {
-      console.log(order)
+      logger.debug('OrderCreated buildPayload', { order });
       if (!order?.id ) {
         throw new Error('OrderCreated payload requires id and non-empty items[]');
       }

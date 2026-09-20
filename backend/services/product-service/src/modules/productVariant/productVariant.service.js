@@ -3,6 +3,7 @@ import AppError from "../../utils/AppError.js";
 import { generateSku } from "../../utils/helper.js";
 import variantRepository from "../repository/variant.repository.js";
 import productRepository from "../repository/product.repository.js";
+import logger from "../../utils/Logger.js";
 const VariantServices = {
     async searchVariantsByProductName(search) {
         try {
@@ -68,7 +69,7 @@ const VariantServices = {
     }
 },
     async validateVariant(variantIds){
-        console.log("variants ids",variantIds)
+        logger.debug("validateVariant variant ids", { variantIds });
         try{
             const variants = await variantRepository.findAll({id:variantIds,status:"ACTIVE"}) 
             return variants;

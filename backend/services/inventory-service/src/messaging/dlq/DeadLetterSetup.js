@@ -1,5 +1,6 @@
 import exchanges from '../topology/exchanges.js';
 import queues from '../topology/queues.js';
+import logger from '../../utils/Logger.js';
 
 /**
  * DeadLetterSetup.js
@@ -26,7 +27,7 @@ async function setupDeadLetterInfrastructure(broker) {
 
   await broker.bindQueue(queues.DEAD_LETTER_QUEUE.name, exchanges.DEAD_LETTER.name, '');
 
-  console.log('[DeadLetterSetup] dead letter exchange + queue ready');
+  logger.info('[DeadLetterSetup] dead letter exchange + queue ready');
 }
 
 /**

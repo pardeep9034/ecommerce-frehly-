@@ -3,7 +3,6 @@ import AppError from "../../utils/AppError.js";
 
 class UserAddressService {
   async createAddress(userId, data) {
-    console.log(userId)
     if (data.is_default) {
       await UserAddressRepository.clearDefaultForUser(userId);
     }

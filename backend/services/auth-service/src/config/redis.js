@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { env } from './env.js';
+import logger from '../utils/Logger.js';
 
 class RedisManager {
   constructor() {
@@ -20,12 +21,10 @@ class RedisManager {
     });
 
     this.client.on('connect', () => {
-      console.log('✅ Auth Service: Connected to Redis');
+      logger.info('✅ Auth Service: Connected to Redis');
     });
 
-    this.client.on('error', (err) => {
-      // console.error('❌ Auth Service: Redis error:', err.message);
-    });
+    this.client.on('error', () => {});
 
     return this.client;
   }

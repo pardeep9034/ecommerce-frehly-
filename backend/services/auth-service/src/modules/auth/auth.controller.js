@@ -12,7 +12,6 @@ const COOKIE_OPTIONS = {
 class AuthController {
 
   async signup(req, res, next) {
-    console.log("im in controller")
     try {
       const result = await AuthService.signup(req.body);
       return ResponseUtil.success(res, result.data, result.message, 201);
@@ -32,7 +31,6 @@ class AuthController {
   }
 
   async register(req, res, next) {
-    console.log(req.body);
     try {
       
       const result = await AuthService.register(req,req.body);

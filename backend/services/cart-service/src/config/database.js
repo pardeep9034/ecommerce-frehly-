@@ -1,5 +1,6 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import logger from "../utils/Logger.js";
 dotenv.config();
 
 class Database {
@@ -11,7 +12,7 @@ class Database {
         try {
             this.sequelize = new Sequelize(process.env.DATABASE_URL, {
                 dialect: 'postgres',
-                logging: process.env.NODE_ENV === 'development' ? console.log : false,
+                logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
                 pool: {
                     max: 10,
                     min: 0,
@@ -27,11 +28,11 @@ class Database {
             });
             
             await this.sequelize.authenticate();
-            console.log('✅ Cart Service: Database connected successfully');
-            
+            logger.info('✅ Cart Service: Database connected successfully');
+
             return this.sequelize;
         } catch (error) {
-            console.error('❌ Failed to start Cart Service:', error);
+            logger.error('❌ Failed to start Cart Service:', { message: error.message, stack: error.stack });
             process.exit(1);
         }
     }

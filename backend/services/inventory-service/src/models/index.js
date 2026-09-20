@@ -3,6 +3,7 @@ import InventoryModel from "./Inventory.model.js";
 import StockMovementModel from "./StockMovement.model.js";
 import StockReservationModel from "./StockReservation.model.js";
 import Warehouse from "./Warehouse.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let dbPromise = null;
@@ -29,7 +30,7 @@ async function initializeModels() {
             }
         });
 
-        console.log("✅ Inventory Service: Models initialized");
+        logger.info("✅ Inventory Service: Models initialized");
         return db;
     })()
     }

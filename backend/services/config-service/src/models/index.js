@@ -1,5 +1,7 @@
 // Placeholder for database initialization
+import logger from "../utils/Logger.js";
+
 export const initializeModels = async () => {
-    console.log("Config Service Models: Mock initialization");
+    logger.info("Config Service Models: Mock initialization");
     return {};
 };

@@ -1,18 +1,18 @@
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
+import logger from '../utils/Logger.js';
 dotenv.config();
 
 class Database {
   constructor() {
     this.sequelize = null;
   }
-  
+
   async connect() {
-    console.log(process.env.DATABASE_URL)
     try {
       this.sequelize = new Sequelize(process.env.DATABASE_URL, {
         dialect: 'postgres',
-        logging: process.env.NODE_ENV === 'development' ? console.log : false,
+        logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
         pool: {
           max: 10,
           min: 0,
@@ -29,11 +29,11 @@ class Database {
       
       // Test the connection
       await this.sequelize.authenticate();
-      console.log('✅ Inventory Service: Database connected successfully');
-      
+      logger.info('✅ Inventory Service: Database connected successfully');
+
       return this.sequelize;
     } catch (error) {
-      console.error('❌ Failed to start Inventory Service:', error);
+      logger.error('❌ Failed to start Inventory Service:', { message: error.message, stack: error.stack });
       process.exit(1);
     }
   }

@@ -8,6 +8,7 @@ import {
 import UserRepository from "../repository/user.repository.js";
 import OtpRepository from "../repository/otp.repository.js";
 import { env } from "../../config/env.js";
+import logger from "../../utils/Logger.js";
 env
 const RESEND_LIMIT = 5;
 const RESEND_WINDOW = 15 * 60 * 1000;
@@ -107,7 +108,7 @@ async resendOtp(phone,type) {
           channel: "SMS",
           sent_to: phone,
         });
-        console.log("OTP created and saved to DB:", otp);
+        logger.info("OTP created and saved to DB");
 
         /* ================= SEND OTP ================= */
         // await SmsService.sendOtp(user.phone, otp);

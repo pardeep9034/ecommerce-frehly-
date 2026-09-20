@@ -3,7 +3,6 @@ import ResponseUtil from "../../utils/response.js";
 
 class UserAddressController {
   async createAddress(req, res,next) {
-    console.log(req.user);
    try{ const address = await UserAddressService.createAddress(req.user.id, req.body);
     return ResponseUtil.success(res, address, "Address created", 201);}
     catch(error){

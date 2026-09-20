@@ -1,5 +1,6 @@
 import app from "./app.js";
 import  initializeModels  from "./src/models/index.js";
+import logger from "./src/utils/Logger.js";
 
 const PORT = process.env.PORT || 3002;
 
@@ -11,14 +12,14 @@ async function startServer() {
 
     await initializeModels();
 
-    console.log("✅ Product Service: Database and models initialized");
+    logger.info("✅ Product Service: Database and models initialized");
 
     /* ================= START SERVER ================= */
 
     const server = app.listen(PORT, () => {
 
-      console.log(`🚀 Product Service running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+      logger.info(`🚀 Product Service running on port ${PORT}`);
+      logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
 
     });
 
@@ -26,11 +27,11 @@ async function startServer() {
 
     process.on("SIGTERM", () => {
 
-      console.log("SIGTERM received, shutting down gracefully");
+      logger.info("SIGTERM received, shutting down gracefully");
 
       server.close(() => {
 
-        console.log("Process terminated");
+        logger.info("Process terminated");
 
         process.exit(0);
 
@@ -40,7 +41,7 @@ async function startServer() {
 
   } catch (error) {
 
-    console.error("❌ Failed to start Product Service:", error);
+    logger.error("❌ Failed to start Product Service:", { message: error.message, stack: error.stack });
 
     process.exit(1);
 

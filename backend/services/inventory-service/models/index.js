@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { Sequelize, DataTypes } from 'sequelize';
 import dotenv from 'dotenv';
+import logger from '../src/utils/Logger.js';
 
 
 dotenv.config({
@@ -13,8 +14,7 @@ dotenv.config({
 });
 
 
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
-console.log("NODE_ENV:", process.env.NODE_ENV);
+logger.info(`NODE_ENV: ${process.env.NODE_ENV}`);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

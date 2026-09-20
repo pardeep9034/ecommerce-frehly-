@@ -2,6 +2,7 @@ import app from "./app.js";
 import initializeModels from "./src/models/index.js";
 import { initializeTopology } from "./src/messaging/index.js";
 import {registerCartConsumers} from "./src/modules/addToCart/registerConsumers.js";
+import logger from "./src/utils/Logger.js";
 
 const PORT = process.env.PORT || 3002;
 
@@ -13,18 +14,18 @@ async function startServer() {
 
     await initializeModels();
 
-    console.log("✅ Cart Service: Database and models initialized");
+    logger.info("✅ Cart Service: Database and models initialized");
     await initializeTopology();
-    console.log("✅ Cart Service: Messaging topology initialized");
+    logger.info("✅ Cart Service: Messaging topology initialized");
     await registerCartConsumers();
-    console.log("✅ Cart Service: Consumers registered");
+    logger.info("✅ Cart Service: Consumers registered");
 
     /* ================= START SERVER ================= */
 
     const server = app.listen(PORT, () => {
 
-      console.log(`🚀 Cart Service running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+      logger.info(`🚀 Cart Service running on port ${PORT}`);
+      logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
 
     });
 
@@ -32,11 +33,11 @@ async function startServer() {
 
     process.on("SIGTERM", () => {
 
-      console.log("SIGTERM received, shutting down gracefully");
+      logger.info("SIGTERM received, shutting down gracefully");
 
       server.close(() => {
 
-        console.log("Process terminated");
+        logger.info("Process terminated");
 
         process.exit(0);
 
@@ -46,7 +47,7 @@ async function startServer() {
 
   } catch (error) {
 
-    console.error("❌ Failed to start Cart Service:", error);
+    logger.error("❌ Failed to start Cart Service:", { message: error.message, stack: error.stack });
 
     process.exit(1);
 

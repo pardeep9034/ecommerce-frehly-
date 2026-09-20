@@ -8,6 +8,7 @@ import DeliveryAttemptModel from "./DeliveryAttempt.model.js";
 import DeliveryHandoverModel from "./DeliveryHandover.model.js";
 import DeliveryZoneModel from "./DeliveryZone.model.js";
 import DeliveryPartnerZoneModel from "./DeliveryPartnerZone.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let dbPromise = null;
@@ -37,7 +38,7 @@ async function initializeModels() {
         }
       });
 
-      console.log("Delivery Service: Models initialized");
+      logger.info("Delivery Service: Models initialized");
       return db;
     })();
   }

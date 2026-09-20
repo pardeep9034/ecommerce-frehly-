@@ -19,6 +19,8 @@
  * RabbitMQ preserves across dead-lettering (it appends to x-death header
  * array too, but we track our own counter for simplicity).
  */
+import logger from '../../utils/Logger.js';
+
 export default class RetryHandler {
   /**
    * @param {IMessageBroker} broker
@@ -64,7 +66,7 @@ export default class RetryHandler {
     const retryCount = headers['x-retry-count'] || 0;
 
     if (retryCount >= this.maxRetries) {
-      console.warn(
+      logger.warn(
         `[RetryHandler] max retries (${this.maxRetries}) exhausted for routing key "${msg.fields.routingKey}". Sending to DLQ.`
       );
       return false; // caller should nack without requeue -> goes to DLQ
@@ -79,7 +81,7 @@ export default class RetryHandler {
       headers: { ...headers, 'x-retry-count': retryCount + 1 },
     });
 
-    console.log(
+    logger.info(
       `[RetryHandler] scheduled retry #${retryCount + 1} for "${msg.fields.routingKey}" in ${delayMs}ms`
     );
     return true;

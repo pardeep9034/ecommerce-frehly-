@@ -1,5 +1,6 @@
 import { createProxyMiddleware } from "http-proxy-middleware";
 import services from "../config/services.config.js";
+import logger from "../utils/Logger.js";
 
 const registerProxies = (app) => {
 
@@ -14,7 +15,7 @@ const registerProxies = (app) => {
         logLevel: "debug",
         on:{
           error: (err, req, res) => {
-            console.error(`Error proxying request to ${service.name}:`, err);
+            logger.error(`Error proxying request to ${service.name}: ${err.message}`);
             res.status(500).send("service temprorarily unavailable");
           }
 

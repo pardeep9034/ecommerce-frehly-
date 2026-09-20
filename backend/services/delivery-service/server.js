@@ -1,6 +1,7 @@
 import app from "./app.js";
 import  initializeModels  from "./src/models/index.js";
 import { env } from "./src/config/env.js";
+import logger from "./src/utils/Logger.js";
 
 const PORT = env.PORT;
 
@@ -8,25 +9,25 @@ async function startServer() {
   try {
     /* ================= INITIALIZE DATABASE ================= */
     await initializeModels();
-    console.log("Delivery Service: Database and models initialized");
+    logger.info("Delivery Service: Database and models initialized");
 
     /* ================= START SERVER ================= */
     const server = app.listen(PORT, () => {
-      console.log(`Delivery Service running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
+      logger.info(`Delivery Service running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV}`);
     });
 
     /* ================= GRACEFUL SHUTDOWN ================= */
     process.on("SIGTERM", () => {
-      console.log("SIGTERM received, shutting down gracefully");
+      logger.info("SIGTERM received, shutting down gracefully");
       server.close(() => {
-        console.log("Process terminated");
+        logger.info("Process terminated");
         process.exit(0);
       });
     });
 
   } catch (error) {
-    console.error("Failed to start Delivery Service:", error);
+    logger.error("Failed to start Delivery Service:", { message: error.message, stack: error.stack });
     process.exit(1);
   }
 }

@@ -2,6 +2,7 @@
 import ResponseUtil from "../utils/response.js";
 
 import verifyToken from "../utils/verifyToken.js";
+import logger from "../utils/Logger.js";
 
 const authenticateToken = async (req, res, next) => {
 
@@ -61,7 +62,7 @@ const authenticateToken = async (req, res, next) => {
 
     } catch (error) {
 
-        console.error("AUTH MIDDLEWARE ERROR →", error);
+        logger.error("AUTH MIDDLEWARE ERROR →", { message: error.message, stack: error.stack });
 
         return ResponseUtil.unauthorized(
             res,

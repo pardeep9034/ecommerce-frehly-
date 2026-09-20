@@ -64,7 +64,6 @@ class StockMovementController {
 
   async createStockMovement(req, res, next) {
     try {
-      console.log("req.user in createStockMovement:", req.user);
       const result = await StockMovementServices.createStockMovement(
         req.body,
         req.user,

@@ -10,6 +10,7 @@ import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner
 import deliveryZoneRoutes from "./src/modules/deliveryZone/deliveryZone.routes.js";
 import deliveryPartnerZoneRoutes from "./src/modules/deliveryPartnerZone/deliveryPartnerZone.routes.js";
 import handleOrderRoutes from "./src/modules/handleOrder/handleOrder.routes.js";
+import logger from "./src/utils/Logger.js";
 
 dotenv.config();
 
@@ -39,12 +40,10 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* ================= REQUEST LOGGING ================= */
-if (process.env.NODE_ENV === "development") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-  });
-}
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
@@ -69,7 +68,7 @@ app.use((req, res) => {
 
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((error, req, res, next) => {
-  console.error("Global error handler (Delivery Service):", error);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
 
   if (error.name === "SequelizeValidationError") {
     const errors = error.errors.map((err) => ({

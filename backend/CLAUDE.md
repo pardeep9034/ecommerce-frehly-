@@ -59,7 +59,7 @@ Wrap any multi-step write (create with child records, a status transition that t
 
 ## Logging
 
-Use a structured logger (winston) — check for `src/utils/Logger.js` in the service first; only `auth-service` and `cart-service` currently have one, and cart-service's is unused, so wire it up rather than reaching for `console.log`. Never `console.log`/`console.error` in a request-handling path, and never log:
+Use a structured logger (winston) — every service has `src/utils/Logger.js` (mirror it when adding a new service). Never `console.log`/`console.error` in a request-handling path, and never log:
 - the request body (`req.body`) — has held passwords and full cart contents in this codebase before
 - a raw or decoded JWT token
 - `DATABASE_URL` or any other credential/connection string

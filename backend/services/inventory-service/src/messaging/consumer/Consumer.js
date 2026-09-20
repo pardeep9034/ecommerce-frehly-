@@ -1,4 +1,5 @@
 import RetryHandler from '../retry/RetryHandler.js';
+import logger from '../../utils/Logger.js';
 
 /**
  * Consumer.js
@@ -51,7 +52,7 @@ export default class Consumer {
       try {
         payload = JSON.parse(msg.content.toString());
       } catch (err) {
-        console.error(`[Consumer] malformed JSON on queue "${queueName}", sending straight to DLQ`);
+        logger.error(`[Consumer] malformed JSON on queue "${queueName}", sending straight to DLQ`);
         this.broker.nack(msg, false);
         return;
       }
@@ -60,7 +61,7 @@ export default class Consumer {
         await handler(payload, msg);
         this.broker.ack(msg);
       } catch (err) {
-        console.error(
+        logger.error(
           `[Consumer] handler failed for event "${payload.eventType || 'unknown'}" on queue "${queueName}":`,
           err.message
         );
@@ -79,6 +80,6 @@ export default class Consumer {
       }
     });
 
-    console.log(`[Consumer] subscribed to queue "${queueName}"`);
+    logger.info(`[Consumer] subscribed to queue "${queueName}"`);
   }
 }

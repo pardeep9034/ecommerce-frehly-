@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import exchanges from '../topology/exchanges.js';
+import logger from '../../utils/Logger.js';
 
 /**
  * order.events.js

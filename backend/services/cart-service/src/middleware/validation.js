@@ -15,7 +15,6 @@ const schemas = {
 const validate = (schema) => {
   return (req, res, next) => {
     const { error } = schemas[schema].validate(req.body);
-    console.log("Body:", req.body);
     if (error) {
       const errors = error.details.map(detail => ({
         field: detail.path.join('.'),

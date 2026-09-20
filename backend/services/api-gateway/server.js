@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import registerProxies from "./src/proxy/proxy.register.js";
 import requestLogger from "./src/middleware/logger.js";
 import errorHandler from "./src/middleware/errorHandler.js";
+import logger from "./src/utils/Logger.js";
 
 dotenv.config();
 
@@ -30,5 +31,5 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 app.listen(4000, () => {
-  console.log("API Gateway running on port 4000");
+  logger.info("API Gateway running on port 4000");
 });

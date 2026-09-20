@@ -7,6 +7,7 @@ import AuthOtpModel from "./Otp.model.js";
 import AuthAuditLogModel from "./AuditLog.model.js";
 import UserSessionModel from "./UserSession.model.js";
 import AuthUserAddressModel from "./UserAddress.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let dbPromise = null;
@@ -46,7 +47,7 @@ async function initializeModels() {
             }
         });
 
-        console.log("✅ Auth Service: Models initialized");
+        logger.info("✅ Auth Service: Models initialized");
          return db;
     }) ();
     }

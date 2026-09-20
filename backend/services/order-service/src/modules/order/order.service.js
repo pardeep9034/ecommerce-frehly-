@@ -8,6 +8,7 @@ import OrderStatusHistoryRepository from "../repository/orderStatusHistory.repos
 import PaymentRepository from "../repository/payment.repository.js";
 import {publisher} from "../../messaging/index.js"
 import OrderEvents from "../../messaging/events/order.events.js";
+import logger from "../../utils/Logger.js";
 
 const ORDER_STATUS = {
   PENDING_PAYMENT: "PENDING_PAYMENT",
@@ -101,7 +102,7 @@ class OrderService {
     throw new AppError("cart items not found");
   }
 const cartItems= await cartItemsResponse.json();
-console.log("cart items",cartItems)
+logger.debug("cart items", { cartItems });
 
 
 const userAddressResponse=await fetch(`${env.API_GATEWAY_URL}/user-addresses/${data.address_id}`,{
@@ -662,7 +663,7 @@ if(!userAddress.success){
 
   const inventory = await inventoryResponse.json();
 
-  console.log("Inventory response:", inventory);
+  logger.debug("Inventory response", { inventory });
 
   if (!inventoryResponse.ok) {
     throw new AppError(
@@ -723,7 +724,7 @@ if(!userAddress.success){
           authorization
         );
       } catch (error) {
-        console.error(`Failed to release reservation ${reservationId}:`, error.message);
+        logger.error(`Failed to release reservation ${reservationId}:`, error.message);
       }
     }
   }

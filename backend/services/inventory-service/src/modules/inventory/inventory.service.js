@@ -6,9 +6,10 @@ import queues from "../../messaging/topology/queues.js";
 import { initializeTopology } from "../../messaging/index.js";
 import {env} from "../../config/env.js";
 import inventoryRepository from "../repository/inventory.repository.js";
+import logger from "../../utils/Logger.js";
 await initializeTopology()
 await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name,async(event)=>{
-  console.log("event consumed ")
+  logger.debug("event consumed");
 
 })
 

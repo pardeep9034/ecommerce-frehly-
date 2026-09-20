@@ -1,5 +1,6 @@
 import { Sequelize } from "sequelize";
 import { env } from "./env.js";
+import logger from "../utils/Logger.js";
 
 class Database {
   constructor() {
@@ -10,7 +11,7 @@ class Database {
     try {
       this.sequelize = new Sequelize(process.env.DATABASE_URL, {
         dialect: "postgres",
-        logging: process.env.NODE_ENV === "development" ? console.log : false,
+        logging: process.env.NODE_ENV === "development" ? (msg) => logger.debug(msg) : false,
         pool: {
           max: 10,
           min: 0,
@@ -26,11 +27,11 @@ class Database {
       });
 
       await this.sequelize.authenticate();
-      console.log("✅ Delivery Service: Database connected successfully");
-      
+      logger.info("✅ Delivery Service: Database connected successfully");
+
       return this.sequelize;
     } catch (error) {
-      console.error("❌ Failed to connect to Database (Delivery Service):", error);
+      logger.error("❌ Failed to connect to Database (Delivery Service):", { message: error.message, stack: error.stack });
       process.exit(1);
     }
   }

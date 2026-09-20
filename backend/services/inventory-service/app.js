@@ -9,6 +9,7 @@ import stockMovementRoutes from "./src/modules/stockMovement/stockMovement.route
 import stockReservationRoutes from "./src/modules/stockReservation/stockReservation.routes.js";
 import ResponseUtil from "./src/utils/response.js";
 import warehouseRoutes from "./src/modules/warehouse/warehouse.routes.js";
+import logger from "./src/utils/Logger.js";
 
 dotenv.config();
 
@@ -37,12 +38,10 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* ================= REQUEST LOGGING ================= */
-if (process.env.NODE_ENV === "development") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-  });
-}
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
 
 /* ================= ROUTES ================= */
 app.use("/inventory", inventoryRoutes);
@@ -66,7 +65,7 @@ app.use((req, res) => {
 
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((error, req, res, next) => {
-  console.error("Global error handler:", error);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
 
   if (error.name === "SequelizeValidationError") {
     const errors = error.errors.map(err => ({

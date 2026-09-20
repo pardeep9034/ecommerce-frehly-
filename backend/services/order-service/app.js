@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import orderRoutes from "./src/modules/order/order.routes.js";
+import logger from "./src/utils/Logger.js";
 
 dotenv.config();
 
@@ -33,12 +34,10 @@ app.use(limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-if (process.env.NODE_ENV === "development") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-  });
-}
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
 
 app.get("/", (req, res) => {
   res.json({
@@ -55,7 +54,7 @@ app.use((req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  console.error("Global error handler:", error);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
 
   if (error.name === "SequelizeValidationError") {
     const errors = error.errors.map((err) => ({

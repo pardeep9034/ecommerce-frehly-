@@ -13,7 +13,7 @@ export const sendOtp=async(data)=>{
           code: otp,
         });
 
-        console.log("✅ OTP sent:", phone);
+        logger.info(`✅ OTP sent: ${phone}`);
       } catch (error) {
         logger.error(`❌ Failed to send OTP: ${error.message}`);
       }

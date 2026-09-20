@@ -31,7 +31,6 @@ class WarehouseService {
   async createWarehouse(data) {
     
     const zoneResponse=await fetch(`${env.API_GATEWAY_URL}/delivery-zones/${data.zone_id}`)
-    // console.log(zoneResponse)
     if(!zoneResponse.ok){
       throw new AppError("zone not found",404);
     }

@@ -9,24 +9,25 @@ import AppError from "../../utils/AppError.js";
 import cartRepository from "../repository/cart.repository.js";
 import cartItemRepository from "../repository/cartItem.repository.js";
 import { number } from "zod";
+import logger from "../../utils/Logger.js";
 // import inventoryController from "../../../../inventory-service/src/modules/nventory/inventory.controller.js";
 
 class addToCartService {
   async add(user, data, warehouse_id) {
     // product + inventory validation
-    console.log("from add func", data);
+    logger.debug("add() called", { data });
     const serviceValidation = await this.validateProductAndInventory(
       data,
       warehouse_id,
     );
-    console.log("service validation", serviceValidation);
+    logger.debug("service validation", { serviceValidation });
 
     if (!serviceValidation.success) {
       throw new AppError(serviceValidation.message, 400);
     }
 
     const cart = await this.getOrCreateCart(user);
-    console.log("user cart", cart);
+    logger.debug("user cart", { cart });
 
     if (!cart) {
       throw new AppError("cart not created", 400);
@@ -97,8 +98,8 @@ class addToCartService {
         },
       }),
     ]);
-    console.log("productResponse", productResponse.data.data);
-    console.log("inventoryResponse", inventoryResponse.data.data);
+    logger.debug("productResponse", { data: productResponse.data.data });
+    logger.debug("inventoryResponse", { data: inventoryResponse.data.data });
     // product validation
     if (!productResponse.data.data || !productResponse.data.success) {
       return {
@@ -130,7 +131,7 @@ class addToCartService {
   // get or create cart
   async getOrCreateCart(userId) {
     let cart = await CartRepository.getCartByUserId(userId);
-    console.log("old cart", cart);
+    logger.debug("old cart", { cart });
 
     if (!cart) {
       cart = await CartRepository.createCart({ user_id: userId });
@@ -187,9 +188,7 @@ class addToCartService {
 
   // create cart item
   async createCartItem(cart, inventory, data) {
-    console.log("inventory", inventory);
-    console.log("data", data);
-    console.log("data in cart", cart);
+    logger.debug("createCartItem", { inventory, data, cart });
     // inventory validation
     if (data.quantity > inventory.current_stock) {
       throw new AppError("inventory not available", 400);
@@ -377,7 +376,6 @@ class addToCartService {
   }
   async decreaseQuantity(userId, cartItemId,warehouseId) {
     const cart = await cartRepository.getCartByUserId(userId);
-    console.log();
 
     if (!cart) {
       throw new AppError("Cart not found", 404);
@@ -389,7 +387,6 @@ class addToCartService {
     });
 
     const cartItemData = cartItem.toJSON();
-    //   console.log(cartItem)
 
     if (!cartItem) {
       throw new AppError("Cart item not found", 404);
@@ -423,7 +420,7 @@ class addToCartService {
   }
 
   async mergeCarts(userId, guestCart, warehouseId) {
-    console.log("merge carts", userId, guestCart, warehouseId);
+    logger.debug("merge carts", { userId, guestCart, warehouseId });
     if (!guestCart || guestCart.length === 0) {
       return;
     }
@@ -435,10 +432,10 @@ class addToCartService {
     userCart = await this.cartByUserId(userId);
     const dbCartItems = userCart.items;
 
-    console.log("Cart instance:", userCart.constructor.name);
+    logger.debug(`Cart instance: ${userCart.constructor.name}`);
 
     for (const item of dbCartItems) {
-      console.log({
+      logger.debug("dbCartItem", {
         constructor: item.constructor.name,
         hasSave: typeof item.save,
         isSequelizeInstance: !!item.dataValues,
@@ -459,12 +456,8 @@ class addToCartService {
     for (const item of guestCart) {
       const existing = dbCartMap.get(Number(item.variant_id));
       if (existing) {
-        console.log(
-          "existing.quantity:",
-          existing.quantity,
-          typeof existing.quantity,
-        );
-        console.log("item.quantity:", item.quantity, typeof item.quantity);
+        logger.debug("existing.quantity", { value: existing.quantity, type: typeof existing.quantity });
+        logger.debug("item.quantity", { value: item.quantity, type: typeof item.quantity });
         existing.quantity += item.quantity;
         itemsToUpdate.push(existing);
       } else {
@@ -518,8 +511,7 @@ class addToCartService {
     const inventoryMap = new Map(
       inventoryData.map((i) => [Number(i.variant_id), i]),
     );
-    console.log("variants", variants);
-    console.log("inventory", inventoryData);
+    logger.debug("mergeCarts variants/inventory", { variants, inventoryData });
     for (const item of itemsToUpdate) {
       const variant = variantMap.get(item.variant_id);
 
@@ -569,11 +561,7 @@ class addToCartService {
       item.cart_id = userCart.id;
       validInserts.push(item);
     }
-    console.log("items to update", itemsToUpdate);
-    console.log("items to insert", itemsToInsert);
-    console.log("valid updates", validUpdates);
-    console.log("valid inserts", validInserts);
-    console.log("removed items", removedItems);
+    logger.debug("mergeCarts result", { itemsToUpdate, itemsToInsert, validUpdates, validInserts, removedItems });
 
     const database = await initializeModels();
     const sequelize = database.sequelize;

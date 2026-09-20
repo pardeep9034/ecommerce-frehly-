@@ -1,6 +1,8 @@
+import logger from "../utils/Logger.js";
+
 const errorHandler = (err, req, res, next) => {
 
-  console.error("Gateway Error:", err);
+  logger.error(`Gateway Error: ${err.message}`, { stack: err.stack });
 
   res.status(500).json({
     success: false,

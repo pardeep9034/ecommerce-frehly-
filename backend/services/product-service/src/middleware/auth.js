@@ -2,6 +2,7 @@
 import ResponseUtil from "../utils/response.js";
 
 import verifyToken from "../utils/verifyToken.js";
+import logger from "../utils/Logger.js";
 
 const authenticateToken = async (req, res, next) => {
 
@@ -16,10 +17,8 @@ const authenticateToken = async (req, res, next) => {
             const token = authHeader.split(" ")[1];
 
             if (token) {
-console.log("Token extracted:", token);
                 /* ================= TOKEN VERIFICATION ================= */
                 const decoded = verifyToken(token);
-                console.log("Decoded Token:", decoded);
                 if(decoded.role){
                     if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"){
                         req.user=decoded.user;
@@ -62,7 +61,7 @@ console.log("Token extracted:", token);
 
     } catch (error) {
 
-        console.error("AUTH MIDDLEWARE ERROR →", error);
+        logger.error("AUTH MIDDLEWARE ERROR →", { message: error.message, stack: error.stack });
 
         return ResponseUtil.unauthorized(
             res,

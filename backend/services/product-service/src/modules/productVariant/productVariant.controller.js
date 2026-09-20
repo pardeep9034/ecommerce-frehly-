@@ -16,10 +16,6 @@ const VariantController = {
   },
   async variantInfo(req,res,next){
   const variantsIds=req.body.variantIds
-  console.log("BODY:", req.body);
-    console.log("variantIds:", req.body.variantIds);
-    console.log("isArray:", Array.isArray(req.body.variantIds));
-
   try{
     const result=await VariantServices.variantInfo(variantsIds);
     return ResponseUtil.success(res,result,"variants info feched successfully")

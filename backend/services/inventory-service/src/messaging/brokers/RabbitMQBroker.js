@@ -1,6 +1,7 @@
 import amqp from 'amqplib';
 import IMessageBroker from '../interfaces/IMessageBroker.js';
 import defaultConfig from '../rabbitmq.config.js';
+import logger from '../../utils/Logger.js';
 
 /**
  * RabbitMQBroker
@@ -64,11 +65,11 @@ export default class RabbitMQBroker extends IMessageBroker {
     this.connection = await amqp.connect(this.url, { heartbeat: this.heartbeatSec });
 
     this.connection.on('error', (err) => {
-      console.error('[RabbitMQBroker] connection error:', err.message);
+      logger.error('[RabbitMQBroker] connection error:', err.message);
     });
 
     this.connection.on('close', () => {
-      console.warn('[RabbitMQBroker] connection closed. Reconnecting...');
+      logger.warn('[RabbitMQBroker] connection closed. Reconnecting...');
       this.channel = null;
       this.connection = null;
       setTimeout(() => this.connect().catch(() => {}), this.reconnectDelayMs);
@@ -83,7 +84,7 @@ export default class RabbitMQBroker extends IMessageBroker {
 
     await this.channel.prefetch(this.prefetchCount);
 
-    console.log(
+    logger.info(
       `[RabbitMQBroker] connected to ${this.url} (prefetch: ${this.prefetchCount}, confirms: ${this.publisherConfirms})`
     );
     return this.channel;
@@ -132,7 +133,7 @@ export default class RabbitMQBroker extends IMessageBroker {
         } catch (err) {
           // Safety net: if a handler forgets its own try/catch, we still
           // nack instead of crashing the whole process or losing the msg.
-          console.error(`[RabbitMQBroker] unhandled error on queue "${queueName}":`, err.message);
+          logger.error(`[RabbitMQBroker] unhandled error on queue "${queueName}":`, err.message);
           this.nack(msg, false); // don't requeue — let DLQ handle it
         }
       },

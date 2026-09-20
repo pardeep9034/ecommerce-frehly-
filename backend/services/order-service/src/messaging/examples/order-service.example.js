@@ -7,6 +7,7 @@
  */
 import { publisher, initializeTopology } from '../index.js';
 import OrderEvents from '../events/order.events.js';
+import logger from '../../utils/Logger.js';
 
 async function main() {
   await initializeTopology(); // declares exchanges/queues/bindings (idempotent)
@@ -22,10 +23,10 @@ async function main() {
 
   await publisher.publish(OrderEvents.ORDER_CREATED, order);
 
-  console.log('Order Service: order.created event published.');
+  logger.info('Order Service: order.created event published.');
 }
 
 main().catch((err) => {
-  console.error('Order Service failed:', err);
+  logger.error('Order Service failed:', { message: err.message, stack: err.stack });
   process.exit(1);
 });

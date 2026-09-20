@@ -1,3 +1,5 @@
+import logger from '../../utils/Logger.js';
+
 /**
  * Publisher.js
  *
@@ -43,7 +45,7 @@ export default class Publisher {
       ...options,
     });
 
-    console.log(
+    logger.info(
       `[Publisher] published "${eventDefinition.routingKey}" -> exchange "${eventDefinition.exchange}" (eventId: ${payload.eventId})`
     );
 

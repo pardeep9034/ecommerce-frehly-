@@ -1,6 +1,7 @@
 import database from "../config/database.js";
 
 import AddressModel from "./Address.model.js";
+import logger from "../utils/Logger.js";
 
 let sequelize;
 let db;
@@ -23,7 +24,7 @@ async function initializeModels() {
       }
     });
 
-    console.log("✅ User Service: Models initialized");
+    logger.info("✅ User Service: Models initialized");
   }
 
   return db;

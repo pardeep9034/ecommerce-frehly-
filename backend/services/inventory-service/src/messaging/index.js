@@ -6,6 +6,7 @@ import queues from './topology/queues.js';
 import bindings from './topology/bindings.js';
 import { setupDeadLetterInfrastructure } from './dlq/DeadLetterSetup.js';
 import config from './rabbitmq.config.js';
+import logger from '../utils/Logger.js';
 
 /**
  * messaging/index.js
@@ -38,7 +39,7 @@ export const consumer = new Consumer(broker, {
   backoffMs: config.backoffMs,
 });
 
-console.log(`[messaging] initialized for NODE_ENV="${config.envirnmont}"`);
+logger.info(`[messaging] initialized for NODE_ENV="${config.envirnmont}"`);
 
 /**
  * Declares every exchange, queue, and binding from topology/*.js against
@@ -51,31 +52,31 @@ console.log(`[messaging] initialized for NODE_ENV="${config.envirnmont}"`);
 export async function initializeTopology() {
   await broker.connect();
 
-  console.log("1. Connected");
+  logger.debug("1. Connected");
   await setupDeadLetterInfrastructure(broker);
-console.log("2. DLQ ready");
+  logger.debug("2. DLQ ready");
   for (const exchangeDef of Object.values(exchanges)) {
-     console.log("Creating exchange:", exchangeDef.name);
+    logger.debug(`Creating exchange: ${exchangeDef.name}`);
     if (exchangeDef.name === exchanges.DEAD_LETTER.name) continue; // already set up above
     await broker.assertExchange(exchangeDef.name, exchangeDef.type, exchangeDef.options);
-    console.log("✓ Exchange created:", exchangeDef.name);
+    logger.debug(`✓ Exchange created: ${exchangeDef.name}`);
   }
 
   for (const queueDef of Object.values(queues)) {
-     console.log("Creating queue:", queueDef.name);
+    logger.debug(`Creating queue: ${queueDef.name}`);
 
     if (queueDef.name === queues.DEAD_LETTER_QUEUE.name) continue; // already set up above
     await broker.assertQueue(queueDef.name, queueDef.options);
 
-    console.log("✓ Queue created:", queueDef.name);
+    logger.debug(`✓ Queue created: ${queueDef.name}`);
   }
 
   for (const binding of bindings) {
-     console.log("Binding:", binding);
+    logger.debug(`Binding: ${JSON.stringify(binding)}`);
     if (binding.exchange === exchanges.DEAD_LETTER.name) continue; // already bound above
     await broker.bindQueue(binding.queue, binding.exchange, binding.routingKey);
-        console.log("✓ Bound:", binding.queue);
+    logger.debug(`✓ Bound: ${binding.queue}`);
   }
 
-  console.log('[messaging] topology initialized: exchanges, queues, and bindings are ready');
+  logger.info('[messaging] topology initialized: exchanges, queues, and bindings are ready');
 }
