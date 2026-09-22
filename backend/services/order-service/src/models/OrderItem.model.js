@@ -50,6 +50,25 @@ export default (sequelize) => {
       line_total: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false
+      },
+      status: {
+        type: DataTypes.ENUM("PENDING", "READY", "NOT_AVAILABLE"),
+        allowNull: false,
+        defaultValue: "PENDING"
+      },
+      admin_remarks: {
+        type: DataTypes.TEXT
+      },
+      refund_amount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0
+      },
+      refunded_at: {
+        type: DataTypes.DATE
+      },
+      reservation_id: {
+        type: DataTypes.BIGINT
       }
     },
     {

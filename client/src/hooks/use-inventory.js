@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import InventoryApi from "@/apis/inventoryApi";
 import { notify } from "@/lib/notify";
 
-const useInventory = (page = 1, limit = 10, warehouseId) => {
+const useInventory = (page = 1, limit = 10, warehouseId, variantIds = []) => {
   const queryClient = useQueryClient();
 
   // GET - fetch inventory with pagination
@@ -14,6 +14,16 @@ const useInventory = (page = 1, limit = 10, warehouseId) => {
     queryKey: ["inventory", "warehouse", warehouseId],
     queryFn: () => InventoryApi.fetchInventoryByWarehouse(warehouseId),
     enabled: Boolean(warehouseId),
+  });
+
+  // GET - which of the given variant ids are currently in stock
+  const {
+    data: inStockData,
+    isLoading: inStockLoading,
+  } = useQuery({
+    queryKey: ["inStockVariantIds", variantIds],
+    queryFn: () => InventoryApi.getInStockVariantIds(variantIds),
+    enabled: variantIds.length > 0,
   });
 
   // POST - create inventory
@@ -48,6 +58,8 @@ const useInventory = (page = 1, limit = 10, warehouseId) => {
     inventory,
     isLoading,
     error,
+    inStockVariantIds: inStockData?.data,
+    inStockLoading,
     createInventory: createMutation,
     updateInventory: updateMutation,
     deleteInventory: deleteMutation,

@@ -3,6 +3,7 @@ import StatCard from "@/components/dashboard/StatCard";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import LowStockAlert from "@/components/dashboard/LowStockAlert";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 // Helper function to calculate percentage change
 const calculateChange = (current, previous) => {
@@ -21,6 +22,7 @@ const mockStats = [
 const Dashboard = () => {
   return (
     <div className="space-y-6 lg:space-y-7  ">
+      <PageHeader title="Overview" description="A snapshot of today's sales, orders and stock health." />
       <div className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         {mockStats.map((stat) => (
           <StatCard key={stat.title} {...stat} />

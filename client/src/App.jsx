@@ -37,14 +37,34 @@ import VariantPage from "./pages/dashboard/VariantPage";
 import WarehousePage from "./pages/dashboard/WarehousePage";
 import StockMovementPage from "./pages/dashboard/StockMovementPage";
 import StockReservationPage from "./pages/dashboard/StockReservationPage";
+import Orders from "./pages/dashboard/Orders";
+import AdminOrderDetail from "./pages/dashboard/AdminOrderDetail";
+
+const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
+
+const getTokenRole = (token) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role || null;
+  } catch {
+    return null;
+  }
+};
+
+const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(localStorage.getItem("token")));
 
 function App() {
   const dispatch = useDispatch();
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
+    if (token && getTokenRole(token) === "CUSTOMER") {
       dispatch(loginSuccess({ token }));
-    } else {
+    } else if (!token) {
+      // No token at all: clear any stale auth state. A staff token IS present
+      // but isn't a customer session — leave it in localStorage untouched so
+      // an admin/super-admin browsing the storefront doesn't get signed out
+      // of their dashboard session; just don't mark them as a logged-in shopper.
       dispatch(logout());
     }
   }, [dispatch]);
@@ -75,7 +95,7 @@ function App() {
         {/* DASHBOARD ROUTES */}
         <Route
           path="/dashboard"
-          element={localStorage.getItem("token") ? <DashboardLayout /> : <Navigate to="/admin/login" replace />}
+          element={hasAdminAccess() ? <DashboardLayout /> : <Navigate to="/admin/login" replace />}
         >
           <Route index element={<Dashboard />} />
           <Route path="products" element={<Products />} />
@@ -85,7 +105,8 @@ function App() {
           <Route path="inventory/warehouses" element={<WarehousePage />} />
           <Route path="inventory/stock-movement" element={<StockMovementPage />} />
           <Route path="inventory/stock-reservation" element={<StockReservationPage />} />
-          <Route path="orders" element={<PlaceholderPage />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="orders/:orderId" element={<AdminOrderDetail />} />
           <Route path="customers" element={<PlaceholderPage />} />
           <Route path="promotions" element={<Promotions />} />
           <Route path="promotions/:promotionId/items" element={<PromotionItems />} />

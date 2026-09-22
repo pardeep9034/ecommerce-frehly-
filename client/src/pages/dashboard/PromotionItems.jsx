@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { usePromotionItemsQuery, useRemovePromotionItemMutation } from "@/hooks/use-promotion-item";
 import useProducts  from "@/hooks/use-product";
 import usePromotion from "@/hooks/use-promotion";
-import { ArrowLeft, Plus, Search, Trash2, PackageSearch } from "lucide-react";
+import { Plus, Search, Trash2, PackageSearch } from "lucide-react";
 import PromotionItemModal from "@/components/dashboard/PromotionItemModal";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 const PromotionItems = () => {
     const { promotionId } = useParams();
@@ -20,7 +22,20 @@ const PromotionItems = () => {
     const removeMutation = useRemovePromotionItemMutation(promotionId);
 
     if (isLoadingItems || isLoadingPromotion) {
-        return <div className="p-8 text-center text-gray-500">Loading promotion details...</div>;
+        return (
+            <div className="p-8 max-w-7xl mx-auto">
+                <div className="mb-8 h-8 w-64 rounded skeleton-shimmer" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {[0, 1, 2].map((i) => (
+                        <div key={i} className="rounded-xl border border-border bg-white p-5 shadow-sm">
+                            <div className="h-4 w-24 rounded skeleton-shimmer" style={{ animationDelay: `${i * 80}ms` }} />
+                            <div className="mt-3 h-7 w-16 rounded skeleton-shimmer" style={{ animationDelay: `${i * 80 + 40}ms` }} />
+                        </div>
+                    ))}
+                </div>
+                <TableSkeleton rows={5} columns={6} />
+            </div>
+        );
     }
 
     const promotion = promotionData?.promotions?.find(p => p.id === parseInt(promotionId));
@@ -28,10 +43,7 @@ const PromotionItems = () => {
     if (!promotion) {
         return (
             <div className="p-8">
-                <button onClick={() => navigate("/dashboard/promotions")} className="flex items-center text-success hover:text-success mb-6">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Promotions
-                </button>
-                <div className="text-center text-gray-500">Promotion not found</div>
+                <PageHeader title="Promotion not found" backTo="/dashboard/promotions" backLabel="Back to Promotions" />
             </div>
         );
     }
@@ -49,30 +61,31 @@ const PromotionItems = () => {
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <button onClick={() => navigate("/dashboard/promotions")} className="flex items-center text-sm text-gray-500 hover:text-success mb-2 transition-colors">
-                        <ArrowLeft className="w-4 h-4 mr-1" /> Back to Promotions
-                    </button>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        {promotion.title} Items
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            promotion.isActive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
-                        }`}>
-                            {promotion.isActive ? 'Active' : 'Inactive'}
+            <div className="mb-8">
+                <PageHeader
+                    title={
+                        <span className="flex items-center gap-3">
+                            {promotion.title} Items
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                promotion.isActive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+                            }`}>
+                                {promotion.isActive ? 'Active' : 'Inactive'}
+                            </span>
                         </span>
-                    </h1>
-                    <p className="text-gray-500 mt-1">Manage products included in this promotion</p>
-                </div>
-                
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 bg-success text-white px-4 py-2 rounded-xl hover:bg-success transition duration-200 shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add Product
-                </button>
+                    }
+                    description="Manage products included in this promotion."
+                    backTo="/dashboard/promotions"
+                    backLabel="Back to Promotions"
+                    action={
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 shadow-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add Product
+                        </button>
+                    }
+                />
             </div>
 
             {/* Stats Overview */}

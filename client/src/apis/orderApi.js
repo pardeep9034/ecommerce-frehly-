@@ -71,9 +71,25 @@ const OrderApi = {
     const response=await api.get(`/orders/${id}`)
     return response.data;
   },
+  async fetchAllOrders(page = 1, limit = 10, status, search) {
+    const response = await api.get("/orders/admin/all", { params: { page, limit, status, search } });
+    return response.data;
+  },
   async placeOrder(data){
 const response=await api.post("/orders",data)
 return response.data
+  },
+  async updateOrderItemStatus(orderId, itemId, payload) {
+    const response = await api.patch(`/orders/${orderId}/items/${itemId}/status`, payload);
+    return response.data;
+  },
+  async finalizeOrderItems(orderId) {
+    const response = await api.post(`/orders/${orderId}/items/finalize`);
+    return response.data;
+  },
+  async confirmPartialOrder(orderId, decision) {
+    const response = await api.post(`/orders/${orderId}/confirm-partial`, { decision });
+    return response.data;
   }
 };
 

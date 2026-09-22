@@ -19,27 +19,15 @@ const authenticateToken = async (req, res, next) => {
             if (token) {
                 /* ================= TOKEN VERIFICATION ================= */
                 const decoded = verifyToken(token);
-                if(decoded.role){
-                    if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"){
-                        req.user=decoded.user;
-                        next();
-                    }
-                    else{
-                        return ResponseUtil.unauthorized(
-                            res,
-                            "Unauthorized"
-                        );
-                    }
-                }
-                else{
+                if (decoded.role && ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"].includes(decoded.role)) {
+                    req.user = decoded;
+                    next();
+                } else {
                     return ResponseUtil.unauthorized(
                         res,
                         "Unauthorized"
                     );
                 }
-
-              
-            
 
             } else {
 

@@ -89,7 +89,7 @@ const AdminLogin = () => {
 
             <form className="space-y-5" onSubmit={handleSubmit} noValidate>
               {error && (
-                <p role="alert" className="rounded-xl border border-destructive bg-destructive px-4 py-3 text-sm text-destructive">
+                <p role="alert" className="rounded-xl border border-destructive bg-destructive px-4 py-3 font-bold text-sm text-accent-foreground">
                   {error}
                 </p>
               )}

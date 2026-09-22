@@ -27,6 +27,15 @@ class OrderController {
     }
   }
 
+  async getAllOrders(req, res, next) {
+    try {
+      const result = await orderService.getAllOrders(req.query);
+      return ResponseUtil.success(res, result, "Orders fetched successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   async getOrderDetails(req, res, next) {
     try {
       const orderId = parsePositiveInt(req.params.orderId);
@@ -64,6 +73,50 @@ class OrderController {
 
       const result = await orderService.cancelOrder(orderId, req.body, req.user, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order cancelled successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async updateOrderItemStatus(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      const itemId = parsePositiveInt(req.params.itemId);
+
+      if (!orderId || !itemId) {
+        return ResponseUtil.error(res, "Invalid order or item ID", 400);
+      }
+
+      const result = await orderService.updateOrderItemStatus(orderId, itemId, req.body, req.user);
+      return ResponseUtil.success(res, result, "Order item status updated successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async finalizeOrderItems(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      if (!orderId) {
+        return ResponseUtil.error(res, "Invalid order ID", 400);
+      }
+
+      const result = await orderService.finalizeOrderItems(orderId, req.user, req.headers.authorization);
+      return ResponseUtil.success(res, result, "Order items finalized successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async confirmPartialOrder(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      if (!orderId) {
+        return ResponseUtil.error(res, "Invalid order ID", 400);
+      }
+
+      const result = await orderService.confirmPartialOrder(orderId, req.body.decision, req.user, req.headers.authorization);
+      return ResponseUtil.success(res, result, "Order confirmation processed successfully");
     } catch (error) {
       return next(error);
     }
@@ -115,6 +168,21 @@ class OrderController {
     try {
       const result = await orderService.expirePendingPayments(req.headers.authorization);
       return ResponseUtil.success(res, result, "Expired payment reservations processed successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async retryPayment(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      if (!orderId) {
+        return ResponseUtil.error(res, "Invalid order ID", 400);
+      }
+
+      const warehouse_id = req.headers["x-warehouse-id"];
+      const result = await orderService.retryPayment(orderId, { ...req.body, warehouse_id }, req.user, req.headers.authorization);
+      return ResponseUtil.success(res, result, "Payment retry initiated successfully");
     } catch (error) {
       return next(error);
     }

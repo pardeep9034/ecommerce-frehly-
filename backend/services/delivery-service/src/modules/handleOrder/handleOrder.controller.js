@@ -6,7 +6,7 @@ class HandleOrderController {
     try {
         
     
-      const result = await HandleOrderService.assignOrder(req.body, req.user);
+      const result = await HandleOrderService.assignOrder(req.body, req.user, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order assigned successfully", 201);
     } catch (error) {
       return next(error);
@@ -26,12 +26,12 @@ class HandleOrderController {
     try{
       const assignmentId=req.params.assignmentId;
       const user=req.user;
-      const result=await HandleOrderService.handOver(req.body,assignmentId,user);
+      const result=await HandleOrderService.handOver(req.body,assignmentId,user,req.headers.authorization);
       return ResponseUtil.success(res,result,"order re-assigned succesfuly");
 
 
     }
-    catch{
+    catch(error){
 next(error)
     }
   }
@@ -49,7 +49,7 @@ next(error)
     try{
       const id=req.params.id;
       const user=req.user;
-      const result=await HandleOrderService.confirmReciept(id,req.body,user,req.header.authorization)
+      const result=await HandleOrderService.confirmReciept(id,req.body,user,req.headers.authorization)
       return ResponseUtil.success(res,result,"handover completed succesfuly")
 
     }catch(error){
@@ -58,9 +58,9 @@ next(error)
   }
   async updateStatus(req,res,next){
     try{
-      const id=req.assignmentId;
+      const id=req.params.assignmentId;
       const user=req.user;
-      const result= await HandleOrderService.updateStatus(id,req.body,user,req.header.authorization)
+      const result= await HandleOrderService.updateStatus(id,req.body,user,req.headers.authorization)
       return ResponseUtil.success(res,result,"assignment updated succesfuly")
 
     }

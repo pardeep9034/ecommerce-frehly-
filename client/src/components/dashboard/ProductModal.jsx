@@ -1,64 +1,77 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
 import useCategory from "@/hooks/use-category";
 import useProductType from "@/hooks/use-productType";
-import SearchableSelector from "@/components/common/SearchableSelector";
 import useBrand from "@/hooks/use-brand";
+import SearchableSelector from "@/components/common/SearchableSelector";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
+const STATUS_OPTIONS = [
+  { value: "DRAFT", label: "Draft", dot: "bg-muted-foreground" },
+  { value: "ACTIVE", label: "Active", dot: "bg-success" },
+  { value: "INACTIVE", label: "Inactive", dot: "bg-warning" },
+  { value: "ARCHIVED", label: "Archived", dot: "bg-destructive" },
+];
+
+const productSchema = z.object({
+  name: z.string().min(1, "Enter a product name"),
+  short_description: z.string().min(1, "Enter a short description"),
+  description: z.string().optional().default(""),
+  category_id: z.coerce.string().min(1, "Select a category"),
+  product_type_id: z.coerce.string().optional().default(""),
+  brand_id: z.coerce.string().optional().default(""),
+  status: z.string().optional().default(""),
+  is_organic: z.boolean().default(false),
+  is_featured: z.boolean().default(false),
+  sort_order: z.coerce.number().default(0),
+});
 
 const EMPTY_PRODUCT = {
   name: "",
   description: "",
-   category_id: "",
+  category_id: "",
   product_type_id: "",
   brand_id: "",
-  short_description:"",
+  short_description: "",
   is_organic: false,
-  is_featured:false,
-  sort_order:0,
-
+  is_featured: false,
+  sort_order: 0,
   status: "",
 };
 
 const ProductModal = ({ open, onClose, product, onSave }) => {
-  const [form, setForm] = useState(EMPTY_PRODUCT);
   const isEditMode = Boolean(product);
-  const [searchQuery,setSearchQuery]=useState("")
   const { categories: categoriesData } = useCategory();
-  const {data}=useProductType();
-  const {brandsData}=useBrand()
-  const categoriesList = categoriesData?.data?.categories || [];
+  const { data } = useProductType();
+  const { brandsData } = useBrand();
+
+  const categoriesList = categoriesData?.data?.categories;
+  const productTypesList = data?.data?.productTypes;
+  const brandsList = brandsData?.data?.brand;
+
+  const form = useForm({
+    resolver: zodResolver(productSchema),
+    defaultValues: EMPTY_PRODUCT,
+  });
 
   useEffect(() => {
-    if (product) {
-      setForm(
-        product
-     
-      );
-      return;
-    }
-    setForm(EMPTY_PRODUCT);
+    form.reset(product || EMPTY_PRODUCT);
   }, [product, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
-    onSave(
-      form
-     
-
-    );
+  const onSubmit = (values) => {
+    onSave(values);
     onClose();
   };
 
@@ -85,188 +98,196 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-          {/* Product Name */}
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="name">
-              Product Name
-            </label>
-            <input
-              id="name"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <FormField
+              control={form.control}
               name="name"
-              value={form.name}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter product name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter product name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="image">
-              Image
-            </label>
-            <input
-              id="image"
-              name="image"
-              value={form.image}
-              onChange={onChangeField}
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter product image"
-            />
-          </div> */}
-
-          {/* Description */}
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="short_description">
-              Short Description
-            </label>
-            <textarea
-              id="short_description"
+            <FormField
+              control={form.control}
               name="short_description"
-              value={form.short_description}
-              onChange={onChangeField}
-              rows={3}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter product short description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Short description</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} placeholder="Enter product short description" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="description">
-              Description
-            </label>
-            <textarea
-              id="description"
+
+            <FormField
+              control={form.control}
               name="description"
-              value={form.description}
-              onChange={onChangeField}
-              rows={3}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter product description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} placeholder="Enter product description" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Category & Product Type */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="categoryId">
-                Category
-              </label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                value={form.categoryId}
-                onChange={onChangeField}
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="" disabled>Select a category</option>
-                {categoriesList.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div> */}
-<SearchableSelector
-data={categoriesData.data?.categories}
-labelKey="name"
-valueKey="id"
-placeholder="search category"
-onSelect={(id)=>
-  setForm((prev)=>
-  ({
-    ...prev,
-    category_id:id
-  })
-  )
-}
+            {/* Category & Product Type */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="category_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={categoriesList}
+                        labelKey="name"
+                        valueKey="id"
+                        placeholder="Search category"
+                        value={field.value}
+                        onSelect={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-
-/>
-<SearchableSelector
-data={data.data?.productTypes}
-placeholder="search types"
-onSelect={(id)=>
-  setForm((prev)=>
-  ({
-    ...prev,
-    product_type_id:id
-  })
-  )
-}
-/>
-          </div>
-
-          {/* Brand & Status */}
-          <div className="grid grid-cols-1 pt-4 gap-4 md:grid-cols-2">
-       <SearchableSelector
-data={brandsData.data?.brand}
-placeholder="search brand"
-onSelect={(id)=>
-  setForm((prev)=>
-  ({
-    ...prev,
-    brand_id:id
-  })
-  )
-}
-/>
-
-            <div>
-             
-              <select
-                id="status"
-                name="status"
-                value={form.status}
-                onChange={
-                  onChangeField
-                }
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">select status</option>
-                <option value="DRAFT">DRAFT</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="ARCHIVED">ARCHIVED</option>
-              </select>
+              <FormField
+                control={form.control}
+                name="product_type_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product type</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={productTypesList}
+                        placeholder="Search product type"
+                        value={field.value}
+                        onSelect={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
 
-          {/* Organic Toggle */}
-          <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
-            <input
-              id="isOrganic"
-              name="isOrganic"
-              type="checkbox"
-              checked={form.is_organic}
-              onChange={onChangeField}
-              className="h-4 w-4 rounded border-border accent-primary"
+            {/* Brand & Status */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="brand_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Brand</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={brandsList}
+                        placeholder="Search brand"
+                        value={field.value}
+                        onSelect={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        // Radix's hidden native <select> (used for form/autofill
+                        // integration) echoes a spurious "" change event when the
+                        // controlled value is set programmatically (e.g. via
+                        // form.reset) before its options are done syncing. None of
+                        // our statuses is ever "", so treat an empty value as that
+                        // echo and ignore it instead of clobbering the real value.
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger id={field.name}>
+                          <span className="flex items-center gap-2">
+                            {field.value && (
+                              <span
+                                className={`h-2 w-2 shrink-0 rounded-full ${
+                                  STATUS_OPTIONS.find((opt) => opt.value === field.value)?.dot
+                                }`}
+                              />
+                            )}
+                            <SelectValue placeholder="Select status">
+                              {STATUS_OPTIONS.find((opt) => opt.value === field.value)?.label}
+                            </SelectValue>
+                          </span>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className="flex items-center gap-2">
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${opt.dot}`} />
+                              {opt.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Organic Toggle */}
+            <FormField
+              control={form.control}
+              name="is_organic"
+              render={({ field }) => (
+                <FormItem className="mt-2 flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="cursor-pointer">Organic product</FormLabel>
+                </FormItem>
+              )}
             />
-            <label htmlFor="isOrganic" className="text-sm font-medium text-foreground cursor-pointer">
-              Organic Product
-            </label>
-          </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-              {isEditMode ? "Save Changes" : "Add Product"}
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {isEditMode ? "Save changes" : "Add product"}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

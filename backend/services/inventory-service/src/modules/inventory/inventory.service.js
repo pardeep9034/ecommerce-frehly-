@@ -174,6 +174,17 @@ class InventoryServices {
   return inventories;
   }
 
+  async getInStockVariantIds(variantIds, warehouseId) {
+    if (!variantIds?.length) return [];
+    if (!warehouseId) {
+      throw new AppError("warehouse not found");
+    }
+    const inventories = await inventoryRepository.findAll({ variant_id: variantIds, warehouse_id: warehouseId });
+    return inventories
+      .filter((inv) => inv.current_stock - inv.reserved_stock > 0)
+      .map((inv) => inv.variant_id);
+  }
+
   async createInventory(inventoryData) {
     try {
       if (inventoryData.variant_id) {

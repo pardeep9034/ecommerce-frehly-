@@ -14,9 +14,9 @@ const AuthLoader = ({ children }) => {
 
       try {
         const res = await getProfile();
-        dispatch(setUser(res)); // 🔥 restore user
-        console.log("user",res)
-
+        if (res.role === "CUSTOMER") {
+          dispatch(setUser(res)); // 🔥 restore user
+        }
       } catch (err) {
         console.log("Auth failed", err);
         dispatch(logout()); // 🔥 cleanup invalid token

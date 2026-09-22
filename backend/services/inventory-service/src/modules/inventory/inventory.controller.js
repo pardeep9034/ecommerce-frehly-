@@ -94,6 +94,17 @@ class InventoryController {
          }
   }
 
+  async getInStockVariantIds(req, res, next) {
+    const variantIds = req.body.variantIds;
+    const warehouseId = req.headers["x-warehouse-id"];
+    try {
+      const result = await inventoryServices.getInStockVariantIds(variantIds, warehouseId);
+      return ResponseUtil.success(res, result, "In-stock variants fetched", 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createInventory(req, res, next) {
     try {
       const result = await InventoryServices.createInventory(req.body);

@@ -91,6 +91,7 @@ const schema={
         id:joi.number().required(),
         name:joi.string().optional(),
         sku:joi.string().optional(),
+        slug:joi.string().optional(),
         description:joi.string().optional(),
         short_description:joi.string().optional(),
         images_url:joi.array().items(joi.string()).optional(),
@@ -137,7 +138,6 @@ const schema={
         sort_order:joi.number().optional()
     }),
     updateVariantSchema:joi.object({
-        id:joi.number().required(),
         product_id:joi.number().optional(),
         sku:joi.string().optional(),
         barcode:joi.string().optional(),

@@ -13,8 +13,8 @@ const ProductApi = {
         const response = await api.get(`/product/search?name=${search}`);
         return response.data;
     },
-    async getAllProducts(page = 1, limit = 10) {
-        const response = await api.get(`/product?page=${page}&limit=${limit}`);
+    async getAllProducts(page = 1, limit = 10, status) {
+        const response = await api.get(`/product?page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`);
         return response.data;
     },
     async getProductsByType(type, page = 1, limit = 10) {

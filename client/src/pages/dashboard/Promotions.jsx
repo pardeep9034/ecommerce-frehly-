@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Plus, Search, Tag } from "lucide-react";
 import PromotionTable from "@/components/dashboard/PromotionTable";
 import PromotionModal from "@/components/dashboard/PromotionModal";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
+import PageHeader from "@/components/dashboard/PageHeader";
 import usePromotion from "@/hooks/use-promotion";
 const TYPE_FILTERS = ["All", "HOT", "POPULAR", "DISCOUNT"];
 
@@ -68,14 +70,6 @@ const Promotions = () => {
     setCurrentPage(page);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-10 text-muted-foreground">
-        Loading promotions...
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex items-center justify-center p-10 text-destructive">
@@ -86,6 +80,21 @@ const Promotions = () => {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Promotions"
+        description="Create and manage discounts and campaigns."
+        action={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            Add Promotion
+          </button>
+        }
+      />
+
       {/* Header bar */}
       <div className="rounded-xl border border-border bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
@@ -122,16 +131,6 @@ const Promotions = () => {
               ))}
             </select>
           </div>
-
-          {/* Right: Add button */}
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add Promotion
-          </button>
         </div>
       </div>
 
@@ -145,20 +144,28 @@ const Promotions = () => {
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-border bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground">{stat.label}</p>
-            <p className={`mt-1 text-2xl font-black ${stat.color}`}>{stat.value}</p>
+            {isLoading ? (
+              <div className="mt-1.5 h-6 w-10 rounded skeleton-shimmer" />
+            ) : (
+              <p className={`mt-1 text-2xl font-black ${stat.color}`}>{stat.value}</p>
+            )}
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <PromotionTable
-        promotions={filteredPromotions}
-        onEdit={openEditModal}
-        onDelete={handleDelete}
-      />
+      {isLoading ? (
+        <TableSkeleton rows={pageSize} columns={5} />
+      ) : (
+        <PromotionTable
+          promotions={filteredPromotions}
+          onEdit={openEditModal}
+          onDelete={handleDelete}
+        />
+      )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
           <p className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}

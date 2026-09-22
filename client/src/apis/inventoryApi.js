@@ -49,6 +49,11 @@ const InventoryApi = {
     return response.data;
   },
 
+  async getInStockVariantIds(variantIds) {
+    const response = await api.post(`/inventory/in-stock-variants`, { variantIds });
+    return response.data;
+  },
+
   async fetchAllVariants() {
     const response = await api.get("/variants");
     return response.data;

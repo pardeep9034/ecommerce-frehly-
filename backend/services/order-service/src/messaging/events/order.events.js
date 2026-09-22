@@ -70,4 +70,25 @@ export default {
       });
     },
   },
+
+  ORDER_ITEMS_FINALIZED: {
+    routingKey: 'order.items.finalized',
+    exchange: EXCHANGE,
+    version: 1,
+    /**
+     * @param {{ orderId: string|number, readyItems: array, unavailableItems: array, refundAmount: number, newStatus: string }} data
+     */
+    buildPayload(data) {
+      if (!data?.orderId) {
+        throw new Error('OrderItemsFinalized payload requires orderId');
+      }
+      return buildEnvelope('order.items.finalized', 1, {
+        orderId: data.orderId,
+        readyItems: data.readyItems || [],
+        unavailableItems: data.unavailableItems || [],
+        refundAmount: data.refundAmount || 0,
+        newStatus: data.newStatus,
+      });
+    },
+  },
 };

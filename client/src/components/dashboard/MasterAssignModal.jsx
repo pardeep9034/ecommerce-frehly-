@@ -66,7 +66,7 @@ const MasterAssignModal = ({ isOpen, onClose }) => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Select Product <span className="text-destructive">*</span></label>
                         {isLoadingProducts ? (
-                            <div className="animate-pulse h-10 bg-gray-100 rounded-lg"></div>
+                            <div className="skeleton-shimmer h-10 rounded-lg"></div>
                         ) : (
                             <select
                                 value={selectedProductId}
@@ -109,7 +109,7 @@ const MasterAssignModal = ({ isOpen, onClose }) => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Select Promotion <span className="text-destructive">*</span></label>
                         {isLoadingPromos ? (
-                            <div className="animate-pulse h-10 bg-gray-100 rounded-lg"></div>
+                            <div className="skeleton-shimmer h-10 rounded-lg"></div>
                         ) : activePromotions.length === 0 ? (
                             <p className="text-sm text-destructive bg-destructive p-3 rounded-lg border border-destructive">
                                 No active promotions found. Please create one first!

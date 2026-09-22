@@ -184,15 +184,22 @@ placeOrder.mutate({
 
                         <div className="mt-4 flex items-center justify-between">
                           <div className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 shadow-inner">
-                            <button 
-                              onClick={() => {handleUpdateQuantity(item.product_id, item.variant_id, item.quantity - 1), handleDecreaseQuantity(item.cart_id)}}
+                            <button
+                              onClick={() => {
+                                if (item.quantity <= 1) {
+                                  handleRemoveItem(item.product_id, item.variant_id);
+                                } else {
+                                  handleUpdateQuantity(item.product_id, item.variant_id, item.quantity - 1);
+                                }
+                                handleDecreaseQuantity(item.id);
+                              }}
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 transition-all hover:bg-white hover:text-primary hover:shadow-sm"
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
                             <span className="w-8 text-center text-xs font-black text-slate-900">{item.quantity}</span>
                             <button 
-                              onClick={() => {handleUpdateQuantity(item.product_id, item.variant_id, item.quantity + 1), handleIncreaseQuantity(item.cart_id)}}
+                              onClick={() => {handleUpdateQuantity(item.product_id, item.variant_id, item.quantity + 1), handleIncreaseQuantity(item.id)}}
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 transition-all hover:bg-white hover:text-primary hover:shadow-sm"
                             >
                               <Plus className="h-3.5 w-3.5" />
@@ -223,7 +230,7 @@ placeOrder.mutate({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {addressLoading ? (
                     Array(2).fill(0).map((_, i) => (
-                      <div key={i} className="h-48 animate-pulse rounded-[2rem] bg-slate-100" />
+                      <div key={i} className="h-48 skeleton-shimmer rounded-[2rem]" />
                     ))
                   ) : addresses?.length > 0 ? (
                     addresses.map(address => (
@@ -262,12 +269,12 @@ placeOrder.mutate({
                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Integrating Payment Gateway...</h2>
                  <p className="mt-4 text-slate-500 font-medium max-w-sm mx-auto">We're setting up a secure payment environment for you. Redirecting to checkout shortly. </p>
                  <div className="mt-8 flex justify-center gap-4">
-                    <div className="h-8 w-12 rounded bg-slate-100 animate-pulse" />
-                    <div className="h-8 w-12 rounded bg-slate-100 animate-pulse" />
-                    <div className="h-8 w-12 rounded bg-slate-100 animate-pulse" />
+                    <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "0ms" }} />
+                    <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "120ms" }} />
+                    <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "240ms" }} />
                  </div>
-                   <button 
-                      disabled={!selectedAddress}
+                   <button
+                      disabled={!selectedAddress || placeOrder.isPending}
                       onClick={createOrder}
                       className="w-full flex h-14 items-center justify-center gap-3 rounded-full bg-primary px-8 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-success/20 transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >

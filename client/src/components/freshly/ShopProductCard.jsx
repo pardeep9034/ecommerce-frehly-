@@ -1,11 +1,11 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@/redux/cartSlice";
-import { useQuery } from "@tanstack/react-query";
-import VariantApi from "@/apis/variantApi";
-import ProductApi from "@/apis/productApi";
+import useProduct from "@/hooks/use-product";
+import useVariant from "@/hooks/use-variant";
+import useInventory from "@/hooks/use-inventory";
 import { useAddToCartMutation } from "@/hooks/use-addToCart";
 
 
@@ -31,59 +31,71 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
 
   const isList = viewMode === "list";
   const addToCartMutation = useAddToCartMutation();
-  const { data: productResponse, isLoading: productLoading, error: productError } = useQuery({
-      queryKey: ["product", product?.id],
-      queryFn: () => ProductApi.getProductById(product?.id),
-      enabled: !!product?.id,
-    });
-  
-    const productData =productResponse?.data;
-    const variant=productData?.variants|| [];
-    const variantIds=variant.map((variant)=>
-      variant.id
-    )
-  
-  const {
-    data: variantInfoData,
-    isLoading: isVariantInfoLoading,
-    isError: isVariantInfoError,
-    error: variantInfoError,
-  } = useQuery({
-    queryKey: ["variantInfo", variantIds],
-    queryFn: () => VariantApi.variantsInfo(variantIds),
-    enabled: variantIds.length > 0,
-  });
-  const variantData=variantInfoData?.data
+
+  // Parent (Shop.jsx) may already pass merged variants annotated with `in_stock`.
+  // When it hasn't (e.g. ShopProductDetail's related-products strip), self-fetch.
+  const preloadedVariants =
+    Array.isArray(product.variants) && product.variants.every((v) => "in_stock" in v)
+      ? product.variants
+      : null;
+
+  const fallbackProductId = preloadedVariants ? null : product?.id;
+  const { productById } = useProduct({ id: fallbackProductId });
+  const fallbackVariantIds = preloadedVariants
+    ? []
+    : (productById?.data?.variants || []).map((v) => v.id);
+  const { variantInfo } = useVariant({ variantIds: fallbackVariantIds });
+  const { inStockVariantIds } = useInventory(undefined, undefined, undefined, fallbackVariantIds);
+
+  const variantData = useMemo(() => {
+    if (preloadedVariants) return preloadedVariants.filter((v) => v.in_stock);
+    const all = variantInfo || [];
+    if (!inStockVariantIds) return all; // not resolved yet, show unfiltered rather than flash empty
+    const inStockSet = new Set(inStockVariantIds.map(Number));
+    return all.filter((v) => inStockSet.has(Number(v.id)));
+  }, [preloadedVariants, variantInfo, inStockVariantIds]);
+
+  const totalVariantCount = preloadedVariants
+    ? preloadedVariants.length
+    : (productById?.data?.variants?.length || 0);
+  const isOutOfStock = totalVariantCount > 0 && variantData.length === 0;
+
   const [selectedVariant, setSelectedVariant] = useState(variantData?.[0] || {});
-  console.log("selected variant",selectedVariant)
   useEffect(() => {
   if (variantData?.length > 0) {
     setSelectedVariant(variantData[0]);
   }
 }, [variantData]);
-    
+
   const currentPrice = selectedVariant.price || price;
   const currentMrp = selectedVariant.mrp || oldPrice;
   const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
 const handleAddToCart = () => {
-  dispatch(
-    addToCart({
-      product_id: product.id,
+  if (isOutOfStock || !selectedVariant?.id) return;
+  addToCartMutation.mutate(
+    {
       variant_id: selectedVariant.id,
-      product_name: name,
-      image: image,
-      variant_name: selectedVariant.variant_name,
-      quantity: 1,
-      price: currentPrice
-    })
+      quantity: 1
+    },
+    {
+      onSuccess: (response) => {
+        const cartItem = response?.data?.data;
+        dispatch(
+          addToCart({
+            id: cartItem?.id,
+            cart_id: cartItem?.cart_id,
+            product_id: product.id,
+            variant_id: selectedVariant.id,
+            product_name: name,
+            image: image,
+            variant_name: selectedVariant.variant_name,
+            quantity: 1,
+            price: currentPrice
+          })
+        );
+      }
+    }
   );
-
-addToCartMutation.mutate({
-  // product_id: product.id,
-  variant_id: selectedVariant.id,
-  quantity:1
-})
-    
 };
     
   
@@ -94,9 +106,18 @@ addToCartMutation.mutate({
     }`}>
       
       {/* Badge (Sale) */}
-      {discount > 0 && (
+      {discount > 0 && !isOutOfStock && (
         <div className="absolute left-2 top-2 sm:left-4 sm:top-4 z-10 rounded-full bg-accent px-2 py-0.5 sm:px-3 sm:py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-accent-foreground shadow-lg shadow-accent/20">
           Save {discount}%
+        </div>
+      )}
+
+      {/* Out of Stock overlay */}
+      {isOutOfStock && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+          <span className="rounded-full bg-foreground px-3 py-1 text-[10px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg">
+            Out of Stock
+          </span>
         </div>
       )}
 
@@ -185,11 +206,15 @@ addToCartMutation.mutate({
             {currentMrp > currentPrice && (
               <span className="text-[10px] sm:text-sm font-bold text-muted-foreground line-through">₹{currentMrp}</span>
             )}</>
-             <button onClick={handleAddToCart} className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-primary px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-success/20 transition-all hover:scale-105 hover:bg-primary/90 active:scale-95 group/cart overflow-hidden relative">
+             <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-primary px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-success/20 transition-all hover:scale-105 hover:bg-primary/90 active:scale-95 group/cart overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
             <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 transition-transform " />
-            
-         
-            
+
+
+
           </button>
           </div>
           

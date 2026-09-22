@@ -1,53 +1,77 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
 import useVariant from "@/hooks/use-variant";
 import useWarehouse from "@/hooks/use-warehouse";
-import SearchableSelector from "@/components/common/SearchableSelector";
 import useProduct from "@/hooks/use-product";
+import SearchableSelector from "@/components/common/SearchableSelector";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+const MOVEMENT_TYPES = ["STOCK_IN", "SALE", "ADJUSTMENT", "DAMAGE", "RETURN"];
+const MOVEMENT_TYPE_OPTIONS = MOVEMENT_TYPES.map((type) => ({ name: type, id: type }));
+
+const movementSchema = z
+  .object({
+    product_id: z.coerce.string().min(1, "Select a product"),
+    variant_id: z.coerce.string().min(1, "Select a variant"),
+    warehouse_id: z.coerce.string().min(1, "Select a warehouse"),
+    movement_type: z.string().min(1, "Select a movement type"),
+    quantity: z.coerce.number().optional(),
+    after_stock: z.coerce.number().optional(),
+    reason: z.string().min(1, "Enter a reason"),
+  })
+  .superRefine((values, ctx) => {
+    if (values.movement_type === "ADJUSTMENT") {
+      if (values.after_stock === undefined || Number.isNaN(values.after_stock)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["after_stock"], message: "Enter the after-stock quantity" });
+      }
+    } else if (values.quantity === undefined || Number.isNaN(values.quantity)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["quantity"], message: "Enter a quantity" });
+    }
+  });
+
 const EMPTY_MOVEMENT = {
-  variant_id:"",
-  warehouse_id:"",
-  product_id:"",
-  movement_type:"",
-  quantity:0,
-  // before_stock:"",
-  after_stock:0,
-  reason:"",
+  product_id: "",
+  variant_id: "",
+  warehouse_id: "",
+  movement_type: "",
+  quantity: "",
+  after_stock: "",
+  reason: "",
 };
-const MOVEMENT_TYPES = ["STOCK_IN", "SALE","ADJUSTMENT","DAMAGE","RETURN"];
 
 const MovementModal = ({ open, onClose, movement, onSave }) => {
-  const [form, setForm] = useState(EMPTY_MOVEMENT);
-  const isEditMode = Boolean(movement && movement.id);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage] = useState(1);
 
-const {variants}=useVariant({productId:form.product_id});
-const {warehouses}=useWarehouse(currentPage,1);
-const {productSelection}=useProduct({page: currentPage, limit: 10});
+  const form = useForm({
+    resolver: zodResolver(movementSchema),
+    defaultValues: EMPTY_MOVEMENT,
+  });
 
+  const productId = form.watch("product_id");
+  const movementType = form.watch("movement_type");
 
-  // useEffect(() => {
-    
-  //   setForm(EMPTY_MOVEMENT);
-  // }, [movement, open]);
+  const { variants } = useVariant({ productId });
+  const { warehouses } = useWarehouse(currentPage, 1);
+  const { productSelection } = useProduct({ page: currentPage, limit: 10 });
+
+  const variantOptions = (variants || []).map((v) => ({ name: `${v.quantity} ${v.measurementUnit.code}`, id: v.id }));
+
+  useEffect(() => {
+    form.reset(EMPTY_MOVEMENT);
+  }, [movement, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
-  const{product_id,...rest}=form;
+  const onSubmit = (values) => {
+    const { product_id: _product_id, ...rest } = values;
     onSave(rest);
-  
     onClose();
   };
 
@@ -62,9 +86,7 @@ const {productSelection}=useProduct({page: currentPage, limit: 10});
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-5 sm:px-7">
-          <h2 className="font-display text-lg font-semibold text-foreground">
-           Add stock
-          </h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">Add Stock</h2>
           <button
             type="button"
             onClick={onClose}
@@ -74,152 +96,167 @@ const {productSelection}=useProduct({page: currentPage, limit: 10});
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-          
-           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="product_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={productSelection?.data?.products}
+                        labelKey="name"
+                        valueKey="id"
+                        placeholder="Select product"
+                        value={field.value}
+                        onSelect={(value) => {
+                          field.onChange(value);
+                          form.setValue("variant_id", "");
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            
-            <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="product">
-                Product
-              </label>
-              <SearchableSelector
-                data={productSelection?.data?.products}
-                labelKey="name"
-                valueKey="id"
-                placeholder="Select Product"
-                // value={form.product_id}
-                onSelect={(value, item) =>
-                  setForm((prev) => ({ ...prev, product_id: value }))
-                }
+              <FormField
+                control={form.control}
+                name="variant_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Variant</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={variantOptions}
+                        labelKey="name"
+                        valueKey="id"
+                        placeholder="Select variant"
+                        value={field.value}
+                        onSelect={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="variant">
-                variant
-              </label>
-              <SearchableSelector
-                data={variants?.map((v) => ({ name: `${v.quantity} ${v.measurementUnit.code}` , id: v.id }))}
-                labelKey="name"
-                valueKey="id"
-                placeholder="Select Variant"
-                // value={form.variant_id}
-                onSelect={(value, item) =>
-                  setForm((prev) => ({ ...prev, variant_id: value }))
-                }
-              />
-            </div>
-            
-          
-          </div>
-          <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="product">
-                warehouse
-              </label>
-              <SearchableSelector
-                data={warehouses}
-                labelKey="name"
-                valueKey="id"
-                placeholder="Select Warehouse"
-                // value={form.warehouse_id}
-                onSelect={(value, item) =>
-                  setForm((prev) => ({ ...prev, warehouse_id: value }))
-                }
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="movement_type">
-                movement type
-              </label>
-              <SearchableSelector
-                data={MOVEMENT_TYPES.map((type) => ({ name: type, id: type }))}
-                labelKey="name"
-                valueKey="id"
-                placeholder="Select Movement Type"
-                // value={form.movement_type}
-                onSelect={(value, item) =>
-                  setForm((prev) => ({ ...prev, movement_type: value }))
-                }
-              />
-              </div>
-         {form.movement_type!=="ADJUSTMENT"&&
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="quantity">
-              Quantity
-            </label>
-            <input
-              id="quantity"
-              name="quantity"
-              value={form.quantity}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter quantity"
+
+            <FormField
+              control={form.control}
+              name="warehouse_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Warehouse</FormLabel>
+                  <FormControl>
+                    <SearchableSelector
+                      id={field.name}
+                      ref={field.ref}
+                      data={warehouses}
+                      labelKey="name"
+                      valueKey="id"
+                      placeholder="Select warehouse"
+                      value={field.value}
+                      onSelect={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-         }
 
-       
-
-      {form.movement_type==="ADJUSTMENT"&&
-      
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="after_Stock">
-              quantity
-            </label>
-            <input
-              id="after_Stock"
-              name="after_stock"
-              value={(form.after_stock)}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev, after_stock: Number(event.target.value),quantity: Number(event.target.value) 
-                }))
-              }
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter after stock"
+            <FormField
+              control={form.control}
+              name="movement_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Movement type</FormLabel>
+                  <FormControl>
+                    <SearchableSelector
+                      id={field.name}
+                      ref={field.ref}
+                      data={MOVEMENT_TYPE_OPTIONS}
+                      labelKey="name"
+                      valueKey="id"
+                      placeholder="Select movement type"
+                      value={field.value}
+                      onSelect={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>}
 
-          
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="reason">
-              Reason
-            </label>
-            <input
-              id="reason"
+            {movementType !== "ADJUSTMENT" && (
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter quantity" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {movementType === "ADJUSTMENT" && (
+              <FormField
+                control={form.control}
+                name="after_stock"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter after stock"
+                        {...field}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          form.setValue("quantity", event.target.value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
               name="reason"
-              value={form.reason}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reason</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter reason" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-      
-
-       
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-          
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-               Add stock
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Add stock</Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

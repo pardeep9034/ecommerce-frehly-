@@ -31,6 +31,7 @@ export default (sequelize) => {
 
           // Inventory
           "READY_FOR_ASSIGNMENT",
+          "AWAITING_CUSTOMER_CONFIRMATION",
 
           // Delivery
           "ASSIGNED",
@@ -63,6 +64,11 @@ export default (sequelize) => {
       total_amount: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false
+      },
+      refunded_amount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0
       },
       payment_status: {
         type: DataTypes.ENUM("PENDING", "SUCCESS", "FAILED", "REFUNDED"),

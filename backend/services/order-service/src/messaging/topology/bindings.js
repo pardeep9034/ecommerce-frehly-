@@ -29,6 +29,11 @@ export default [
     routingKey: 'order.cancelled', // same queue, different routing key
   },
   {
+    exchange: exchanges.ORDER_EVENTS.name,
+    queue: queues.EMAIL_ORDER_QUEUE.name,
+    routingKey: 'order.items.finalized', // same queue, different routing key
+  },
+  {
     exchange: exchanges.PAYMENT_EVENTS.name,
     queue: queues.PAYMENT_QUEUE.name,
     routingKey: 'payment.*', // topic wildcard: payment.charged, payment.refunded, etc.

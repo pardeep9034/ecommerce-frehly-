@@ -41,9 +41,9 @@ class ProductRepository extends BaseRepository{
         }
      );
 }
-    async getAllProducts(limit = 0, offset = 0) {
-    
-        return await this.findAndCountAll({},{
+    async getAllProducts(limit = 0, offset = 0, status) {
+
+        return await this.findAndCountAll(status ? { status } : {},{
            include: [
     { association: "variants" },
     { association: "category" }
@@ -54,11 +54,11 @@ class ProductRepository extends BaseRepository{
           
         });
     }
-    async findExisting(name,slug){
+    async findExisting(name,slug,excludeId){
         return await this.findOne({
-            [Op.or]:[
-                {name},
-                {slug}
+            [Op.and]:[
+                { [Op.or]:[ {name}, {slug} ] },
+                excludeId ? { id: { [Op.ne]: excludeId } } : {}
             ]
         });
     }

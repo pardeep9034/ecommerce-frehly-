@@ -37,10 +37,10 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                 </td>
                 <td className="px-5 py-4 sm:px-6">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${product.status ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${product.status === "ACTIVE" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                       }`}
                   >
-                    {product.status ? "Active" : "Inactive"}
+                    {product.status || "Unknown"}
                   </span>
                 </td>
                 <td className="px-5 py-4 sm:px-6">

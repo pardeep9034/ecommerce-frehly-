@@ -8,6 +8,7 @@ import useVariant from "@/hooks/use-variant";
 import VariantTable from "@/components/dashboard/VariantTable";
 import VariantModal from "@/components/dashboard/VariantModal";
 import StockModal from "@/components/dashboard/StockModal";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
 // import AssignPromotionModal from "@/components/dashboard/AssignPromotionModal";
 
 const InfoItem = ({ icon: Icon, label, value }) => (
@@ -61,8 +62,18 @@ const ProductDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-lg font-medium text-muted-foreground">Loading product...</p>
+      <div className="space-y-6 lg:space-y-7">
+        <div className="h-5 w-32 rounded skeleton-shimmer" />
+        <div className="rounded-xl border border-border bg-white shadow-card">
+          <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:p-7">
+            <div className="h-20 w-20 shrink-0 rounded-xl skeleton-shimmer" />
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="h-6 w-1/3 rounded skeleton-shimmer" style={{ animationDelay: "80ms" }} />
+              <div className="h-4 w-1/4 rounded skeleton-shimmer" style={{ animationDelay: "160ms" }} />
+            </div>
+          </div>
+        </div>
+        <TableSkeleton rows={4} columns={4} />
       </div>
     );
   }

@@ -1,6 +1,5 @@
-import { Search, Plus ,ArrowLeft} from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import VariantTable from "@/components/dashboard/VariantTable";
 import VariantModal from "@/components/dashboard/VariantModal";
@@ -9,6 +8,7 @@ import useVariant from "@/hooks/use-variant";
 import useProduct from "@/hooks/use-product";
 import SearchableSelector from "@/components/common/SearchableSelector";
 import StockModal from "@/components/dashboard/StockModal";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 const VariantPage=()=>{
     // const [searchTerm, setSearchTerm] = useState("")
@@ -21,7 +21,6 @@ const VariantPage=()=>{
         
           const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
           const [editingVariant, setEditingVariant] = useState(null);
-        const navigate=useNavigate()
         // const {data,isLoading,createMutation,updateMutation,deleteMutation}=useProductAttribute(currentPage,1)
           const {
             variants,
@@ -67,30 +66,12 @@ const VariantPage=()=>{
         
     return(
          <div className="space-y-6 lg:space-y-7">
-                 <button
-                        type="button"
-                        onClick={() => navigate("/dashboard/products")}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Products
-                      </button>
-              <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
-                <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-                  
-                  <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-                    
-                      <SearchableSelector
-                      data={products?.data?.products}
-                      placeholder="select a product"
-                      onSelect={(id)=>{setSelectedProductId(id);console.log("selectedProductId",selectedProductId);}}
-                      onSearchChange={(q)=>setSearchQuery(q)}
-                      
-                      />
-                    
-                    
-                  </div>
-        
+              <PageHeader
+                title="Variants"
+                description="Manage per-product variants and their stock."
+                backTo="/dashboard/products"
+                backLabel="Back to Products"
+                action={
                   <button
                     onClick={()=>openAddVariant()}
                     type="button"
@@ -99,9 +80,17 @@ const VariantPage=()=>{
                     <Plus className="h-4 w-4" />
                     Add Product Variant
                   </button>
-                </div>
+                }
+              />
+              <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
+                <SearchableSelector
+                data={products?.data?.products}
+                placeholder="select a product"
+                onSelect={(id)=>{setSelectedProductId(id);console.log("selectedProductId",selectedProductId);}}
+                onSearchChange={(q)=>setSearchQuery(q)}
+                />
               </div>
-              
+
       <VariantModal
         open={isVariantModalOpen}
         onClose={() => {

@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import initializeModels from "../../models/index.js";
 import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
@@ -15,6 +16,7 @@ const ORDER_STATUS = {
   PLACED: "PLACED",
   CONFIRMED: "CONFIRMED",
   READY_FOR_ASSIGNMENT:"READY_FOR_ASSIGNMENT",
+  AWAITING_CUSTOMER_CONFIRMATION: "AWAITING_CUSTOMER_CONFIRMATION",
   ASSIGNED:"ASSIGNED",
   PICKED_UP:"PICKED_UP",
   OUT_FOR_DELIVERY: "OUT_FOR_DELIVERY",
@@ -35,14 +37,17 @@ const PAYMENT_STATUS = {
 };
 
 const ALLOWED_TRANSITIONS = {
-  [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.PLACED],
-  [ORDER_STATUS.PLACED]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED,ORDER_STATUS.READY_FOR_ASSIGNMENT],
-  [ORDER_STATUS.READY_FOR_ASSIGNMENT]:[ORDER_STATUS.ASSIGNED,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED],
-  [ORDER_STATUS.ASSIGNED]:[ORDER_STATUS.PICKED_UP,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.PICKED_UP]:[ORDER_STATUS.OUT_FOR_DELIVERY,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.PICKED_UP]:[ORDER_STATUS.HANDOVER_IN_PROGRESS,ORDER_STATUS.CANCELLED,ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED]
+  [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.PLACED, ORDER_STATUS.PAYMENT_FAILED, ORDER_STATUS.PAYMENT_EXPIRED],
+  [ORDER_STATUS.PLACED]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.READY_FOR_ASSIGNMENT, ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.READY_FOR_ASSIGNMENT, ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION, ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION]: [ORDER_STATUS.READY_FOR_ASSIGNMENT, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.READY_FOR_ASSIGNMENT]: [ORDER_STATUS.ASSIGNED, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.ASSIGNED]: [ORDER_STATUS.PICKED_UP, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.PICKED_UP]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.HANDOVER_IN_PROGRESS, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.HANDOVER_IN_PROGRESS]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
+  [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED],
+  [ORDER_STATUS.PAYMENT_FAILED]: [ORDER_STATUS.PENDING_PAYMENT],
+  [ORDER_STATUS.PAYMENT_EXPIRED]: [ORDER_STATUS.PENDING_PAYMENT]
 };
 
 const CUSTOMER_CANCEL_STATUSES = new Set([
@@ -104,6 +109,10 @@ class OrderService {
 const cartItems= await cartItemsResponse.json();
 logger.debug("cart items", { cartItems });
 
+if (!cartItems?.data?.items?.length) {
+  throw new AppError("Cart is empty", 400);
+}
+
 
 const userAddressResponse=await fetch(`${env.API_GATEWAY_URL}/user-addresses/${data.address_id}`,{
   method:"GET",
@@ -119,6 +128,9 @@ if(!userAddress.success){
   throw new AppError("user address not found",404)
 }
 
+    const paymentMethod = data.payment_method || "COD";
+    const isCOD = paymentMethod === "COD";
+
     const db = await initializeModels();
     const reservationIds = [];
 
@@ -130,16 +142,16 @@ if(!userAddress.success){
         const order = await OrderRepository.createOrder({
           order_number: generateOrderNumber(),
           user_id: userId,
-          status: ORDER_STATUS.PENDING_PAYMENT,
+          status: isCOD ? ORDER_STATUS.PLACED : ORDER_STATUS.PENDING_PAYMENT,
           subtotal: totals.subtotal,
           delivery_fee: totals.delivery_fee,
           discount_amount: totals.discount_amount,
           total_amount: totals.total_amount,
-          payment_status: PAYMENT_STATUS.PENDING,
-          placed_at: null
+          payment_status: isCOD ? PAYMENT_STATUS.SUCCESS : PAYMENT_STATUS.PENDING,
+          placed_at: isCOD ? new Date() : null
         }, { transaction });
 
-        await OrderItemRepository.createOrderItems(
+        const createdItems = await OrderItemRepository.createOrderItems(
           snapshotItems.map((item) => ({
             ...item,
             order_id: order.id
@@ -165,16 +177,17 @@ if(!userAddress.success){
         await OrderStatusHistoryRepository.createStatusHistory({
           order_id: order.id,
           old_status: null,
-          new_status: ORDER_STATUS.PENDING_PAYMENT,
+          new_status: order.status,
           changed_by: userId,
-          remarks: "Order created and awaiting payment"
+          remarks: isCOD ? "Order placed with Cash on Delivery" : "Order created and awaiting payment"
         }, { transaction });
 
         const payment = await PaymentRepository.createPayment({
           order_id: order.id,
-          payment_method: data.payment_method || "COD",
+          payment_method: paymentMethod,
           amount: totals.total_amount,
-          status: PAYMENT_STATUS.PENDING,
+          status: isCOD ? PAYMENT_STATUS.SUCCESS : PAYMENT_STATUS.PENDING,
+          paid_at: isCOD ? new Date() : null,
           gateway_response: null
         }, { transaction });
         const orderData=order.toJSON()
@@ -189,22 +202,21 @@ if(!userAddress.success){
             item.quantity,
             authorization
           );
-          const reservationData={
-            order_id: order.id,
-            variant_id:item.variant_id,
-            warehouse_id:data.warehouse_id
-          }
-
 
           if (reservation?.id) {
             reservationIds.push(reservation.id);
+
+            const createdItem = createdItems.find((created) => created.variant_id === item.variant_id);
+            if (createdItem) {
+              await OrderItemRepository.updateItem(createdItem.id, { reservation_id: reservation.id }, { transaction });
+            }
           }
         }
 
         await PaymentRepository.updatePayment(payment.id, {
           gateway_response: JSON.stringify({
             reservation_ids: reservationIds,
-            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+            ...(isCOD ? {} : { expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() })
           })
         }, { transaction });
            await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
@@ -218,8 +230,8 @@ if(!userAddress.success){
             order_number: order.order_number,
             payment_id: payment.id,
             amount: totals.total_amount,
-            status: PAYMENT_STATUS.PENDING,
-            expires_in_minutes: 15
+            status: payment.status,
+            expires_in_minutes: isCOD ? null : 15
           }
         };
       });
@@ -288,6 +300,45 @@ if(!userAddress.success){
 
     if (userId) {
       where.user_id = userId;
+    }
+
+    const { count, rows } = await OrderRepository.getOrderHistory(where, limit, offset);
+
+    return {
+      orders: rows,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        limit,
+        hasNextPage: page < Math.ceil(count / limit),
+        hasPrevPage: page > 1
+      }
+    };
+  }
+
+  async getAllOrders(query = {}) {
+    const page = Number.parseInt(query.page, 10) || 1;
+    const limit = Number.parseInt(query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+    const where = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.user_id) {
+      where.user_id = query.user_id;
+    }
+
+    if (query.search) {
+      const trimmed = String(query.search).trim();
+      if (/^\d+$/.test(trimmed)) {
+        const numeric = Number(trimmed);
+        where[Op.or] = [{ id: numeric }, { user_id: numeric }];
+      } else {
+        where.id = -1;
+      }
     }
 
     const { count, rows } = await OrderRepository.getOrderHistory(where, limit, offset);
@@ -414,6 +465,190 @@ if(!userAddress.success){
     });
   }
 
+  async updateOrderItemStatus(orderId, itemId, data, user) {
+    const db = await initializeModels();
+
+    return await db.sequelize.transaction(async (transaction) => {
+      const order = await OrderRepository.getOrderWithItems(orderId, { transaction });
+
+      if (!order) {
+        throw new AppError("Order not found", 404);
+      }
+
+      if (![ORDER_STATUS.PLACED, ORDER_STATUS.CONFIRMED].includes(order.status)) {
+        throw new AppError(`Cannot review items while order is ${order.status}`, 400);
+      }
+
+      const item = (order.items || []).find((orderItem) => Number(orderItem.id) === Number(itemId));
+
+      if (!item) {
+        throw new AppError("Order item not found", 404);
+      }
+
+      await OrderItemRepository.updateItem(item.id, {
+        status: data.status,
+        admin_remarks: data.remarks || null
+      }, { transaction });
+
+      return await this.getOrderDetails(order.id, user, { transaction });
+    });
+  }
+
+  async finalizeOrderItems(orderId, user, authorization) {
+    const db = await initializeModels();
+
+    return await db.sequelize.transaction(async (transaction) => {
+      const order = await OrderRepository.getOrderWithItems(orderId, { transaction });
+
+      if (!order) {
+        throw new AppError("Order not found", 404);
+      }
+
+      if (![ORDER_STATUS.PLACED, ORDER_STATUS.CONFIRMED].includes(order.status)) {
+        throw new AppError(`Cannot finalize items while order is ${order.status}`, 400);
+      }
+
+      const items = order.items || [];
+      const pendingCount = items.filter((item) => item.status === "PENDING").length;
+
+      if (pendingCount > 0) {
+        throw new AppError(`${pendingCount} item(s) still pending review`, 400);
+      }
+
+      const readyItems = items.filter((item) => item.status === "READY");
+      const unavailableItems = items.filter((item) => item.status === "NOT_AVAILABLE");
+
+      let refundTotal = 0;
+
+      for (const item of unavailableItems) {
+        if (item.reservation_id) {
+          await this.requestInventory(
+            `/stock-reservations/${item.reservation_id}/release`,
+            { method: "PATCH" },
+            authorization
+          );
+        }
+
+        const refundAmount = Number(item.line_total);
+        refundTotal += refundAmount;
+
+        await OrderItemRepository.updateItem(item.id, {
+          refund_amount: refundAmount,
+          refunded_at: new Date()
+        }, { transaction });
+      }
+
+      const oldStatus = order.status;
+      let newStatus;
+
+      if (unavailableItems.length === 0) {
+        newStatus = ORDER_STATUS.READY_FOR_ASSIGNMENT;
+      } else if (readyItems.length === 0) {
+        newStatus = ORDER_STATUS.CANCELLED;
+      } else {
+        newStatus = ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION;
+      }
+
+      this.assertTransition(oldStatus, newStatus);
+
+      await OrderRepository.updateOrder(order.id, {
+        status: newStatus,
+        refunded_amount: Number(order.refunded_amount) + refundTotal
+      }, { transaction });
+
+      await OrderStatusHistoryRepository.createStatusHistory({
+        order_id: order.id,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: getUserId(user),
+        remarks: unavailableItems.length > 0
+          ? `${unavailableItems.length} item(s) unavailable, ₹${refundTotal.toFixed(2)} refunded`
+          : "All items ready for delivery"
+      }, { transaction });
+
+      await publisher.publish(OrderEvents.ORDER_ITEMS_FINALIZED, {
+        orderId: order.id,
+        readyItems: readyItems.map((item) => ({ id: item.id, product_name: item.product_name })),
+        unavailableItems: unavailableItems.map((item) => ({
+          id: item.id,
+          product_name: item.product_name,
+          remarks: item.admin_remarks
+        })),
+        refundAmount: refundTotal,
+        newStatus
+      });
+
+      return await this.getOrderDetails(order.id, user, { transaction });
+    });
+  }
+
+  async confirmPartialOrder(orderId, decision, user, authorization) {
+    const db = await initializeModels();
+
+    return await db.sequelize.transaction(async (transaction) => {
+      const order = await OrderRepository.getOrderWithItems(orderId, { transaction });
+
+      if (!order) {
+        throw new AppError("Order not found", 404);
+      }
+
+      this.validateOrderAccess(order, user);
+
+      if (order.status !== ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION) {
+        throw new AppError(`Order is not awaiting confirmation (current status: ${order.status})`, 400);
+      }
+
+      const oldStatus = order.status;
+      let newStatus;
+      let additionalRefund = 0;
+
+      if (decision === "ACCEPT_PARTIAL") {
+        newStatus = ORDER_STATUS.READY_FOR_ASSIGNMENT;
+      } else {
+        const readyItems = (order.items || []).filter((item) => item.status === "READY");
+
+        for (const item of readyItems) {
+          if (item.reservation_id) {
+            await this.requestInventory(
+              `/stock-reservations/${item.reservation_id}/release`,
+              { method: "PATCH" },
+              authorization
+            );
+          }
+
+          const refundAmount = Number(item.line_total);
+          additionalRefund += refundAmount;
+
+          await OrderItemRepository.updateItem(item.id, {
+            refund_amount: refundAmount,
+            refunded_at: new Date()
+          }, { transaction });
+        }
+
+        newStatus = ORDER_STATUS.CANCELLED;
+      }
+
+      this.assertTransition(oldStatus, newStatus);
+
+      await OrderRepository.updateOrder(order.id, {
+        status: newStatus,
+        refunded_amount: Number(order.refunded_amount) + additionalRefund
+      }, { transaction });
+
+      await OrderStatusHistoryRepository.createStatusHistory({
+        order_id: order.id,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: getUserId(user),
+        remarks: decision === "ACCEPT_PARTIAL"
+          ? "Customer accepted partial order"
+          : "Customer cancelled remaining items"
+      }, { transaction });
+
+      return await this.getOrderDetails(order.id, user, { transaction });
+    });
+  }
+
   async handlePaymentSuccess(orderId, data, authorization) {
     const db = await initializeModels();
 
@@ -434,6 +669,8 @@ if(!userAddress.success){
     ) {
       throw new AppError("Only pending payment orders can be marked successful", 400);
     }
+
+    this.assertTransition(existingOrder.status, ORDER_STATUS.PLACED);
 
     await this.confirmReservations(orderId, authorization);
 
@@ -487,6 +724,8 @@ if(!userAddress.success){
     ) {
       throw new AppError("Only pending payment orders can be marked failed", 400);
     }
+
+    this.assertTransition(existingOrder.status, ORDER_STATUS.PAYMENT_FAILED);
 
     await this.releaseReservations(orderId, authorization, "release");
 
@@ -572,6 +811,8 @@ if(!userAddress.success){
           await PaymentRepository.updatePayment(payment.id, { status: PAYMENT_STATUS.EXPIRED }, { transaction });
         }
 
+        this.assertTransition(order.status, ORDER_STATUS.PAYMENT_EXPIRED);
+
         await OrderRepository.updateOrder(order.id, {
           status: ORDER_STATUS.PAYMENT_EXPIRED,
           payment_status: PAYMENT_STATUS.FAILED
@@ -593,6 +834,98 @@ if(!userAddress.success){
       expired_count: expired.length,
       order_ids: expired
     };
+  }
+
+  async retryPayment(orderId, data, user, authorization) {
+    const order = await OrderRepository.getOrderWithItems(orderId);
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
+
+    this.validateOrderAccess(order, user);
+    this.assertTransition(order.status, ORDER_STATUS.PENDING_PAYMENT);
+
+    const latestPayment = await PaymentRepository.findOne(
+      { order_id: orderId },
+      { order: [["created_at", "DESC"]] }
+    );
+    const paymentMethod = data.payment_method || latestPayment?.payment_method || "COD";
+
+    const db = await initializeModels();
+    const reservationIds = [];
+
+    try {
+      return await db.sequelize.transaction(async (transaction) => {
+        const freshOrder = await OrderRepository.getOrderById(orderId, { transaction });
+        const oldStatus = freshOrder.status;
+
+        this.assertTransition(oldStatus, ORDER_STATUS.PENDING_PAYMENT);
+
+        const items = await OrderItemRepository.getItemsByOrderId(orderId, { transaction });
+
+        await OrderRepository.updateOrder(freshOrder.id, {
+          status: ORDER_STATUS.PENDING_PAYMENT,
+          payment_status: PAYMENT_STATUS.PENDING
+        }, { transaction });
+
+        await OrderStatusHistoryRepository.createStatusHistory({
+          order_id: freshOrder.id,
+          old_status: oldStatus,
+          new_status: ORDER_STATUS.PENDING_PAYMENT,
+          changed_by: getUserId(user),
+          remarks: data.remarks || "Payment retry initiated"
+        }, { transaction });
+
+        const payment = await PaymentRepository.createPayment({
+          order_id: freshOrder.id,
+          payment_method: paymentMethod,
+          amount: freshOrder.total_amount,
+          status: PAYMENT_STATUS.PENDING,
+          paid_at: null,
+          gateway_response: null
+        }, { transaction });
+
+        for (const item of items) {
+          const reservation = await this.createReservation(
+            freshOrder.id,
+            item.variant_id,
+            data.warehouse_id,
+            item.quantity,
+            authorization
+          );
+
+          if (reservation?.id) {
+            reservationIds.push(reservation.id);
+            await OrderItemRepository.updateItem(item.id, { reservation_id: reservation.id }, { transaction });
+          }
+        }
+
+        await PaymentRepository.updatePayment(payment.id, {
+          gateway_response: JSON.stringify({
+            reservation_ids: reservationIds,
+            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+          })
+        }, { transaction });
+
+        const details = await this.getOrderDetails(freshOrder.id, user, { transaction });
+
+        return {
+          order: details,
+          payment_session: {
+            order_id: freshOrder.id,
+            order_number: freshOrder.order_number,
+            payment_id: payment.id,
+            amount: freshOrder.total_amount,
+            status: payment.status,
+            expires_in_minutes: 15
+          }
+        };
+      });
+    } catch (error) {
+      await this.compensateReservations(reservationIds, authorization);
+      throw error;
+    }
   }
 
   assertTransition(currentStatus, nextStatus) {

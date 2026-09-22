@@ -43,9 +43,9 @@ class ProductServices {
             
         };
     }
-    async getAllProducts(limit,offset) {
+    async getAllProducts(limit,offset,status) {
         try{
-      const { count, rows } = await  ProductRepository.getAllProducts(limit,offset);
+      const { count, rows } = await  ProductRepository.getAllProducts(limit,offset,status);
       const currentPage = Math.floor(offset / limit) + 1;
       const totalPages = Math.ceil(count / limit);
      return {
@@ -149,7 +149,7 @@ class ProductServices {
                 throw new AppError("Product not found", 404);
             }
             const slug = await slugMaker(productData.name);
-            const existing=await ProductRepository.findExisting(productData.name,slug);
+            const existing=await ProductRepository.findExisting(productData.name,slug,id);
             if(existing){
                 throw new AppError("Product already exists with same name", 409);
             }

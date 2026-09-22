@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 
-const useProduct = ({page = 1, limit = 10,type,catId,search}) => {
+const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => {
   const queryClient = useQueryClient();
 
   // GET - fetch all products with pagination
@@ -10,10 +10,21 @@ const useProduct = ({page = 1, limit = 10,type,catId,search}) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["products", page, limit],
-    queryFn: () => ProductApi.getAllProducts(page, limit),
+    queryKey: ["products", page, limit, status],
+    queryFn: () => ProductApi.getAllProducts(page, limit, status),
   });
-  
+
+  // GET - fetch a single product by id
+  const {
+    data: productById,
+    isLoading: productByIdLoading,
+    error: productByIdError,
+  } = useQuery({
+    queryKey: ["product", id],
+    queryFn: () => ProductApi.getProductById(id),
+    enabled: !!id,
+  });
+
   const {
     data: catProducts,
     isLoading: catProductsIsLoading,
@@ -84,6 +95,9 @@ error:searchedProductError
     products,
     isLoading,
     error,
+    productById,
+    productByIdLoading,
+    productByIdError,
     createProduct: createMutation,
     updateProduct: updateMutation,
     deleteProduct: deleteMutation,

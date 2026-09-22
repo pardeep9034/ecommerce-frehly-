@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import useProduct from "@/hooks/use-product";
 import useCategory from "@/hooks/use-category";
+import useVariant from "@/hooks/use-variant";
+import useInventory from "@/hooks/use-inventory";
 import ShopProductCard from "@/components/freshly/ShopProductCard";
-import { useQuery } from "@tanstack/react-query";
-import VariantApi from "@/apis/variantApi";
 
 const Shop = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,8 +30,7 @@ const Shop = () => {
     products: productsData,
     isLoading: productsLoading,
     error: productsError,
-  } = useProduct(currentPage, pageSize);
-  // const variantIds=pro
+  } = useProduct({ page: currentPage, limit: pageSize, status: "ACTIVE" });
 
   const {
     categories: categoriesData,
@@ -96,18 +95,9 @@ const variantIds = useMemo(() => {
     ),
   ];
 }, [filteredAndSortedProducts]);
-const {
-  data: variantInfoData,
-  isLoading: isVariantInfoLoading,
-  isError: isVariantInfoError,
-  error: variantInfoError,
-} = useQuery({
-  queryKey: ["variantInfo", variantIds],
-  queryFn: () => VariantApi.variantsInfo(variantIds),
-  enabled: variantIds.length > 0,
-});
+const { variantInfo } = useVariant({ variantIds });
 const variantInfoMap = useMemo(() => {
-  const variants = variantInfoData?.data || [];
+  const variants = variantInfo || [];
 
   return new Map(
     variants.map((variant) => [
@@ -115,30 +105,38 @@ const variantInfoMap = useMemo(() => {
       variant,
     ])
   );
-}, [variantInfoData]);
-const productsWithVariantInfo = useMemo(() => {
-  return filteredAndSortedProducts.map((product) => ({
+}, [variantInfo]);
+const { inStockVariantIds } = useInventory(undefined, undefined, undefined, variantIds);
+const inStockSet = useMemo(
+  () => (inStockVariantIds ? new Set(inStockVariantIds.map(Number)) : null),
+  [inStockVariantIds]
+);
+const { inStockProducts, outOfStockProducts } = useMemo(() => {
+  // inStockSet null while the in-stock check hasn't resolved yet -> show
+  // everything unfiltered rather than flashing an empty grid.
+  const merged = filteredAndSortedProducts.map((product) => ({
     ...product,
+    variants: (product.variants || []).map((variant) => {
+      const info = variantInfoMap.get(Number(variant.id));
 
-    variants: (product.variants || []).map(
-      (variant) => {
-        const info = variantInfoMap.get(
-          Number(variant.id)
-        );
-
-        return {
-          ...variant,
-          ...info,
-          variant_name:
-            info?.variant_name || null,
-        };
-      }
-    ),
+      return {
+        ...variant,
+        ...info,
+        variant_name: info?.variant_name || null,
+        in_stock: !inStockSet || inStockSet.has(Number(variant.id)),
+      };
+    }),
   }));
-}, [
-  filteredAndSortedProducts,
-  variantInfoMap,
-]);
+
+  return {
+    inStockProducts: merged.filter(
+      (product) => !inStockSet || product.variants.some((v) => v.in_stock)
+    ),
+    outOfStockProducts: inStockSet
+      ? merged.filter((product) => !product.variants.some((v) => v.in_stock))
+      : [],
+  };
+}, [filteredAndSortedProducts, variantInfoMap, inStockSet]);
 
   const totalPages = pagination.totalPages || 1;
 
@@ -270,7 +268,7 @@ const productsWithVariantInfo = useMemo(() => {
           <main className="flex-1">
             <div className="mb-6 flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">
-                Showing <span className="font-bold text-foreground">{filteredAndSortedProducts.length}</span> results
+                Showing <span className="font-bold text-foreground">{inStockProducts.length}</span> results
               </p>
               
               <div className="flex items-center gap-2">
@@ -297,22 +295,22 @@ const productsWithVariantInfo = useMemo(() => {
             {productsLoading ? (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="animate-pulse flex flex-col rounded-3xl bg-white p-4">
-                    <div className="aspect-square rounded-2xl bg-gray-100" />
+                  <div key={i} className="flex flex-col rounded-3xl bg-white p-4">
+                    <div className="aspect-square rounded-2xl skeleton-shimmer" />
                     <div className="mt-4 space-y-3">
-                      <div className="h-4 w-1/3 rounded bg-gray-100" />
-                      <div className="h-6 w-3/4 rounded bg-gray-100" />
-                      <div className="h-4 w-1/2 rounded bg-gray-100" />
+                      <div className="h-4 w-1/3 rounded skeleton-shimmer" style={{ animationDelay: "80ms" }} />
+                      <div className="h-6 w-3/4 rounded skeleton-shimmer" style={{ animationDelay: "160ms" }} />
+                      <div className="h-4 w-1/2 rounded skeleton-shimmer" style={{ animationDelay: "240ms" }} />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : productsWithVariantInfo.length > 0 ? (
-              <div className={viewMode === "grid" 
-                ? "grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3" 
+            ) : inStockProducts.length > 0 ? (
+              <div className={viewMode === "grid"
+                ? "grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3"
                 : "flex flex-col gap-4 sm:gap-6"
               }>
-                {productsWithVariantInfo.map((product) => (
+                {inStockProducts.map((product) => (
                   <ShopProductCard key={product.id} product={product} viewMode={viewMode} />
                 ))}
               </div>
@@ -366,6 +364,19 @@ const productsWithVariantInfo = useMemo(() => {
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
+              </div>
+            )}
+
+            {outOfStockProducts.length > 0 && (
+              <div className="mt-16">
+                <h2 className="mb-4 text-lg font-black text-slate-900">Out of Stock</h2>
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {outOfStockProducts.map((product) => (
+                    <div key={product.id} className="w-64 shrink-0">
+                      <ShopProductCard product={product} viewMode="grid" />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </main>

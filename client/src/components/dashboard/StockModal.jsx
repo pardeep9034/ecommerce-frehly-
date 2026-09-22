@@ -32,6 +32,7 @@ const StockModal = ({ open, onClose, variantId }) => {
     queryKey: ["variant-stock", variantId, warehouseId],
     queryFn: () => InventoryApi.fetchVariantStock(variantId, warehouseId),
     enabled: open && Boolean(variantId) && Boolean(warehouseId),
+    retry: (failureCount, error) => error?.response?.status !== 404 && failureCount < 2,
   });
 
   const warehouses = useMemo(() => getWarehouses(warehousesQuery.data), [warehousesQuery.data]);
@@ -69,7 +70,13 @@ const StockModal = ({ open, onClose, variantId }) => {
 
           {!warehouseId && <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">Select a warehouse to view this variant’s stock.</p>}
           {stockQuery.isLoading && <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">Loading stock…</p>}
-          {stockQuery.isError && <p className="rounded-lg bg-destructive px-4 py-3 text-sm text-destructive">Unable to load stock for this warehouse.</p>}
+          {stockQuery.isError && (
+            <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {stockQuery.error?.response?.status === 404
+                ? "No inventory record for this variant in this warehouse."
+                : "Unable to load stock for this warehouse."}
+            </p>
+          )}
           {warehouseId && stockQuery.isSuccess && (
             <div className="grid grid-cols-3 gap-3">
               <StockItem label="Stock" value={stock?.current_stock ?? 0} />

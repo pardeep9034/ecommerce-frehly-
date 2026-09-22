@@ -49,9 +49,9 @@ const MyOrders = () => {
     return (
       <div className="min-h-screen bg-muted py-12">
         <div className="mx-auto max-w-4xl px-4">
-          <div className="mb-8 h-8 w-48 animate-pulse rounded bg-gray-200" />
+          <div className="mb-8 h-8 w-48 skeleton-shimmer rounded" />
           {[1, 2, 3].map((i) => (
-            <div key={i} className="mb-6 h-48 animate-pulse rounded-xl bg-white shadow-sm" />
+            <div key={i} className="mb-6 h-48 skeleton-shimmer rounded-xl shadow-sm" style={{ animationDelay: `${i * 120}ms` }} />
           ))}
         </div>
       </div>

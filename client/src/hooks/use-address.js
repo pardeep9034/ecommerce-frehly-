@@ -1,17 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserAddresses, createAddress, updateAddress, deleteAddress } from "@/apis/userApi";
-import { useSelector } from "react-redux";
 
 const useAddress = () => {
     const queryClient = useQueryClient();
-    const user = useSelector((state) => state.auth.user);
-    console.log ("user",user)
-    
+    const token = localStorage.getItem("token");
+
     // GET - fetch addresses
     const { data: addresses, isLoading, error } = useQuery({
         queryKey: ["addresses"],
-        queryFn: () => getUserAddresses(user?.id),
-        enabled:!!user?.id
+        queryFn: () => getUserAddresses(),
+        enabled: !!token
     });
     
     // POST - create address

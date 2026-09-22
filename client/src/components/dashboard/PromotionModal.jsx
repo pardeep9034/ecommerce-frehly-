@@ -1,10 +1,29 @@
-import { useEffect, useState } from "react";
-import { X, Tag } from "lucide-react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 const PROMOTION_TYPES = ["HOT", "POPULAR", "DISCOUNT"];
 const DISCOUNT_TYPES = ["PERCENT", "FLAT"];
 
-const defaultForm = {
+const promotionSchema = z.object({
+  title: z.string().min(1, "Enter a title"),
+  type: z.string().min(1, "Select a promotion type"),
+  discountType: z.string().min(1, "Select a discount type"),
+  discountValue: z.coerce.number({ invalid_type_error: "Enter a discount value" }).min(0, "Enter a discount value"),
+  startDate: z.string().optional().default(""),
+  endDate: z.string().optional().default(""),
+  isActive: z.boolean().default(true),
+  priority: z.coerce.number().min(1, "Enter a priority").default(1),
+});
+
+const EMPTY_PROMOTION = {
   title: "",
   type: "HOT",
   discountType: "PERCENT",
@@ -16,11 +35,16 @@ const defaultForm = {
 };
 
 const PromotionModal = ({ open, onClose, promotion, onSave }) => {
-  const [form, setForm] = useState(defaultForm);
+  const isEditMode = Boolean(promotion);
+
+  const form = useForm({
+    resolver: zodResolver(promotionSchema),
+    defaultValues: EMPTY_PROMOTION,
+  });
 
   useEffect(() => {
     if (promotion) {
-      setForm({
+      form.reset({
         title: promotion.title || "",
         type: promotion.type || "HOT",
         discountType: promotion.discountType || "PERCENT",
@@ -30,214 +54,211 @@ const PromotionModal = ({ open, onClose, promotion, onSave }) => {
         isActive: promotion.isActive ?? true,
         priority: promotion.priority ?? 1,
       });
-    } else {
-      setForm(defaultForm);
+      return;
     }
+    form.reset(EMPTY_PROMOTION);
   }, [promotion, open]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+  if (!open) {
+    return null;
+  }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const payload = {
-      ...form,
-      discountValue: form.discountValue !== "" ? parseFloat(form.discountValue) : null,
-      priority: parseInt(form.priority, 10),
-      startDate: form.startDate || null,
-      endDate: form.endDate || null,
-    };
-    onSave(payload);
+  const onSubmit = (values) => {
+    onSave({
+      ...values,
+      startDate: values.startDate || null,
+      endDate: values.endDate || null,
+    });
+    onClose();
   };
-
-  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg animate-in zoom-in-95 duration-200 rounded-2xl bg-white shadow-2xl">
+        className="mx-4 w-full max-w-lg rounded-xl border border-border bg-white shadow-card max-h-[90vh] overflow-y-auto"
+        onClick={(event) => event.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-              <Tag className="h-4.5 w-4.5 text-primary" />
-            </div>
-            <h2 className="text-base font-bold text-foreground">
-              {promotion ? "Edit Promotion" : "Add Promotion"}
-            </h2>
-          </div>
+        <div className="flex items-center justify-between border-b border-border px-6 py-5 sm:px-7">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            {isEditMode ? "Edit Promotion" : "Add Promotion"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          {/* Title */}
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-foreground">
-              Title
-            </label>
-            <input
-              type="text"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <FormField
+              control={form.control}
               name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="e.g. Summer HOT Deals"
-              className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 transition-all"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Summer HOT Deals" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Type + Discount Type */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                Promotion Type <span className="text-destructive">*</span>
-              </label>
-              <select
+            {/* Type + Discount Type */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
                 name="type"
-                value={form.type}
-                onChange={handleChange}
-                required
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
-              >
-                {PROMOTION_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                Discount Type
-              </label>
-              <select
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Promotion type</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger id={field.name}>
+                          <SelectValue placeholder="Select promotion type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PROMOTION_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="discountType"
-                value={form.discountType}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
-              >
-                {DISCOUNT_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Discount type</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger id={field.name}>
+                          <SelectValue placeholder="Select discount type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DISCOUNT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
 
-          {/* Discount Value + Priority */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                Discount Value
-              </label>
-              <input
-                type="number"
+            {/* Discount Value + Priority */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
                 name="discountValue"
-                value={form.discountValue}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder={form.discountType === "PERCENT" ? "e.g. 20" : "e.g. 50"}
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Discount value</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" step="0.01" placeholder="e.g. 20" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                Priority
-              </label>
-              <input
-                type="number"
+
+              <FormField
+                control={form.control}
                 name="priority"
-                value={form.priority}
-                onChange={handleChange}
-                min="1"
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="1" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
 
-          {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                Start Date
-              </label>
-              <input
-                type="date"
+            {/* Date Range */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
                 name="startDate"
-                value={form.startDate}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-foreground">
-                End Date
-              </label>
-              <input
-                type="date"
+
+              <FormField
+                control={form.control}
                 name="endDate"
-                value={form.endDate}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
 
-          {/* Active Toggle */}
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Active</p>
-              <p className="text-xs text-muted-foreground">Promotion will be shown on the storefront</p>
+            {/* Active Toggle */}
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem className="mt-2 flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="cursor-pointer">Active</FormLabel>
+                </FormItem>
+              )}
+            />
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">{isEditMode ? "Save changes" : "Create promotion"}</Button>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.isActive}
-              onClick={() => setForm((p) => ({ ...p, isActive: !p.isActive }))}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                form.isActive ? "bg-primary" : "bg-border"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                  form.isActive ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-            >
-              {promotion ? "Save Changes" : "Create Promotion"}
-            </button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </div>
     </div>
   );

@@ -1,53 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+
+const productTypeSchema = z.object({
+  name: z.string().min(1, "Enter a product type name"),
+  code: z.string().min(1, "Enter a code"),
+  is_active: z.boolean().default(true),
+});
 
 const EMPTY_PRODUCTTYPE = {
- 
   name: "",
-  code:"",
-  is_active:"",
+  code: "",
+  is_active: true,
 };
 
 const ProductTypeModal = ({ open, onClose, productType, onSave }) => {
-  const [form, setForm] = useState(EMPTY_PRODUCTTYPE);
   const isEditMode = Boolean(productType);
 
-
+  const form = useForm({
+    resolver: zodResolver(productTypeSchema),
+    defaultValues: EMPTY_PRODUCTTYPE,
+  });
 
   useEffect(() => {
     if (productType) {
-      setForm({
-       name:productType.name,
-    code:productType.code,
-       is_active:productType.is_active
+      form.reset({
+        name: productType.name || "",
+        code: productType.code || "",
+        is_active: Boolean(productType.is_active),
       });
       return;
     }
-    setForm(EMPTY_PRODUCTTYPE);
+    form.reset(EMPTY_PRODUCTTYPE);
   }, [productType, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
-     if (isEditMode) {
-    onSave({
-      ...form,
-      id: productType.id,
-    });
-  } else {
-    onSave(form);
-  }
+  const onSubmit = (values) => {
+    onSave(isEditMode ? { ...values, id: productType.id } : values);
     onClose();
   };
 
@@ -74,77 +72,59 @@ const ProductTypeModal = ({ open, onClose, productType, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-       
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="name">
-              Product Type Name
-            </label>
-            <input
-              id="name"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <FormField
+              control={form.control}
               name="name"
-              value={form.name}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter Brand Name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product type name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter product type name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-       
-
-          {/* logo url */}
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="code">
-              Code
-            </label>
-            <input
-              id="code"
+            <FormField
+              control={form.control}
               name="code"
-              value={form.code}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter logo url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter code" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-         
-       
-              <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="is_active">
-                Status
-              </label>
-              <select
-                id="is_active"
-                name="is_active"
-                value={form.is_active }
-                onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select Status</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-          
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-              {isEditMode ? "Save Changes" : "Add Product Type"}
-            </button>
-          </div>
-        </form>
+            {/* Active Toggle */}
+            <FormField
+              control={form.control}
+              name="is_active"
+              render={({ field }) => (
+                <FormItem className="mt-2 flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="cursor-pointer">Active</FormLabel>
+                </FormItem>
+              )}
+            />
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">{isEditMode ? "Save changes" : "Add product type"}</Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

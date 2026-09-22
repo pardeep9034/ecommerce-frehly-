@@ -44,17 +44,7 @@ const cartSlice = createSlice({
       );
       if (item) {
         item.quantity = Math.max(1, quantity);
-        const items=state.items.map((item)=>{
-  return{price:item.price,
-    product_id:item.product_id,
-    product_name:item.product_name,
-    quantity:item.quantity,
-    variant_id:item.variant_id,
-    variant_name:item.variant_name
-
-  }
-})
-        localStorage.setItem("cart", JSON.stringify(items));
+        localStorage.setItem("cart", JSON.stringify(state.items));
       }
     },
 
@@ -68,19 +58,9 @@ const cartSlice = createSlice({
     },
     setCart: (state, action) => {
   state.items = action.payload;
-const items=state.items.map((item)=>{
-  return{price:item.price,
-    product_id:item.product_id,
-    product_name:item.product_name,
-    quantity:item.quantity,
-    variant_id:item.variant_id,
-    variant_name:item.variant_name
-
-  }
-})
   localStorage.setItem(
     "cart",
-    JSON.stringify(items)
+    JSON.stringify(state.items)
   );
 },
 

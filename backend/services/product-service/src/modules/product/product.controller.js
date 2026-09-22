@@ -31,8 +31,9 @@ class ProductController  {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const status = req.query.status;
 
-    const result = await ProductServices.getAllProducts(limit,offset);
+    const result = await ProductServices.getAllProducts(limit,offset,status);
    return ResponseUtil.success(res, result, "Product fetched successfully", 200);
   }catch(error){
     next(error)

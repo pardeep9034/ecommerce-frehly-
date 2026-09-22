@@ -1,18 +1,16 @@
-import { Search, Plus ,ArrowLeft} from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { useState } from "react";
 import WarehousesTable from "@/components/dashboard/WarehousesTable";
-import { useNavigate } from "react-router-dom";
 import WarehouseModal from "@/components/dashboard/WarehouseModal";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import Pagination from "@/components/common/Pagination";
 import useWarehouse from "@/hooks/use-warehouse";
+import PageHeader from "@/components/dashboard/PageHeader";
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingWarehouse, setEditingWarehouse] = useState(null);
       const [currentPage, setCurrentPage] = useState(1);
-    
-  const navigate=useNavigate();
 //   const { unitsData,createMutation,updateMutation,deleteMutation,isLoading } = useUnits(currentPage,1);
   const{warehouses,pagination,deleteMutation,createMutation,updateMutation,isLoading}=useWarehouse(currentPage,1)
 
@@ -46,33 +44,12 @@ const WarehousePage = () => {
 
   return (
     <div className="space-y-6 lg:space-y-7">
-         <button
-                type="button"
-                onClick={() => navigate("/dashboard/inventory")}
-                className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Inventory
-              </button>
-      <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
-        <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-          
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-            <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
-              <Search className="h-4 w-4 text-muted-foreground" />
-
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                }}
-                placeholder="Search warehouses..."
-                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-          </div>
-
+      <PageHeader
+        title="Warehouses"
+        description="Manage the warehouses that store your inventory."
+        backTo="/dashboard/inventory"
+        backLabel="Back to Inventory"
+        action={
           <button
             onClick={openAddModal}
             type="button"
@@ -81,6 +58,21 @@ const WarehousePage = () => {
             <Plus className="h-4 w-4" />
             Add Warehouse
           </button>
+        }
+      />
+      <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
+        <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
+          <Search className="h-4 w-4 text-muted-foreground" />
+
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+            }}
+            placeholder="Search warehouses..."
+            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
         </div>
       </div>
 

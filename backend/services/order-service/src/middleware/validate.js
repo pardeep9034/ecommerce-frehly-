@@ -20,7 +20,7 @@ const schema = {
 
   updateOrderStatus: Joi.object({
     status: Joi.string()
-      .valid("PLACED", "CONFIRMED","READY_FOR_ASSIGNMENT","ASSIGNED","PICKED_UP", "OUT_FOR_DELIVERY","HANDOVER_IN_PROGRESS", "DELIVERED", "CANCELLED","DELIVERY_FAILED","PENDING_PAYMENT","PAYMENT_FAILED","PAYMENT_EXPIRED")
+      .valid("PLACED", "CONFIRMED","READY_FOR_ASSIGNMENT","ASSIGNED","PICKED_UP", "OUT_FOR_DELIVERY","HANDOVER_IN_PROGRESS", "DELIVERED", "CANCELLED","DELIVERY_FAILED","PAYMENT_FAILED","PAYMENT_EXPIRED")
       .required(),
     remarks: Joi.string().allow(null, "").optional(),
     changed_by: Joi.number().integer().positive().optional()
@@ -32,9 +32,23 @@ const schema = {
     changed_by: Joi.number().integer().positive().optional()
   }),
 
+  updateOrderItemStatus: Joi.object({
+    status: Joi.string().valid("READY", "NOT_AVAILABLE").required(),
+    remarks: Joi.string().allow(null, "").optional()
+  }),
+
+  confirmPartialOrder: Joi.object({
+    decision: Joi.string().valid("ACCEPT_PARTIAL", "CANCEL_ORDER").required()
+  }),
+
   paymentCallback: Joi.object({
     transaction_id: Joi.string().max(255).allow(null, "").optional(),
     gateway_response: Joi.alternatives().try(Joi.object(), Joi.string()).optional(),
+    remarks: Joi.string().allow(null, "").optional()
+  }),
+
+  retryPayment: Joi.object({
+    payment_method: Joi.string().valid("UPI", "CARD", "NET_BANKING", "WALLET").optional(),
     remarks: Joi.string().allow(null, "").optional()
   })
 };

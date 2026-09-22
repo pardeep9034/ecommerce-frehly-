@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAllPromotionItemsQuery, useRemovePromotionItemMutation } from "@/hooks/use-promotion-item";
 import { Plus, Search, Trash2, Tag, Percent, ArrowLeft } from "lucide-react";
 import MasterAssignModal from "@/components/dashboard/MasterAssignModal";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 const AssignPromotions = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,38 +38,30 @@ const AssignPromotions = () => {
 
     return (
         <div className="space-y-6 lg:space-y-7">
-            {/* Header */}
+            <PageHeader
+                title="Assigned Promotions"
+                description="See which products are attached to active promotions."
+                action={
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        New Assignment
+                    </button>
+                }
+            />
+
             <div className="rounded-xl border border-border bg-white p-5 shadow-card sm:p-6">
-                <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                            <Tag className="w-6 h-6 text-success" />
-                            Assigned Promotions
-                        </h1>
-                        <p className="text-gray-500 mt-1">View all products currently assigned to active promotions</p>
-                    </div>
-
-                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-                        <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Search product or promotion..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                            />
-                        </div>
-
-                        {/* Open MasterAssignModal to assign a product to a promotion */}
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-success shadow-sm"
-                        >
-                            <Plus className="w-4 h-4" />
-                            New Assignment
-                        </button>
-                    </div>
+                <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <input
+                        type="text"
+                        placeholder="Search product or promotion..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                    />
                 </div>
             </div>
 
@@ -88,9 +81,18 @@ const AssignPromotions = () => {
                         </thead>
                         <tbody className="divide-y divide-muted">
                             {isLoading ? (
-                                <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-500">Loading assignments...</td>
-                                </tr>
+                                Array.from({ length: 5 }).map((_, row) => (
+                                    <tr key={row}>
+                                        {Array.from({ length: 6 }).map((__, col) => (
+                                            <td key={col} className="p-4">
+                                                <div
+                                                    className="h-4 rounded skeleton-shimmer"
+                                                    style={{ animationDelay: `${(row * 6 + col) * 40}ms` }}
+                                                />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
                             ) : filteredItems.length > 0 ? (
                                 filteredItems.map((item) => {
                                     const product = item.Product;

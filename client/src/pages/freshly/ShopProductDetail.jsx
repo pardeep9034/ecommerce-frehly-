@@ -18,6 +18,8 @@ import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 import useVariant from "@/hooks/use-variant";
 import useProduct from "@/hooks/use-product";
+import useInventory from "@/hooks/use-inventory";
+import { useAddToCartMutation } from "@/hooks/use-addToCart";
 import ShopProductCard from "@/components/freshly/ShopProductCard";
 
 const ShopProductDetail = () => {
@@ -25,19 +27,30 @@ const ShopProductDetail = () => {
   const dispatch = useDispatch();
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  
+  const addToCartMutation = useAddToCartMutation();
+
   const handleAddToCart = () => {
     if (!selectedVariant) return;
-    dispatch(
-      addToCart({
-        product_id: product.id,
-        variant_id: selectedVariant.id,
-        product_name: product.name,
-        image: product.image,
-        variant_name: `${selectedVariant.value}${selectedVariant.unit}`,
-        quantity: quantity,
-        price: selectedVariant.price
-      })
+    addToCartMutation.mutate(
+      { variant_id: selectedVariant.id, quantity },
+      {
+        onSuccess: (response) => {
+          const cartItem = response?.data?.data;
+          dispatch(
+            addToCart({
+              id: cartItem?.id,
+              cart_id: cartItem?.cart_id,
+              product_id: product.id,
+              variant_id: selectedVariant.id,
+              product_name: product.name,
+              image: product.image,
+              variant_name: `${selectedVariant.value}${selectedVariant.unit}`,
+              quantity: quantity,
+              price: selectedVariant.price
+            })
+          );
+        }
+      }
     );
   };
 
@@ -53,17 +66,28 @@ const ShopProductDetail = () => {
   const variantIds=variant.map((variant)=>
     variant.id
   )
+  console.log("variants ids",variantIds)
 
   // Fetch Variants
-  const { variants,variantInfo, isLoading: variantsLoading } = useVariant(productId,variantIds);
+  const { variants,variantInfo, isLoading: variantsLoading } = useVariant({ productId, variantIds });
+  console.log("variant info",variantInfo)
+
+  // Only offer variants currently in stock
+  const { inStockVariantIds } = useInventory(undefined, undefined, undefined, variantIds);
+  const inStockVariants = useMemo(() => {
+    const all = variantInfo || [];
+    if (!inStockVariantIds) return all; // not resolved yet, show unfiltered rather than flash empty
+    const inStockSet = new Set(inStockVariantIds.map(Number));
+    return all.filter((v) => inStockSet.has(Number(v.id)));
+  }, [variantInfo, inStockVariantIds]);
 
   // Default selection for variant
   useEffect(() => {
-    if (variantInfo?.length > 0 && !selectedVariant) {
-      setSelectedVariant(variantInfo[0]);
+    if (inStockVariants?.length > 0 && !selectedVariant) {
+      setSelectedVariant(inStockVariants[0]);
     }
-  }, [variantInfo, selectedVariant]);
-
+  }, [inStockVariants, selectedVariant]);
+console.log("---",selectedVariant)
   // Fetch Related Products (same category)
   const categoryName = product?.Category?.name || product?.category || "All";
   console.log("category",product?.category_id)
@@ -187,7 +211,7 @@ const ShopProductDetail = () => {
                       Select Pack Size
                     </label>
                     <div className="flex flex-wrap gap-3">
-                      {variantInfo.map((v) => (
+                      {inStockVariants.map((v) => (
                         <button
                           key={v.id}
                           onClick={() => setSelectedVariant(v)}
@@ -206,8 +230,8 @@ const ShopProductDetail = () => {
                 </>
               ) : (
                 <div className="mb-6 flex flex-col gap-2">
-                   <div className="h-10 w-32 animate-pulse bg-gray-100 rounded" />
-                   <div className="h-14 w-full animate-pulse bg-gray-100 rounded" />
+                   <div className="h-10 w-32 skeleton-shimmer rounded" />
+                   <div className="h-14 w-full skeleton-shimmer rounded" />
                 </div>
               )}
 

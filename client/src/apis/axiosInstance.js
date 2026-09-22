@@ -7,7 +7,7 @@ const api = axios.create({
   withCredentials: true, // MUST be here (not inside headers)
   headers: {
     "Content-Type": "application/json",
-    "x-warehouse-id":"8"
+    "x-warehouse-id":"1"
   },
 });
 
@@ -97,8 +97,13 @@ api.interceptors.response.use(
 
         processQueue(refreshError, null);
 
+        // Only clear the dead token here — never navigate. This runs for
+        // background checks (e.g. AuthLoader's silent profile fetch) on
+        // every page, public ones included; forcing a redirect here would
+        // yank the user off whatever page they're on. Callers decide what
+        // to do with a failed/expired session (AuthLoader dispatches
+        // logout(); route guards like /dashboard re-check on next render).
         localStorage.removeItem("token");
-        window.location.href = "/login";
 
         return Promise.reject(refreshError);
 

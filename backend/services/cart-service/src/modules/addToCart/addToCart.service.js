@@ -183,6 +183,12 @@ class addToCartService {
       success: true,
       statusCode: 200,
       message: "cart item updated successfully",
+      data: {
+        id: existingCartItem.id,
+        cart_id: existingCartItem.cart_id,
+        variant_id: existingCartItem.variant_id,
+        quantity: finalQuantity,
+      },
     };
   }
 
@@ -211,6 +217,12 @@ class addToCartService {
       success: true,
       statusCode: 201,
       message: "cart item added successfully",
+      data: {
+        id: cartItem.id,
+        cart_id: cartItem.cart_id,
+        variant_id: cartItem.variant_id,
+        quantity: cartItem.quantity,
+      },
     };
   }
 

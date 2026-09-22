@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
-import { Plus, Search,Ruler,Notebook, List,AlertCircle, RefreshCw,ChartBarStacked } from "lucide-react";
+import { Plus, Search, Ruler, Award, FolderTree, Boxes, SlidersHorizontal, AlertCircle, RefreshCw, Layers } from "lucide-react";
 import ProductTable from "@/components/dashboard/ProductTable";
 import ProductModal from "@/components/dashboard/ProductModal";
+import QuickNavBar from "@/components/dashboard/QuickNavBar";
+import PageHeader from "@/components/dashboard/PageHeader";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // import AssignPromotionModal from "@/components/dashboard/AssignPromotionModal";
 import useProduct from "@/hooks/use-product";
-import { useNavigate } from "react-router-dom";
 
 
 const Products = () => {
@@ -14,7 +17,6 @@ const Products = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   // const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
-  const navigate=useNavigate()
   const pageSize = 5;
 
   const {
@@ -57,9 +59,18 @@ const Products = () => {
     setIsModalOpen(true);
   };
 
+  const UPDATE_PRODUCT_FIELDS = [
+    "id","name", "sku", "slug", "description", "short_description", "images_url",
+    "category_id", "brand_id", "product_type_id", "is_organic", "is_featured",
+    "sort_order", "status",
+  ];
+
   const saveProduct = (payload) => {
     if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, data: payload });
+      const data = Object.fromEntries(
+        Object.entries(payload).filter(([key]) => UPDATE_PRODUCT_FIELDS.includes(key))
+      );
+      updateMutation.mutate({ id: editingProduct.id, data: { ...data, id: editingProduct.id } });
     } else {
       createMutation.mutate(payload);
     }
@@ -76,9 +87,14 @@ const Products = () => {
     setCurrentPage(page);
   };
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center p-10 text-muted-foreground">Loading products...</div>;
-  }
+  const quickLinks = [
+    { label: "Variants", icon: Layers, path: "/dashboard/products/variants" },
+    { label: "Units", icon: Ruler, path: "/dashboard/products/units" },
+    { label: "Brands", icon: Award, path: "/dashboard/products/brands" },
+    { label: "Category", icon: FolderTree, path: "/dashboard/products/category" },
+    { label: "Product Type", icon: Boxes, path: "/dashboard/products/product-type" },
+    { label: "Product Attribute", icon: SlidersHorizontal, path: "/dashboard/products/product-attribute" },
+  ];
 
   if (error) {
     return (
@@ -110,60 +126,25 @@ const Products = () => {
 
   return (
     <div className="space-y-6 lg:space-y-7">
-   <div className="flex justify-around w-full gap-4 rounded-xl bg-primary py-4">
-  <button
-    className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    onClick={()=>navigate("/dashboard/products/variants")}
-  >
-    <ChartBarStacked className="h-5 w-5 text-gray-500" />
-    <span className="text-sm font-medium">Variants</span>
-  </button>
-  <button
-    className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    onClick={()=>navigate("/dashboard/products/units")}
-  >
-    <Ruler className="h-5 w-5 text-gray-500" />
-    <span className="text-sm font-medium">Units</span>
-  </button>
-
-  <button
-    onClick={()=>navigate("/dashboard/products/brands")}
-    className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-  >
-    <Notebook className="h-5 w-5 text-gray-500" />
-    <span className="text-sm font-medium">Brands</span>
-  </button>
-
-  <button
-  onClick={()=>navigate("/dashboard/products/category")}
-    className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-  >
-    <List className="h-5 w-5 text-gray-500" />
-    <span className="text-sm font-medium">Category</span>
-  </button>
-
-  <button
-  onClick={()=>navigate("/dashboard/products/product-type")}
-    className="flex h-20 min-w-28 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-  >
-    <List className="h-5 w-5 text-gray-500" />
-    <span className="text-center text-sm font-medium">Product Type</span>
-  </button>
-
-  <button
-  onClick={()=>navigate("/dashboard/products/product-attribute")}
-    className="flex h-20 min-w-32 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-  >
-    <List className="h-5 w-5 text-gray-500" />
-    <span className="text-center text-sm font-medium">
-      Product Attribute
-    </span>
-  </button>
-</div>
+      <PageHeader
+        title="Products"
+        description="Manage your catalog, pricing and availability."
+        action={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            Add Product
+          </button>
+        }
+      />
+   <QuickNavBar links={quickLinks} />
       <div className="rounded-xl border border-border bg-white p-5 shadow-card sm:p-6">
-      
+
         <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-         
+
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
             <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
               <Search className="h-4 w-4 text-muted-foreground" />
@@ -179,41 +160,40 @@ const Products = () => {
               />
             </div>
 
-            <select
+            <Select
               value={categoryFilter}
-              onChange={(event) => {
-                setCategoryFilter(event.target.value);
+              onValueChange={(value) => {
+                setCategoryFilter(value);
                 setCurrentPage(1);
               }}
-              className="min-w-[150px] rounded-lg border border-border bg-white px-3.5 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
             >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="min-w-37.5 py-2.5">
+                <SelectValue>{categoryFilter}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add Product
-          </button>
         </div>
       </div>
 
-      <ProductTable 
-          products={filteredProducts} 
-          onEdit={openEditModal} 
-          onDelete={handleDelete} 
-          // onAssignPromotion={(product) => setAssignPromotingProduct(product)} 
-      />
+      {isLoading ? (
+        <TableSkeleton rows={pageSize} columns={5} />
+      ) : (
+        <ProductTable
+          products={filteredProducts}
+          onEdit={openEditModal}
+          onDelete={handleDelete}
+          // onAssignPromotion={(product) => setAssignPromotingProduct(product)}
+        />
+      )}
 
-      {totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
           <p className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages} ({pagination.totalItems} total)

@@ -12,6 +12,7 @@ router.get("/variant/:variantId", InventoryController.getInventoryByVariantId);
 // Get inventory filtered by warehouse id (paginated)
 router.get("/warehouse/:warehouseId", InventoryController.getInventoryByWarehouseId);
 router.post("/validate",inventoryController.inventoryValidate)
+router.post("/in-stock-variants",inventoryController.getInStockVariantIds)
 router.get("/:id", InventoryController.getInventoryById);
 router.post("/",authenticateToken,validate("createInventorySchema"),InventoryController.createInventory);
 router.put("/:id",authenticateToken,validate("updateInventorySchema"),InventoryController.updateInventory);

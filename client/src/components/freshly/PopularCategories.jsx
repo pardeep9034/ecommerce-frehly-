@@ -12,12 +12,12 @@ export const PopularCategories = () => {
     if (isLoading) {
         return (
           <div className="mx-auto max-w-screen-2xl px-4 py-12 sm:px-6 lg:px-8">
-            <div className="flex animate-pulse space-x-4">
+            <div className="flex space-x-4">
               <div className="flex-1 space-y-6 py-1">
-                <div className="h-6 w-1/4 rounded bg-gray-200"></div>
+                <div className="h-6 w-1/4 rounded skeleton-shimmer"></div>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-40 rounded-2xl bg-gray-200"></div>
+                    <div key={i} className="h-40 rounded-2xl skeleton-shimmer" style={{ animationDelay: `${i * 80}ms` }}></div>
                   ))}
                 </div>
               </div>

@@ -1,10 +1,29 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
 import useProduct from "@/hooks/use-product";
 import SearchableSelector from "@/components/common/SearchableSelector";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+
+const DATA_TYPE_OPTIONS = ["TEXT", "NUMBER", "BOOLEAN"];
+
+const productAttributeSchema = z.object({
+  product_id: z.coerce.string().min(1, "Select a product"),
+  attribute_name: z.string().min(1, "Enter an attribute name"),
+  data_type: z.string().min(1, "Select a data type"),
+  attribute_value: z.string().min(1, "Enter an attribute value"),
+  is_filterable: z.boolean().default(false),
+  sort_order: z.coerce.number().default(0),
+});
 
 const EMPTY_PRODUCTATTRIBUTE = {
-    product_id: null,
+  product_id: "",
   attribute_name: "",
   attribute_value: "",
   data_type: "",
@@ -12,80 +31,40 @@ const EMPTY_PRODUCTATTRIBUTE = {
   sort_order: 0,
 };
 
-const ProductAttributeModal = ({
-  open,
-  onClose,
-  productAttribute,
-  onSave,
-}) => {
-  const [form, setForm] = useState(EMPTY_PRODUCTATTRIBUTE);
-const [searchQuery, setSearchQuery] = useState(""); 
-const {
-  productSelection,
-  productSelectionLoading,
-  productSelectionError,
-} = useProduct({
-  search:searchQuery,
-  page: 1,
-  limit: 10,
-});
-
+const ProductAttributeModal = ({ open, onClose, productAttribute, onSave }) => {
   const isEditMode = Boolean(productAttribute);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { productSelection } = useProduct({ search: searchQuery, page: 1, limit: 10 });
+  const productsList = productSelection?.data?.products ?? [];
+
+  const form = useForm({
+    resolver: zodResolver(productAttributeSchema),
+    defaultValues: EMPTY_PRODUCTATTRIBUTE,
+  });
 
   useEffect(() => {
     if (productAttribute) {
-      setForm({
+      form.reset({
+        product_id: productAttribute.product_id ? String(productAttribute.product_id) : "",
         attribute_name: productAttribute.attribute_name || "",
         attribute_value: productAttribute.attribute_value || "",
         data_type: productAttribute.data_type || "",
-        product_id: productAttribute.product_id || null,
-       
-        is_filterable:
-          productAttribute.is_filterable === true ||
-          productAttribute.is_filterable === "true",
+        is_filterable: productAttribute.is_filterable === true || productAttribute.is_filterable === "true",
         sort_order: productAttribute.sort_order ?? 0,
       });
-
       return;
     }
-
-    setForm(EMPTY_PRODUCTATTRIBUTE);
+    form.reset(EMPTY_PRODUCTATTRIBUTE);
   }, [productAttribute, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value } = event.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
-
-    if (isEditMode) {
-      onSave({
-        ...form,
-        id: productAttribute.id,
-        product_id: productAttribute.product_id,
-      });
-    } else {
-      onSave(form);
-    }
-
+  const onSubmit = (values) => {
+    const payload = { ...values, product_id: Number.parseInt(values.product_id, 10) };
+    onSave(isEditMode ? { ...payload, id: productAttribute.id } : payload);
     onClose();
-  };
-
-  const handleFilterableChange = () => {
-    setForm((prev) => ({
-      ...prev,
-      is_filterable: !prev.is_filterable,
-    }));
   };
 
   return (
@@ -94,17 +73,14 @@ const {
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-white shadow-card"
+        className="mx-4 w-full max-w-lg rounded-xl border border-border bg-white shadow-card max-h-[90vh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-5 sm:px-7">
           <h2 className="font-display text-lg font-semibold text-foreground">
-            {isEditMode
-              ? "Edit Product Attribute"
-              : "Add Product Attribute"}
+            {isEditMode ? "Edit Product Attribute" : "Add Product Attribute"}
           </h2>
-
           <button
             type="button"
             onClick={onClose}
@@ -114,165 +90,131 @@ const {
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-5 p-6">
- <SearchableSelector
-  data={productSelection?.data?.products ?? []}
-  serverSearch={true}
-  onSearchChange={(q) => setSearchQuery(q)}
-  value={form.product_id}
-  onSelect={(id) =>
-    setForm((prev) => ({
-      ...prev,
-      product_id: id,
-    }))
-  }
-  placeholder="Search product..."
-/>
-          {/* Attribute Name + Data Type */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          
-
-            {/* Attribute Name */}
-            <div>
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="attribute_name"
-              >
-                Attribute Name
-              </label>
-
-              <input
-                id="attribute_name"
-                name="attribute_name"
-                value={form.attribute_name}
-                onChange={onChangeField}
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Enter attribute name"
-              />
-            </div>
-
-            {/* Data Type */}
-            <div>
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="data_type"
-              >
-                Data Type
-              </label>
-
-              <select
-                id="data_type"
-                name="data_type"
-                value={form.data_type}
-                onChange={onChangeField}
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select Value Type</option>
-                <option value="TEXT">TEXT</option>
-                <option value="NUMBER">NUMBER</option>
-                <option value="BOOLEAN">BOOLEAN</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Attribute Value */}
-          <div>
-            <label
-              className="text-sm font-medium text-foreground"
-              htmlFor="attribute_value"
-            >
-              Attribute Value
-            </label>
-
-            <input
-              id="attribute_value"
-              name="attribute_value"
-              value={form.attribute_value}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter attribute value"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <FormField
+              control={form.control}
+              name="product_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product</FormLabel>
+                  <FormControl>
+                    <SearchableSelector
+                      id={field.name}
+                      ref={field.ref}
+                      data={productsList}
+                      labelKey="name"
+                      valueKey="id"
+                      placeholder="Search product"
+                      value={field.value}
+                      onSelect={field.onChange}
+                      onSearchChange={setSearchQuery}
+                      serverSearch={true}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Filterable + Sort Order */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-             <div className=" flex gap-2  items-center pt-4">
-           
-              <p className="text-sm font-medium text-foreground">
-                Filterable
-              </p>
-
-            
-
-            {/* Custom Switch */}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.is_filterable}
-              onClick={handleFilterableChange}
-              className={`relative h-6 w-11 rounded-full transition-colors ${
-                form.is_filterable
-                  ? "bg-primary"
-                  : "bg-border"
-              }`}
-            >
-              <span
-                className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                  form.is_filterable
-                    ? "translate-x-6"
-                    : "translate-x-1"
-                }`}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="attribute_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Attribute name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter attribute name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </button>
-          </div>
 
-            {/* Sort Order */}
-            <div>
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="sort_order"
-              >
-                Sort Order
-              </label>
-
-              <input
-                id="sort_order"
-                name="sort_order"
-                type="number"
-                min="0"
-                value={form.sort_order}
-                onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Enter sort order"
+              <FormField
+                control={form.control}
+                name="data_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data type</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger id={field.name}>
+                          <SelectValue placeholder="Select data type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DATA_TYPE_OPTIONS.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
 
-          {/* Filterable */}
-         
+            <FormField
+              control={form.control}
+              name="attribute_value"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attribute value</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter attribute value" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="sort_order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sort order</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" placeholder="Enter sort order" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-              {isEditMode ? "Save Changes" : "Add Product Attribute"}
-            </button>
-          </div>
-        </form>
+              <FormField
+                control={form.control}
+                name="is_filterable"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="cursor-pointer">Filterable</FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">{isEditMode ? "Save changes" : "Add product attribute"}</Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

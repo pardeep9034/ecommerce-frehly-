@@ -1,11 +1,11 @@
-import { Search, Plus ,ArrowLeft} from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import ProductAttributeTable from "@/components/dashboard/ProductAttributeTable";
 import ProductAttributeModal from "@/components/dashboard/ProductAttributeModal";
 import useProductAttribute from "@/hooks/use-productAttribute";
 import useProduct from "@/hooks/use-product";
 import Pagination from "@/components/common/Pagination";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 
 const ProductAttributePage=()=>{
@@ -13,7 +13,6 @@ const ProductAttributePage=()=>{
         const [isModalOpen, setIsModalOpen] = useState(false);
         const [editingProductAttribute, setEditingProductAttribute] = useState(null);
         const [currentPage, setCurrentPage] = useState(1);
-        const navigate=useNavigate()
         const {data,isLoading,createMutation,updateMutation,deleteMutation}=useProductAttribute(currentPage,1)
        
         const productAttributes=data?.data?.productAttributes;
@@ -36,33 +35,12 @@ const ProductAttributePage=()=>{
         
     return(
          <div className="space-y-6 lg:space-y-7">
-                 <button
-                        type="button"
-                        onClick={() => navigate("/dashboard/products")}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Products
-                      </button>
-              <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
-                <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-                  
-                  <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-                    <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-        
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(event) => {
-                          setSearchTerm(event.target.value);
-                        }}
-                        placeholder="Search units..."
-                        className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                      />
-                    </div>
-                  </div>
-        
+              <PageHeader
+                title="Product Attributes"
+                description="Define custom attributes available to your products."
+                backTo="/dashboard/products"
+                backLabel="Back to Products"
+                action={
                   <button
                     onClick={()=>setIsModalOpen(true)}
                     type="button"
@@ -71,6 +49,21 @@ const ProductAttributePage=()=>{
                     <Plus className="h-4 w-4" />
                     Add Product Attribute
                   </button>
+                }
+              />
+              <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
+                <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => {
+                      setSearchTerm(event.target.value);
+                    }}
+                    placeholder="Search product attributes..."
+                    className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                  />
                 </div>
               </div>
               <ProductAttributeModal

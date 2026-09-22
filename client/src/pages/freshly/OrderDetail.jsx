@@ -14,15 +14,29 @@ import {
   ShoppingCart
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useOrderDetail } from "@/hooks/use-order";
+import { useOrderDetail, useConfirmPartialOrder } from "@/hooks/use-order";
+import { toast } from "@/components/ui/sonner";
 
 const OrderDetail = () => {
   const { orderId } = useParams();
   const { order, isLoading, isError } = useOrderDetail(orderId);
-  console.log("order detail",order)
+  const confirmPartialOrder = useConfirmPartialOrder(orderId);
 
   const handleDownloadInvoice = () => {
     window.print();
+  };
+
+  const handleConfirmPartial = (decision) => {
+    confirmPartialOrder.mutate(decision, {
+      onSuccess: () => {
+        toast.success(
+          decision === "ACCEPT_PARTIAL"
+            ? "Continuing with the available items."
+            : "Order cancelled and refunded."
+        );
+      },
+      onError: () => toast.error("Unable to process your choice, please try again"),
+    });
   };
 
   const getStatusIcon = (status) => {
@@ -39,13 +53,13 @@ const OrderDetail = () => {
     return (
       <div className="min-h-screen bg-muted py-12">
         <div className="mx-auto max-w-5xl px-4">
-          <div className="mb-8 h-8 w-48 animate-pulse rounded bg-gray-200" />
+          <div className="mb-8 h-8 w-48 skeleton-shimmer rounded" />
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
-              <div className="h-64 animate-pulse rounded-xl bg-white shadow-sm" />
-              <div className="h-96 animate-pulse rounded-xl bg-white shadow-sm" />
+              <div className="h-64 skeleton-shimmer rounded-xl shadow-sm" />
+              <div className="h-96 skeleton-shimmer rounded-xl shadow-sm" style={{ animationDelay: "120ms" }} />
             </div>
-            <div className="h-96 animate-pulse rounded-xl bg-white shadow-sm" />
+            <div className="h-96 skeleton-shimmer rounded-xl shadow-sm" style={{ animationDelay: "240ms" }} />
           </div>
         </div>
       </div>
@@ -89,8 +103,48 @@ const OrderDetail = () => {
           </button>
         </div>
 
+        {order.status === "AWAITING_CUSTOMER_CONFIRMATION" && (
+          <div className="mb-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+            <h3 className="flex items-center gap-2 font-bold text-gray-900">
+              <XCircle className="h-5 w-5 text-yellow-600" />
+              Some items in your order are unavailable
+            </h3>
+            <ul className="mt-3 space-y-1 text-sm text-gray-700">
+              {(order.items || [])
+                .filter((item) => item.status === "NOT_AVAILABLE")
+                .map((item) => (
+                  <li key={item.id}>
+                    <span className="font-semibold">{item.product_name}</span>
+                    {item.admin_remarks ? ` — ${item.admin_remarks}` : ""}
+                  </li>
+                ))}
+            </ul>
+            <p className="mt-3 text-sm text-gray-600">
+              You'll be refunded ₹{Number(order.refunded_amount || 0).toFixed(2)} for these. Do you want to continue with the remaining items, or cancel the whole order?
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={confirmPartialOrder.isPending}
+                onClick={() => handleConfirmPartial("ACCEPT_PARTIAL")}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+              >
+                Continue with available items
+              </button>
+              <button
+                type="button"
+                disabled={confirmPartialOrder.isPending}
+                onClick={() => handleConfirmPartial("CANCEL_ORDER")}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel entire order
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          
+
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             

@@ -1,55 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
-import useUnits from "@/hooks/use-units";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+
+const CATEGORY_OPTIONS = ["WEIGHT", "VOLUME", "COUNT", "PACKAGING"];
+
+const unitSchema = z.object({
+  name: z.string().min(1, "Enter a unit name"),
+  code: z.string().min(1, "Enter a unit code"),
+  category: z.string().min(1, "Select a category"),
+  is_active: z.boolean().default(true),
+});
+
 const EMPTY_UNITS = {
- 
   name: "",
-  code:"",
-  category:"",
-  is_active:"",
+  code: "",
+  category: "",
+  is_active: true,
 };
 
 const UnitsModal = ({ open, onClose, unit, onSave }) => {
-  const [form, setForm] = useState(EMPTY_UNITS);
   const isEditMode = Boolean(unit);
 
-
+  const form = useForm({
+    resolver: zodResolver(unitSchema),
+    defaultValues: EMPTY_UNITS,
+  });
 
   useEffect(() => {
     if (unit) {
-      setForm({
-       name:unit.name,
-       code:unit.code,
-       category:unit.category,
-       is_active:unit.is_active
+      form.reset({
+        name: unit.name || "",
+        code: unit.code || "",
+        category: unit.category || "",
+        is_active: Boolean(unit.is_active),
       });
       return;
     }
-    setForm(EMPTY_UNITS);
+    form.reset(EMPTY_UNITS);
   }, [unit, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
-     if (isEditMode) {
-    onSave({
-      ...form,
-      id: unit.id,
-    });
-  } else {
-    onSave(form);
-  }
+  const onSubmit = (values) => {
+    onSave(isEditMode ? { ...values, id: unit.id } : values);
     onClose();
   };
 
@@ -76,103 +78,91 @@ const UnitsModal = ({ open, onClose, unit, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-          {/* unit Name */}
-           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="category">
-                Category
-              </label>
-              <select
-                id="category"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
                 name="category"
-                value={form.category }
-                onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select Category</option>
-                <option value="WEIGHT">WEIGHT</option>
-                <option value="VOLUME">VOLUME</option>
-                <option value="COUNT">COUNT</option>
-                <option value="PACKAGING">PACKAGING</option>
-              </select>
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger id={field.name}>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter unit code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="is_active">
-                Status
-              </label>
-              <select
-                id="is_active"
-                name="is_active"
-                value={form.is_active }
-                onChange={onChangeField}
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select Status</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="name">
-              Unit Name
-            </label>
-            <input
-              id="name"
+            <FormField
+              control={form.control}
               name="name"
-              value={form.name}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter unit name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter unit name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-       
-
-          {/* Code */}
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="code">
-              Code
-            </label>
-            <input
-              id="code"
-              name="code"
-              value={form.code}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Enter unit code"
+            {/* Active Toggle */}
+            <FormField
+              control={form.control}
+              name="is_active"
+              render={({ field }) => (
+                <FormItem className="mt-2 flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="cursor-pointer">Active</FormLabel>
+                </FormItem>
+              )}
             />
-          </div>
 
-       {/* 'WEIGHT','VOLUME','COUNT','PACKAGING' */}
-
-          {/* category & Status */}
-         
-
-       
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-          
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-              {isEditMode ? "Save Changes" : "Add Unit"}
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">{isEditMode ? "Save changes" : "Add unit"}</Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

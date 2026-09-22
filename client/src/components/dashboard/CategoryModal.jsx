@@ -1,65 +1,76 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { X } from "lucide-react";
 import useCategory from "@/hooks/use-category";
 import SearchableSelector from "@/components/common/SearchableSelector";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
+const categorySchema = z.object({
+  name: z.string().min(1, "Enter a category name"),
+  parent_id: z.coerce.string().optional().default(""),
+  image_url: z.string().optional().default(""),
+  is_active: z.boolean().default(true),
+  sort_order: z.coerce.number().default(0),
+});
 
 const EMPTY_CATEGORY = {
   name: "",
-  parent_id: null,
- 
+  parent_id: "",
   image_url: "",
   is_active: true,
   sort_order: 0,
 };
 
 const CategoryModal = ({ open, onClose, category, onSave }) => {
-  const [form, setForm] = useState(EMPTY_CATEGORY);
   const isEditMode = Boolean(category);
   const [searchTerm, setSearchTerm] = useState("");
-  const{allCategories,isLoadingAllCategories,errorAllCategories}=useCategory(1,10,searchTerm);
-  
+  const { allCategories } = useCategory(1, 10, searchTerm);
+  const categoriesList = (allCategories?.data?.categories || []).filter((item) => item.id !== category?.id);
+
+  const form = useForm({
+    resolver: zodResolver(categorySchema),
+    defaultValues: EMPTY_CATEGORY,
+  });
 
   useEffect(() => {
     if (category) {
-      setForm({
+      form.reset({
         name: category.name || "",
-    
+        parent_id: category.parent_id ? String(category.parent_id) : "",
         image_url: category.image_url || "",
-        is_active: category.is_active,
-        parent_id: category.parent_id || null,
+        is_active: Boolean(category.is_active),
         sort_order: category.sort_order ?? 0,
       });
       return;
     }
-
-    setForm(EMPTY_CATEGORY);
+    form.reset(EMPTY_CATEGORY);
   }, [category, open]);
 
   if (!open) {
     return null;
   }
 
-  const onChangeField = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const onSubmit = (event) => {
-    event.preventDefault();
- 
-    onSave({ ...form,id:category?.id
-      
-    });
+  const onSubmit = (values) => {
+    const payload = { ...values, parent_id: values.parent_id || null };
+    onSave(isEditMode ? { ...payload, id: category.id } : payload);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className="mx-4 w-full max-w-lg rounded-xl border border-border bg-white shadow-card"
+        className="mx-4 w-full max-w-lg rounded-xl border border-border bg-white shadow-card max-h-[90vh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-5 sm:px-7">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isEditMode ? "Edit Category" : "Add Category"}
@@ -73,110 +84,99 @@ const CategoryModal = ({ open, onClose, category, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="cat-name">
-              Category Name
-            </label>
-            <input
-              id="cat-name"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
+            <FormField
+              control={form.control}
               name="name"
-              value={form.name}
-              onChange={onChangeField}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter category name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter category name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-              <label className="text-sm font-medium text-foreground" htmlFor="cat-parent">
-              Parent Category
-            </label>
-            <SearchableSelector
-              id="cat-parent"
-              labelKey="name"
-              valueKey="id"
-              onSelect={(id)=>setForm((prev)=>({...prev,parent_id:id}))}
-              onSearchChange={(q)=>setSearchTerm(q)}
-              serverSearch={true}
-              value={form.parent_id}
-              data={allCategories?.data?.categories
-                .filter((item) => item.id !== category?.id)
 
-                
-              }
-              placeholder="Select parent category"
+            <FormField
+              control={form.control}
+              name="parent_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Parent category</FormLabel>
+                  <FormControl>
+                    <SearchableSelector
+                      id={field.name}
+                      ref={field.ref}
+                      data={categoriesList}
+                      labelKey="name"
+                      valueKey="id"
+                      placeholder="Select parent category"
+                      value={field.value}
+                      onSelect={field.onChange}
+                      onSearchChange={(q) => setSearchTerm(q)}
+                      serverSearch={true}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-       
-         
-
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="cat-image">
-              Image URL
-            </label>
-            <input
-              id="cat-image"
+            <FormField
+              control={form.control}
               name="image_url"
-              value={form.image_url}
-              onChange={onChangeField}
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter image URL"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter image URL" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="sort_order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sort order</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Enter sort order" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="cat-sort-order">
-              Sort Order
-           
-            </label>
-           <input
-              id="cat-sort-order"
-              name="sort_order"
-              type="number"
-              value={form.sort_order}
-              onChange={onChangeField}
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter sort order"
-            />
-          </div>
-           <div>
-             <label className="text-sm font-medium text-foreground" htmlFor="cat-status">
-              Status
-            </label>
-            <select
-              id="cat-status"
-              name="is_active"
-              value={String(form.is_active)}
-              onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.value === "true" }))}
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-          </div>
-          </div>
-      
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="cursor-pointer">Active</FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-            >
-              {isEditMode ? "Save Changes" : "Add Category"}
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">{isEditMode ? "Save changes" : "Add category"}</Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );

@@ -7,11 +7,11 @@ import deliveryPartnerServices from "../deliveryPartner/deliveryPartner.service.
 import { calculateDistance } from "../../utils/helper.js";
 import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
-import { Op } from "sequelize";
+import { Op, Sequelize } from "sequelize";
 import initializeModels from "../../models/index.js";
 
 class HandleOrderService {
-  async assignOrder(data, user) {
+  async assignOrder(data, user, authorization) {
     const [orderResponse, warehouseResponse, slot] = await Promise.all([
       fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}`),
       fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}/${data.warehouse_id}`),
@@ -41,7 +41,7 @@ class HandleOrderService {
       throw new AppError("Order already assigned", 409);
     }
     const deliveryPartner =await DeliveryPartnerRepository.findOne({
-      id: delivery_partner_id,
+      id: data.delivery_partner_id,
       status: "ACTIVE",
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders"),
@@ -51,8 +51,8 @@ class HandleOrderService {
       throw new AppError("delivery partner is not available");
     }
 
-    const db = initializeModels();
-    const transaction = db.sequelize.transaction();
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
     try {
       const assignment =
         await DeliveryAssignmentRepository.createDeliveryAssignment(
@@ -77,7 +77,7 @@ class HandleOrderService {
             assigned_by: user?.user_id ?? null,
             assigned_at: new Date(),
           },
-          transaction,
+          { transaction },
         );
       //create logs
       await DeliveryAssignmentHistoryRepository.createAssignmentHistory(
@@ -86,8 +86,18 @@ class HandleOrderService {
           assignment_id: assignment.id,
           action: "ASSIGNED",
         },
-        transaction,
+        { transaction },
       );
+
+      const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: authorization, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ASSIGNED" })
+      });
+      if (!statusResponse.ok) {
+        throw new AppError("Failed to update order status to ASSIGNED", statusResponse.status || 500);
+      }
+
       await transaction.commit();
 
       return assignment;
@@ -170,14 +180,14 @@ class HandleOrderService {
       throw new AppError(error.message, 500);
     }
   }
-  async handOver(data, assignmentId, user) {
+  async handOver(data, assignmentId, user, authorizationHeader) {
     //check assingment exist or not
     const assignment =  await DeliveryAssignmentRepository.findById(assignmentId);
     if (!assignment) {
       throw new AppError("Assignment not found", 404);
     }
 
-    const orderResponse = await fetch(`${ORDER_SERVICE_URL}/${assignment.order_id}`);
+    const orderResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}`);
     if (!orderResponse.ok) {
       throw new AppError("order not found", 404);
     }
@@ -225,7 +235,15 @@ throw new AppError("order is not found",404)
         handoverInfo,
         { transaction },
       );
-      //inform order service for update order status
+
+      const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: authorizationHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "HANDOVER_IN_PROGRESS" })
+      });
+      if (!statusResponse.ok) {
+        throw new AppError("Failed to update order status to HANDOVER_IN_PROGRESS", statusResponse.status || 500);
+      }
       //notify old and new delivery partners
       await transaction.commit();
       return handover;
@@ -270,7 +288,7 @@ throw new AppError("order is not found",404)
     }
     try {
       const db = await initializeModels();
-      const transaction = db.sequelize.transaction();
+      const transaction = await db.sequelize.transaction();
       const updatedHandover = await DeliveryHandoverRepository.updateById(
         handoverId,
         {
@@ -304,14 +322,14 @@ throw new AppError("order is not found",404)
       const updatedOrder = await fetch(
         `${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`,
         {
-          method: "post",
+          method: "PATCH",
           headers: {
             Authorization: authorizationHeader,
             "content-type": "application/json",
           },
-          body: {
+          body: JSON.stringify({
             status: "OUT_FOR_DELIVERY",
-          },
+          }),
         },
       );
       //create Assignment history
@@ -335,23 +353,23 @@ throw new AppError("order is not found",404)
   }
   async updateStatus(assignmentId, data, user, authorizationHeader) {
     //check assignmet exist or not
-    const assignment = DeliveryAssignmentRepository.findById(assignmentId);
+    const assignment = await DeliveryAssignmentRepository.findById(assignmentId);
     if (!assignment) {
       throw new AppError("Assignment not found", 404);
     }
     const orderResponse = await fetch(
-      `${env.ORDER_SERVICE_URL}/${assignmentId}`,
+      `${env.ORDER_SERVICE_URL}/${assignment.order_id}`,
     );
     if (!orderResponse.ok) {
       throw new AppError("order is not found");
     }
     // update assignment
-    const db = initializeModels();
-    const transaction = db.sequelize.transaction();
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
     try {
       const updateAssignment = DeliveryAssignmentRepository.updateById(
         assignmentId,
-        data.status,
+        { status: data.status },
         { transaction },
       );
       // create history
@@ -365,9 +383,9 @@ throw new AppError("order is not found",404)
       const updatedOrder = await fetch(
         `${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`,
         {
-          method: "post",
+          method: "PATCH",
           headers: {
-            AuthAuthorization: authorizationHeader,
+            Authorization: authorizationHeader,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: data.status }),

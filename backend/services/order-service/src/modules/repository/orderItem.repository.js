@@ -12,6 +12,10 @@ class OrderItemRepository extends BaseRepository {
   async getItemsByOrderId(orderId, options = {}) {
     return await this.findAll({ order_id: orderId }, options);
   }
+
+  async updateItem(id, data, options = {}) {
+    return await this.updateById(id, data, options);
+  }
 }
 
 export default new OrderItemRepository();

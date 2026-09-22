@@ -2,12 +2,14 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import InventoryTable from "@/components/dashboard/InventoryTable";
 import InventoryModal from "@/components/dashboard/InventoryModal";
+import QuickNavBar from "@/components/dashboard/QuickNavBar";
+import PageHeader from "@/components/dashboard/PageHeader";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
 import SearchableSelector from "@/components/common/SearchableSelector";
 import WarehouseApi from "@/apis/warehouseApi";
 import useInventory from "@/hooks/use-inventory";
 import { toast } from "@/components/ui/sonner";
-import { Plus, Search,Ruler,Notebook, List,AlertCircle, RefreshCw,ChartBarStacked } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Search, Warehouse, ArrowLeftRight, Lock, AlertCircle } from "lucide-react";
 
 
 const Inventory = () => {
@@ -16,9 +18,14 @@ const Inventory = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [warehouseId, setWarehouseId] = useState("");
-    const navigate = useNavigate();
 
     const pageSize = 10;
+
+    const quickLinks = [
+        { label: "Warehouse", icon: Warehouse, path: "/dashboard/inventory/warehouses" },
+        { label: "Stock Movement", icon: ArrowLeftRight, path: "/dashboard/inventory/stock-movement" },
+        { label: "Stock Reservation", icon: Lock, path: "/dashboard/inventory/stock-reservation" },
+    ];
 
     const {
         inventory: inventoryData,
@@ -100,45 +107,28 @@ const Inventory = () => {
         setCurrentPage(page);
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center p-10 text-muted-foreground">
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Loading inventory...
-            </div>
-        );
-    }
-
     if (error) {
         return <div className="flex items-center justify-center p-10 text-destructive">Failed to load inventory.</div>;
     }
 
     return (
         <div className="space-y-6 lg:space-y-7">
-              <div className="flex justify-around w-full gap-4 rounded-xl bg-primary py-4">
-        <button
-          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          onClick={()=>navigate("/dashboard/inventory/warehouses")}
-        >
-          <ChartBarStacked className="h-5 w-5 text-gray-500" />
-          <span className="text-sm font-medium">warehouse</span>
-        </button>
-       <button
-          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          onClick={()=>navigate("/dashboard/inventory/stock-movement")}
-        >
-          <Ruler className="h-5 w-5 text-gray-500" />
-          <span className="text-sm font-medium">Stock Movement</span>
-        </button>
-     
-        <button
-          onClick={()=>navigate("/dashboard/inventory/stock-reservation")}
-          className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-        >
-          <Notebook className="h-5 w-5 text-gray-500" />
-          <span className="text-sm font-medium">Stock Reservation</span>
-        </button>
-        {/* 
+            <PageHeader
+                title="Inventory"
+                description="Track stock levels across your warehouses."
+                action={
+                    <button
+                        type="button"
+                        onClick={openAddModal}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Add Inventory
+                    </button>
+                }
+            />
+              <QuickNavBar links={quickLinks} />
+        {/*
         <button
         onClick={()=>navigate("/dashboard/products/category")}
           className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -164,7 +154,6 @@ const Inventory = () => {
             Product Attribute
           </span>
         </button> */}
-      </div>
             <div className="rounded-xl border border-border bg-white p-5 shadow-card sm:p-6">
                 <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                     <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
@@ -181,7 +170,7 @@ const Inventory = () => {
                                 className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                             />
                         </div>
-                        <div className="w-full min-w-[240px] sm:max-w-sm">
+                        <div className="w-full min-w-60 sm:max-w-sm">
                             <SearchableSelector
                                 data={warehouses}
                                 labelKey="name"
@@ -190,21 +179,12 @@ const Inventory = () => {
                                     setWarehouseId(id);
                                     setCurrentPage(1);
                                 }}
-                                placeholder={isWarehousesLoading ? "Loading warehouses..." : "Search and select a warehouse"}
+                                placeholder={isWarehousesLoading ? "Loading warehouses..." : "select a warehouse"}
                                 disabled={isWarehousesLoading}
-                                className="w-full rounded-lg border border-border bg-white px-3.5 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-500"
+                                className="w-full disabled:bg-gray-50 disabled:text-gray-500"
                             />
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={openAddModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Inventory
-                    </button>
                 </div>
             </div>
 
@@ -220,9 +200,13 @@ const Inventory = () => {
                 </p>
             )} */}
 
-            {warehouseId && <InventoryTable inventory={filteredInventory} onEdit={openEditModal} onDelete={handleDelete} highlightTerm={searchTerm} />}
+            {warehouseId && (isLoading ? (
+                <TableSkeleton rows={pageSize} columns={5} />
+            ) : (
+                <InventoryTable inventory={filteredInventory} onEdit={openEditModal} onDelete={handleDelete} highlightTerm={searchTerm} />
+            ))}
 
-            {warehouseId && totalPages > 1 && (
+            {warehouseId && !isLoading && totalPages > 1 && (
                 <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
                     <p className="text-sm text-muted-foreground">
                         Page {currentPage} of {totalPages} ({pagination.totalItems} total)

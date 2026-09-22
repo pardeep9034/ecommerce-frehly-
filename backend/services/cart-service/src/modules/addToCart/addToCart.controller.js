@@ -1,3 +1,4 @@
+import logger from "../../utils/Logger.js";
 import responseUtil from "../../utils/response.js";
 import addToCartService from "./addToCart.service.js";
 class addToCartController{
@@ -60,6 +61,7 @@ class addToCartController{
     }
     async decreaseQuantity(req,res,next){
           const warehouseId = req.headers["x-warehouse-id"];
+          logger.info(warehouseId)
         try{
 
             const result = await addToCartService.decreaseQuantity(req.user,req.params.cartItemId,warehouseId);
