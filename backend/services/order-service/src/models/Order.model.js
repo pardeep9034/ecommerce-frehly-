@@ -74,6 +74,10 @@ export default (sequelize) => {
         type: DataTypes.ENUM("PENDING", "SUCCESS", "FAILED", "REFUNDED"),
         allowNull: false
       },
+      idempotency_key: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+      },
       placed_at: {
         type: DataTypes.DATE
       }

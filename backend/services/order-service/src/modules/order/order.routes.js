@@ -14,6 +14,11 @@ router.patch("/:orderId/cancel", authenticateToken, validate("cancelOrder"), ord
 router.patch("/:orderId/items/:itemId/status", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), validate("updateOrderItemStatus"), orderController.updateOrderItemStatus);
 router.post("/:orderId/items/finalize", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), orderController.finalizeOrderItems);
 router.post("/:orderId/confirm-partial", authenticateToken, validate("confirmPartialOrder"), orderController.confirmPartialOrder);
+// No authenticateToken: the gateway calling this has no user JWT. Trust
+// comes from the HMAC signature in x-payment-signature instead (verified
+// inside processPaymentWebhook), the same way a real gateway webhook works.
+router.post("/payments/webhook", orderController.handlePaymentWebhook);
+
 router.post("/:orderId/payment/success", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), validate("paymentCallback"), orderController.handlePaymentSuccess);
 router.post("/:orderId/payment/failure", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), validate("paymentCallback"), orderController.handlePaymentFailure);
 router.post("/:orderId/payment/refund", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), validate("paymentCallback"), orderController.refundPayment);

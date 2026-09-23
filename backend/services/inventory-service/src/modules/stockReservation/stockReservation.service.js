@@ -99,7 +99,8 @@ class StockReservationServices {
      const inventoryModel =
   await InventoryRepository.getInventoryByVariantIdAndWarehouseId(
     variant_id,
-    warehouse_id
+    warehouse_id,
+    { transaction, lock: transaction.LOCK.UPDATE }
   );
 
 if (!inventoryModel) {
@@ -171,6 +172,7 @@ const inventory = inventoryModel.toJSON();
       const reservation =
         await StockReservationRepository.getStockReservationById(id, {
           transaction,
+          lock: transaction.LOCK.UPDATE,
         });
 
       if (!reservation) {
@@ -190,6 +192,7 @@ const inventory = inventoryModel.toJSON();
           reservation.warehouse_id,
           0,
           1,
+          { transaction, lock: transaction.LOCK.UPDATE },
         );
    
 

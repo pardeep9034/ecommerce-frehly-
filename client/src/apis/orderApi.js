@@ -90,6 +90,10 @@ return response.data
   async confirmPartialOrder(orderId, decision) {
     const response = await api.post(`/orders/${orderId}/confirm-partial`, { decision });
     return response.data;
+  },
+  async retryPayment(orderId, payload = {}) {
+    const response = await api.post(`/orders/${orderId}/payment/retry`, payload);
+    return response.data;
   }
 };
 

@@ -31,7 +31,16 @@ const limiter = rateLimit({
 });
 
 app.use(limiter);
-app.use(express.json({ limit: "10mb" }));
+// `verify` stashes the exact raw bytes on req.rawBody alongside the normal
+// parsed req.body — the payment webhook route needs the untouched bytes to
+// check the gateway's HMAC signature (JSON.stringify(JSON.parse(x)) is not
+// guaranteed to equal x, so re-serializing req.body would break the check).
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {

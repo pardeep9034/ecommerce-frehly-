@@ -90,6 +90,15 @@ export const useConfirmPartialOrder = (orderId) => {
   });
 };
 
+export const useRetryPayment = (orderId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => OrderApi.retryPayment(orderId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] }),
+  });
+};
+
 export const useOrderDetail = (orderId) => {
   const {
     data: order,

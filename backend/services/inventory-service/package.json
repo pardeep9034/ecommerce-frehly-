@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "start": "node server.js",
+        "test": "node --test",
         "dev": "nodemon server.js",
         "db:migrate": "dotenv sequelize-cli db:migrate",
         "db:migrate:status": "dotenv sequelize-cli db:migrate:status",

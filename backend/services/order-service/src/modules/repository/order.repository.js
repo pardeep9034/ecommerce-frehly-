@@ -14,6 +14,10 @@ class OrderRepository extends BaseRepository {
     return await this.findById(id, options);
   }
 
+  async findByUserIdempotencyKey(userId, idempotencyKey, options = {}) {
+    return await this.findOne({ user_id: userId, idempotency_key: idempotencyKey }, options);
+  }
+
   async getOrderDetails(id, options = {}) {
     return await this.findById(id, {
       include: [

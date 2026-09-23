@@ -34,7 +34,12 @@ const envSchema = Joi.object({
     .uri()
     .default("http://localhost:3005"),
     AUTH_SERVICE_URL:Joi.string().uri().default("http://localhost:3000"),
-  API_GATEWAY_URL:Joi.string().uri().optional()
+  API_GATEWAY_URL:Joi.string().uri().optional(),
+
+  PAYMENT_GATEWAY: Joi.string().default("mock"),
+  PAYMENT_WEBHOOK_SECRET: Joi.string().optional(),
+  RAZORPAY_KEY_ID: Joi.string().optional(),
+  RAZORPAY_KEY_SECRET: Joi.string().optional()
 
 }).unknown(true)
 

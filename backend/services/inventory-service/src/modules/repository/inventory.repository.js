@@ -20,8 +20,8 @@ class InventoryRepository extends BaseRepository{
     return await this.findById(id);
   }
 
-  async getInventoryByVariantId(variantId,warehouseId, offset, limit) {
-  return await this.findOne({variant_id: variantId,warehouse_id:warehouseId});
+  async getInventoryByVariantId(variantId,warehouseId, offset, limit, options = {}) {
+  return await this.findOne({variant_id: variantId,warehouse_id:warehouseId}, options);
   }
 
   async getInventoryByWarehouse(warehouseId, limit = 10, offset = 0) {
@@ -32,8 +32,8 @@ class InventoryRepository extends BaseRepository{
     });
   }
 
-  async getInventoryByVariantIdAndWarehouseId(variant_id,warehouse_id){
-    return await this.findOne({variant_id,warehouse_id})
+  async getInventoryByVariantIdAndWarehouseId(variant_id,warehouse_id, options = {}){
+    return await this.findOne({variant_id,warehouse_id}, options)
   }
 
   async createInventory(inventoryData, options = {}) {

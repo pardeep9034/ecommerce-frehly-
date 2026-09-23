@@ -14,13 +14,34 @@ import {
   ShoppingCart
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useOrderDetail, useConfirmPartialOrder } from "@/hooks/use-order";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOrderDetail, useConfirmPartialOrder, useRetryPayment } from "@/hooks/use-order";
+import { openRazorpayCheckout } from "@/lib/razorpay";
 import { toast } from "@/components/ui/sonner";
+
+const RETRYABLE_STATUSES = ["PENDING_PAYMENT", "PAYMENT_FAILED", "PAYMENT_EXPIRED"];
 
 const OrderDetail = () => {
   const { orderId } = useParams();
+  const queryClient = useQueryClient();
   const { order, isLoading, isError } = useOrderDetail(orderId);
   const confirmPartialOrder = useConfirmPartialOrder(orderId);
+  const retryPayment = useRetryPayment(orderId);
+
+  const handleRetryPayment = () => {
+    retryPayment.mutate({}, {
+      onSuccess: (result) => {
+        const { payment_session } = result.data;
+        if (payment_session?.provider_session_id) {
+          openRazorpayCheckout({
+            paymentSession: payment_session,
+            onDone: () => queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
+          });
+        }
+      },
+      onError: () => toast.error("Unable to retry payment, please try again"),
+    });
+  };
 
   const handleDownloadInvoice = () => {
     window.print();
@@ -102,6 +123,28 @@ const OrderDetail = () => {
             Invoice
           </button>
         </div>
+
+        {RETRYABLE_STATUSES.includes(order.status) && (
+          <div className="mb-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+            <h3 className="flex items-center gap-2 font-bold text-gray-900">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              {order.status === "PENDING_PAYMENT" ? "Waiting for payment confirmation" : "Payment didn't go through"}
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              {order.status === "PENDING_PAYMENT"
+                ? "If you already paid, this page updates automatically once it's confirmed. Didn't finish paying, or want to try again?"
+                : "You can retry payment for this order without re-adding your items."}
+            </p>
+            <button
+              type="button"
+              disabled={retryPayment.isPending}
+              onClick={handleRetryPayment}
+              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {retryPayment.isPending ? "Starting payment..." : "Retry Payment"}
+            </button>
+          </div>
+        )}
 
         {order.status === "AWAITING_CUSTOMER_CONFIRMATION" && (
           <div className="mb-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">

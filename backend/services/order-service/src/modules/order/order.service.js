@@ -1,4 +1,5 @@
 import { Op } from "sequelize";
+import jwt from "jsonwebtoken";
 import initializeModels from "../../models/index.js";
 import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
@@ -9,6 +10,8 @@ import OrderStatusHistoryRepository from "../repository/orderStatusHistory.repos
 import PaymentRepository from "../repository/payment.repository.js";
 import {publisher} from "../../messaging/index.js"
 import OrderEvents from "../../messaging/events/order.events.js";
+import PaymentEvents from "../../messaging/events/payment.events.js";
+import { paymentGateway } from "../../payment/index.js";
 import logger from "../../utils/Logger.js";
 
 const ORDER_STATUS = {
@@ -98,6 +101,16 @@ class OrderService {
     if (!userId) {
       throw new AppError("User id is required", 400);
     }
+
+    const idempotencyKey = data.idempotency_key ? String(data.idempotency_key).trim() : null;
+
+    if (idempotencyKey) {
+      const existingOrder = await OrderRepository.findByUserIdempotencyKey(userId, idempotencyKey);
+      if (existingOrder) {
+        return await this.buildOrderResponse(existingOrder, user);
+      }
+    }
+
     const cartItemsResponse=await fetch(`${env.API_GATEWAY_URL}/cart/${data.cart_id}`,{
   headers: {
     "Content-Type":"application/json",
@@ -148,7 +161,8 @@ if(!userAddress.success){
           discount_amount: totals.discount_amount,
           total_amount: totals.total_amount,
           payment_status: isCOD ? PAYMENT_STATUS.SUCCESS : PAYMENT_STATUS.PENDING,
-          placed_at: isCOD ? new Date() : null
+          placed_at: isCOD ? new Date() : null,
+          idempotency_key: idempotencyKey
         }, { transaction });
 
         const createdItems = await OrderItemRepository.createOrderItems(
@@ -213,10 +227,18 @@ if(!userAddress.success){
           }
         }
 
+        const gatewaySession = isCOD ? null : await paymentGateway.createPaymentSession({
+          orderId: order.id,
+          orderNumber: order.order_number,
+          amount: totals.total_amount,
+          paymentMethod
+        });
+
         await PaymentRepository.updatePayment(payment.id, {
           gateway_response: JSON.stringify({
             reservation_ids: reservationIds,
-            ...(isCOD ? {} : { expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() })
+            ...(isCOD ? {} : { expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() }),
+            ...(gatewaySession ? { provider_session_id: gatewaySession.providerSessionId, checkout_url: gatewaySession.checkoutUrl } : {})
           })
         }, { transaction });
            await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
@@ -231,14 +253,108 @@ if(!userAddress.success){
             payment_id: payment.id,
             amount: totals.total_amount,
             status: payment.status,
-            expires_in_minutes: isCOD ? null : 15
+            expires_in_minutes: isCOD ? null : 15,
+            checkout_url: gatewaySession?.checkoutUrl || null,
+            provider_session_id: gatewaySession?.providerSessionId || null
           }
         };
       });
     } catch (error) {
+      if (idempotencyKey && error?.name === "SequelizeUniqueConstraintError") {
+        const existingOrder = await OrderRepository.findByUserIdempotencyKey(userId, idempotencyKey);
+        if (existingOrder) {
+          return await this.buildOrderResponse(existingOrder, user);
+        }
+      }
       await this.compensateReservations(reservationIds, authorization);
       throw error;
     }
+  }
+
+  async buildOrderResponse(order, user) {
+    const details = await this.getOrderDetails(order.id, user);
+    const latestPayment = details.latest_payment;
+    const gatewayInfo = this.parseGatewayResponse(latestPayment?.gateway_response);
+
+    return {
+      order: details,
+      payment_session: {
+        order_id: details.id,
+        order_number: details.order_number,
+        payment_id: latestPayment?.id || null,
+        amount: details.total_amount,
+        status: latestPayment?.status || details.payment_status,
+        expires_in_minutes: details.payment_status === PAYMENT_STATUS.SUCCESS ? null : 15,
+        checkout_url: gatewayInfo.checkout_url || null,
+        provider_session_id: gatewayInfo.provider_session_id || null
+      }
+    };
+  }
+
+  parseGatewayResponse(raw) {
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  async publishPaymentEvent(event, payload) {
+    try {
+      await publisher.publish(event, payload);
+    } catch (error) {
+      logger.error(`Failed to publish ${event.routingKey}`, { error: error.message, ...payload });
+    }
+  }
+
+  // A gateway webhook has no user's JWT to forward to inventory-service.
+  // Mint a short-lived internal token instead — every service verifies
+  // JWTs against the same shared JWT_SECRET, so this is accepted exactly
+  // like a real user's token would be (see backend/CLAUDE.md's Auth section).
+  buildSystemAuthorization() {
+    const token = jwt.sign({ user_id: "system", role: "SYSTEM" }, process.env.JWT_SECRET, { expiresIn: "5m" });
+    return `Bearer ${token}`;
+  }
+
+  async processPaymentWebhook(rawBody, signatureHeader) {
+    if (!paymentGateway.verifyWebhookSignature(rawBody, signatureHeader)) {
+      throw new AppError("Invalid webhook signature", 401);
+    }
+
+    const event = paymentGateway.parseWebhookEvent(rawBody);
+    const order = await OrderRepository.getOrderById(event.orderId);
+
+    if (!order) {
+      throw new AppError(`Webhook references unknown order ${event.orderId}`, 404);
+    }
+
+    // Gateways redeliver webhooks (no ack, network blip, etc). If this
+    // order already left PENDING_PAYMENT, this event was already applied
+    // (or is now stale) — treat it as a no-op instead of erroring, so the
+    // gateway sees a clean 200 and stops retrying.
+    if (order.status !== ORDER_STATUS.PENDING_PAYMENT) {
+      logger.info("payment.webhook.ignored", { orderId: event.orderId, orderStatus: order.status, eventType: event.type });
+      return await this.getOrderDetails(order.id, null);
+    }
+
+    const authorization = this.buildSystemAuthorization();
+    const data = {
+      transaction_id: event.transactionId,
+      gateway_response: event.raw,
+      remarks: `Payment ${event.type === "payment.succeeded" ? "confirmed" : "failed"} via gateway webhook`
+    };
+
+    if (event.type === "payment.succeeded") {
+      return await this.handlePaymentSuccess(order.id, data, authorization);
+    }
+
+    if (event.type === "payment.failed") {
+      return await this.handlePaymentFailure(order.id, data, authorization);
+    }
+
+    logger.info("payment.webhook.unhandled_event", { orderId: event.orderId, eventType: event.type });
+    return await this.getOrderDetails(order.id, null);
   }
 
   async buildOrderItems(items) {
@@ -674,7 +790,7 @@ if(!userAddress.success){
 
     await this.confirmReservations(orderId, authorization);
 
-    return await db.sequelize.transaction(async (transaction) => {
+    const details = await db.sequelize.transaction(async (transaction) => {
       const order = await OrderRepository.getOrderById(orderId, { transaction });
       const payment = await this.getPendingPayment(orderId, transaction);
 
@@ -702,6 +818,14 @@ if(!userAddress.success){
 
       return await this.getOrderDetails(order.id, null, { transaction });
     });
+
+    await this.publishPaymentEvent(PaymentEvents.PAYMENT_CHARGED, {
+      orderId,
+      amount: details.total_amount,
+      transactionId: details.latest_payment?.transaction_id
+    });
+
+    return details;
   }
 
   async handlePaymentFailure(orderId, data, authorization) {
@@ -729,7 +853,7 @@ if(!userAddress.success){
 
     await this.releaseReservations(orderId, authorization, "release");
 
-    return await db.sequelize.transaction(async (transaction) => {
+    const details = await db.sequelize.transaction(async (transaction) => {
       const order = await OrderRepository.getOrderById(orderId, { transaction });
       const payment = await this.getPendingPayment(orderId, transaction);
 
@@ -755,12 +879,19 @@ if(!userAddress.success){
 
       return await this.getOrderDetails(order.id, null, { transaction });
     });
+
+    await this.publishPaymentEvent(PaymentEvents.PAYMENT_FAILED, {
+      orderId,
+      reason: data.remarks || data.reason || "unknown"
+    });
+
+    return details;
   }
 
   async refundPayment(orderId, data, user) {
     const db = await initializeModels();
 
-    return await db.sequelize.transaction(async (transaction) => {
+    const { details, transactionId } = await db.sequelize.transaction(async (transaction) => {
       const order = await OrderRepository.getOrderById(orderId, { transaction });
 
       if (!order) {
@@ -773,9 +904,19 @@ if(!userAddress.success){
         throw new AppError("Successful payment not found for refund", 404);
       }
 
+      // COD was never charged through a gateway — nothing to refund there,
+      // just flip the DB flags (an offline/cash refund happens outside this system).
+      const gatewayRefund = payment.payment_method !== "COD" && payment.transaction_id
+        ? await paymentGateway.refund({ transactionId: payment.transaction_id, amount: data.amount || payment.amount })
+        : null;
+
+      const nextGatewayResponse = gatewayRefund
+        ? { ...(typeof data.gateway_response === "object" ? data.gateway_response : {}), refund: gatewayRefund }
+        : data.gateway_response;
+
       await PaymentRepository.updatePayment(payment.id, {
         status: PAYMENT_STATUS.REFUNDED,
-        gateway_response: this.mergeGatewayResponse(payment.gateway_response, data.gateway_response)
+        gateway_response: this.mergeGatewayResponse(payment.gateway_response, nextGatewayResponse)
       }, { transaction });
 
       await OrderRepository.updateOrder(order.id, {
@@ -790,8 +931,18 @@ if(!userAddress.success){
         remarks: data.remarks || "Payment refunded"
       }, { transaction });
 
-      return await this.getOrderDetails(order.id, user, { transaction });
+      return {
+        details: await this.getOrderDetails(order.id, user, { transaction }),
+        transactionId: payment.transaction_id
+      };
     });
+
+    await this.publishPaymentEvent(PaymentEvents.PAYMENT_REFUNDED, {
+      orderId,
+      transactionId
+    });
+
+    return details;
   }
 
   async expirePendingPayments(authorization) {
@@ -901,10 +1052,19 @@ if(!userAddress.success){
           }
         }
 
+        const gatewaySession = await paymentGateway.createPaymentSession({
+          orderId: freshOrder.id,
+          orderNumber: freshOrder.order_number,
+          amount: freshOrder.total_amount,
+          paymentMethod
+        });
+
         await PaymentRepository.updatePayment(payment.id, {
           gateway_response: JSON.stringify({
             reservation_ids: reservationIds,
-            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            provider_session_id: gatewaySession.providerSessionId,
+            checkout_url: gatewaySession.checkoutUrl
           })
         }, { transaction });
 
@@ -918,7 +1078,9 @@ if(!userAddress.success){
             payment_id: payment.id,
             amount: freshOrder.total_amount,
             status: payment.status,
-            expires_in_minutes: 15
+            expires_in_minutes: 15,
+            checkout_url: gatewaySession.checkoutUrl,
+            provider_session_id: gatewaySession.providerSessionId
           }
         };
       });

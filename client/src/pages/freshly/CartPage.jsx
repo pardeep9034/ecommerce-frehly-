@@ -14,7 +14,7 @@ import {
   CreditCard,
   History
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { removeFromCart, updateQuantity } from "@/redux/cartSlice";
 import AddressFormModal from "@/components/freshly/AddressFormModal";
 import useAddress from "@/hooks/use-address";
@@ -23,10 +23,12 @@ import { useQuery } from "@tanstack/react-query";
 import { getProfile } from '@/apis/authApi';
 import {increaseQuantityMutation, decreaseQuantityMutation} from "@/hooks/use-addToCart"; 
 import useOrder from "@/hooks/use-order";
+import { openRazorpayCheckout } from "@/lib/razorpay";
 
 
 const CartPage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const cartItems = useSelector((state) => state.cart.items);
   const { addresses, isLoading: addressLoading } = useAddress();
   const [addressModalOpen, setAddressModalOpen] = useState(false);
@@ -73,11 +75,27 @@ const CartPage = () => {
   const handleRemoveItem = (product_id, variant_id) => {
     dispatch(removeFromCart({ product_id, variant_id }));
   };
-  const createOrder=()=>{
-placeOrder.mutate({
-  cart_id:cartItems[0].cart_id,
-  address_id:selectedAddress.id
-})
+
+  const createOrder = () => {
+    placeOrder.mutate(
+      { cart_id: cartItems[0].cart_id, address_id: selectedAddress.id },
+      {
+        onSuccess: (result) => {
+          const { order, payment_session } = result.data;
+
+          if (payment_session?.provider_session_id) {
+            openRazorpayCheckout({
+              paymentSession: payment_session,
+              profile,
+              onDone: () => navigate(`/orders/${order.id}`)
+            });
+          } else {
+            // COD — already PLACED/paid server-side, nothing more to do.
+            navigate(`/orders/${order.id}`);
+          }
+        }
+      }
+    );
   };
 
   if (cartItems.length === 0 && step === 1) {
@@ -266,8 +284,8 @@ placeOrder.mutate({
                  <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success">
                     <History className="h-10 w-10 text-primary animate-spin-slow" />
                  </div>
-                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Integrating Payment Gateway...</h2>
-                 <p className="mt-4 text-slate-500 font-medium max-w-sm mx-auto">We're setting up a secure payment environment for you. Redirecting to checkout shortly. </p>
+                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Ready for Secure Payment</h2>
+                 <p className="mt-4 text-slate-500 font-medium max-w-sm mx-auto">Placing your order opens a secure Razorpay payment window right here — no redirect.</p>
                  <div className="mt-8 flex justify-center gap-4">
                     <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "0ms" }} />
                     <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "120ms" }} />
