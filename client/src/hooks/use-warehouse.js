@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import warehouseApi from "@/apis/warehouseApi";
 import { notify } from "@/lib/notify";
+import { DEMO_NOTICE, isApiMissing, retryUnlessMissing } from "@/lib/demoData";
 
 const useWarehouse = (page, limit) => {
   const queryClient = useQueryClient();
@@ -65,7 +66,12 @@ export const useWarehouseDetail = (id) => {
   return { warehouse: data?.data ?? null, isLoading, error };
 };
 
-// PATCH - warehouse operational settings (store hours, capacity, auto-assign)
+// A missing endpoint (PATCH /settings, /team) is expected until the backend ships it:
+// say so plainly instead of a generic "failed" error.
+const notifyMutationError = (error, fallback) =>
+  isApiMissing(error) ? notify.warning(DEMO_NOTICE) : notify.apiError(error, fallback);
+
+// PATCH - warehouse operational settings (status, store hours, pack-by, capacity, racks, auto-assign)
 export const useWarehouseSettings = (id) => {
   const queryClient = useQueryClient();
 
@@ -73,15 +79,17 @@ export const useWarehouseSettings = (id) => {
     mutationFn: (data) => warehouseApi.updateWarehouseSettings(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouse", id] });
-      notify.success("Warehouse settings updated");
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      notify.success("Warehouse settings saved");
     },
-    onError: (error) => notify.apiError(error, "Failed to update warehouse settings"),
+    onError: (error) => notifyMutationError(error, "Failed to save warehouse settings"),
   });
 
   return { updateSettingsMutation };
 };
 
-// GET/POST/DELETE - staff assigned to a warehouse
+// GET/POST/DELETE - staff assigned to a warehouse. `isDemo` means GET /team doesn't
+// exist yet; the page then derives the team from the (demo) staff list instead.
 export const useWarehouseTeam = (id) => {
   const queryClient = useQueryClient();
 
@@ -89,28 +97,37 @@ export const useWarehouseTeam = (id) => {
     queryKey: ["warehouse-team", id],
     queryFn: () => warehouseApi.getWarehouseTeam(id),
     enabled: !!id,
+    retry: retryUnlessMissing,
   });
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["warehouse-team", id] });
+    queryClient.invalidateQueries({ queryKey: ["staff"] });
+  };
+
+  // Assigns several people at once; each person works at one warehouse, so the
+  // backend moves anyone already assigned elsewhere.
   const assignMutation = useMutation({
-    mutationFn: (userId) => warehouseApi.assignWarehouseStaff(id, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["warehouse-team", id] });
-      notify.success("Staff assigned to warehouse");
+    mutationFn: (userIds) => Promise.all(userIds.map((userId) => warehouseApi.assignWarehouseStaff(id, userId))),
+    onSuccess: (_, userIds) => {
+      invalidate();
+      notify.success(userIds.length === 1 ? "1 person assigned" : `${userIds.length} people assigned`);
     },
-    onError: (error) => notify.apiError(error, "Failed to assign staff"),
+    onError: (error) => notifyMutationError(error, "Failed to assign staff"),
   });
 
   const removeMutation = useMutation({
     mutationFn: (userId) => warehouseApi.removeWarehouseStaff(id, userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["warehouse-team", id] });
-      notify.success("Staff removed from warehouse");
+      invalidate();
+      notify.success("Removed from this warehouse");
     },
-    onError: (error) => notify.apiError(error, "Failed to remove staff"),
+    onError: (error) => notifyMutationError(error, "Failed to remove staff"),
   });
 
   return {
     team: data?.data?.team ?? [],
+    isDemo: isApiMissing(error),
     isLoading,
     error,
     assignMutation,

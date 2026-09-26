@@ -7,5 +7,6 @@ export const notify = {
   warning: (message, options) => toast.warning(message, options),
   promise: (promise, messages) => toast.promise(promise, messages),
   apiError: (error, fallback = "Something went wrong") =>
-    toast.error(error?.response?.data?.message || fallback),
+    // inventory-service's Joi middleware answers { error: "..." } instead of { message }.
+    toast.error(error?.response?.data?.message || error?.response?.data?.error || fallback),
 };

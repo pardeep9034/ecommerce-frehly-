@@ -4,47 +4,30 @@ Branch: `feature/store-operations-module`. Tracks progress against the
 [Admin Warehouses & Staff design canvas](https://claude.ai/artifact/VJC2BbHPBRS9bnWTXN4L7B) —
 the module [[STORE_OPERATIONS_MODULE]] queued as "next" in its Deferred section.
 
-## What's done (frontend only — no backend changes in this pass)
+## What's done (frontend only, no backend changes)
 
-New files:
-- `client/src/pages/dashboard/{StaffPage,StaffNewPage,WarehouseDetailPage}.jsx`
-- `client/src/components/dashboard/{StaffTable,WarehouseTeamTable,AssignStaffModal}.jsx`
-- `client/src/apis/staffApi.js`, `client/src/hooks/use-staff.js`
-- `client/src/lib/staffRole.js` — role labels/descriptions shared by the Staff list, the
-  Add User role picker, and the warehouse Team tab.
+All 6 boards of the design are built. Real data is used wherever an endpoint exists;
+everything else falls back to **demo data** from `client/src/lib/demoData.js` and is
+labelled with a yellow "Demo data" chip (`DemoBadge`). Saving to an endpoint that doesn't
+exist yet shows a warning toast ("needs the backend API") instead of a generic error.
 
-Edited files:
-- `client/src/components/dashboard/FreshlySidebar.jsx` — added **Warehouses** (Overview
-  section) and **Staff & Admins** (Management section) nav items.
-- `client/src/App.jsx` — Warehouses moved from the nested `inventory/warehouses` route to
-  a top-level `/dashboard/warehouses` route (it was about to collide with
-  `FreshlySidebar`'s `isActiveRoute`, which does a `startsWith` prefix match — Inventory
-  and Warehouses would have both shown "active" at once). Added
-  `/dashboard/warehouses/:warehouseId`, `/dashboard/staff`, `/dashboard/staff/new`.
-- `client/src/pages/dashboard/Inventory.jsx` — its "Warehouse" quick-nav card now points at
-  `/dashboard/warehouses` instead of the old nested path.
-- `client/src/components/dashboard/DashboardLayout.jsx` — added header titles for the new
-  routes.
-- `client/src/pages/dashboard/WarehousePage.jsx`, `WarehousesTable.jsx`,
-  `apis/warehouseApi.js`, `hooks/use-warehouse.js` — promoted the existing Warehouse CRUD
-  (already in the codebase) into a first-class tab instead of building a duplicate: added
-  stat cards, a row-click/View action into the new detail page, and `notify` toasts on the
-  mutations (the hook had none, unlike `use-category.js`'s pattern). Also fixed
-  `WarehouseApi.getAllWarehouses()` silently ignoring the `page`/`limit` args the hook was
-  already passing it (it always fetched page 1 regardless of pagination state), and a
-  `colSpan={5}` on an 8-column table.
+| Board | Screen | Real today | Demo / not saved yet |
+|---|---|---|---|
+| 1 | Warehouses list (`WarehousePage`, `WarehousesTable`) | warehouses, zones, status from `is_active` | manager, staff count (demo staff), orders today |
+| 2 | Add warehouse, 4 steps (`WarehouseNewPage`, `/dashboard/warehouses/new`, `?draft=id` to finish a draft) | create/update warehouse, draft = `is_active:false` | pincode, hours, pack-by, capacity, racks, auto-assign, team |
+| 3 | Warehouse detail (`WarehouseDetailPage`): Overview / Location / Team / Settings | location edit, deactivate | overview metrics, team (derived from staff), store status, hours, label printer |
+| 4 | Assign staff dialog (`AssignStaffModal`, also "Change manager" single-select) | — | assign/remove |
+| 5 | Staff & admins list (`StaffPage`, `StaffTable`) + reset password / move / disable dialogs | — | whole list (15 demo users from the design) |
+| 6 | Add user (`StaffNewPage`): set password now **or** SMS link, strength meter, success screen; `?edit=id` | — | create (shows an "unsaved preview" success screen) |
 
-All of the above renders and was clicked through against the running dev server + live
-gateway (`localhost:4000`) with the seeded `SUPER_ADMIN` account — the two real warehouses
-list correctly, stat cards compute from real data, and every screen that calls a
-not-yet-existing endpoint below degrades to an empty state (confirmed via 404s in the
-network log) instead of crashing.
+Shared pieces: `SummaryTile`, `StatusPill`, `UnderlineTabs`, `FormField`, `StaffCheckRow`,
+`ConfirmDialog`, `WarehouseLocationFields`; `lib/{formStyles,warehouseForm,warehouseStatus,staffRole,password,formatTime,demoData}.js`.
+Sidebar: Warehouses moved to Management, next to "Staff & admins". Header titles fall back to
+the closest parent path (`/dashboard/warehouses/12` → "Warehouses").
 
-**Deliberately left out of this pass**: the artifact's 4-step "Add Warehouse" wizard
-(kept the existing single-form modal — same ~10 fields, a wizard added clicks without
-adding capability); fabricated operational metrics ("142 orders today", "9 min avg
-pick+pack" in the artifact mockup) — the Overview tab says plainly that these need backend
-order-aggregation instead of inventing numbers with nothing behind them.
+To remove the demo layer once the APIs below ship: the hooks set `isDemo` only when an
+endpoint 404s, so real data takes over automatically; then delete `DEMO_STAFF`,
+`DEMO_WAREHOUSE_METRICS` and `demoOrdersToday` from `demoData.js`.
 
 ## APIs needed
 
@@ -63,10 +46,11 @@ Lists non-customer users (`role != CUSTOMER`), paginated.
   "users": [ {
     "id": 12, "first_name": "Suresh", "last_name": "Bansal", "phone": "+91...",
     "email": null, "role": "ADMIN", "warehouse_id": 2, "warehouse_name": "TEST",
-    "is_active": true, "account_locked_until": null, "last_login_at": "2026-09-20T..."
+    "is_active": true, "account_locked_until": null, "last_login_at": "2026-09-20T...",
+    "failed_login_attempts": 0, "must_change_password": false, "invite_pending": false, "on_shift": true, "shift": "MORNING"
   } ],
   "pagination": { "totalItems": 4, "totalPages": 1 },
-  "summary": { "super_admin": 1, "admin": 1, "ops_staff": 2, "locked": 0 }
+  "summary": { "total": 4, "super_admin": 1, "admin": 1, "admin_unassigned": 0, "ops_staff": 2, "on_shift": 1, "locked": 0, "first_login_pending": 0, "attention": 0 }
 }}
 ```
 `warehouse_name` is a convenience join against the `warehouse_staff` table below (backend
@@ -83,12 +67,13 @@ Creates an admin/ops-staff account.
   "first_name": "Suresh", "last_name": "Bansal", "phone": "+91...", "email": null,
   "role": "ADMIN",
   "warehouse_id": 2,
+  "shift": "MORNING",
   "password_method": "set",
   "password": "TempPass123",
   "must_change_password": true
 }
 ```
-`warehouse_id` is required when `role != SUPER_ADMIN`, rejected (or ignored) when
+`warehouse_id` is optional for `ADMIN`/`OPS_STAFF` (the list shows "Not assigned"), rejected (or ignored) when
 `role == SUPER_ADMIN`. When `password_method` is `"set"`, hash `password` the same way
 `User.model.js`'s `beforeCreate` hook already does; when `"link"`, generate a random
 password server-side (never left blank/null) and send a set-password SMS instead — see
@@ -138,7 +123,7 @@ and this codebase has no service-to-service call convention (confirmed: nothing 
 service calls another service over HTTP; everything is either fully decoupled or
 duplicated data, e.g. `user-addresses` living in auth-service rather than user-service).
 The frontend joins this against `GET /auth/admin/users` (already fetched for the Staff
-page) by `user_id` — see `WarehouseDetailPage.jsx`'s `enrichedTeam`. "Manager" vs "staff"
+page) by `user_id` — see `WarehouseDetailPage.jsx`'s `members`. "Manager" vs "staff"
 in the Team tab UI is likewise not a stored value: it's derived from whether that
 `user_id`'s own `role` is `ADMIN` or `OPS_STAFF`, exactly per [[STORE_OPERATIONS_MODULE]]
 backend change #4's `WarehouseStaff` design ("role... derived from the user's existing
@@ -162,13 +147,16 @@ Body (all optional, all new nullable columns — see backend change #5):
   "store_close_time": "22:00",
   "pack_by_minutes": 15,
   "max_orders_per_slot": 40,
-  "auto_assign_riders": false
+  "auto_assign_riders": false,
+  "pincode": "140301",
+  "racks": ["A-1", "A-2", "COLD-1"],
+  "pause_reason": "Too many orders right now",
+  "paused_until": "2026-09-26T12:30:00Z",
+  "maintenance_message": "Back tomorrow at 6 AM"
 }
 ```
-The frontend's Settings tab currently only wires up `is_active` (via the existing
-`PUT /warehouses/:id`, no change needed) since that's the only field that's real today;
-the rest of the tab explains in-page that it activates once this endpoint ships, rather
-than shipping toggles that silently do nothing.
+`paused_until: null` means paused until someone reopens it. `GET /warehouses/:id` should
+return these fields so the Settings tab and list show the saved values.
 
 ## Backend changes required (none made in this pass)
 

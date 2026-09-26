@@ -36,6 +36,7 @@ import ProductAttributePage from "./pages/dashboard/ProductAttributePage";
 import VariantPage from "./pages/dashboard/VariantPage";
 import WarehousePage from "./pages/dashboard/WarehousePage";
 import WarehouseDetailPage from "./pages/dashboard/WarehouseDetailPage";
+import WarehouseNewPage from "./pages/dashboard/WarehouseNewPage";
 import StaffPage from "./pages/dashboard/StaffPage";
 import StaffNewPage from "./pages/dashboard/StaffNewPage";
 import StockMovementPage from "./pages/dashboard/StockMovementPage";
@@ -118,6 +119,7 @@ function App() {
           <Route path="inventory/stock-movement" element={<StockMovementPage />} />
           <Route path="inventory/stock-reservation" element={<StockReservationPage />} />
           <Route path="warehouses" element={<WarehousePage />} />
+          <Route path="warehouses/new" element={<WarehouseNewPage />} />
           <Route path="warehouses/:warehouseId" element={<WarehouseDetailPage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="staff/new" element={<StaffNewPage />} />

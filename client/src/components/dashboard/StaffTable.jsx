@@ -1,125 +1,119 @@
-import { MoreVertical, Edit2, KeyRound, Send, Ban, CheckCircle } from "lucide-react";
+import { ArrowRightLeft, Ban, CheckCircle, Edit2, KeyRound, MoreHorizontal, Send } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ROLE_BADGE_CLASSES, roleLabel } from "@/lib/staffRole";
+import StatusPill from "@/components/dashboard/StatusPill";
+import { formatLastLogin } from "@/lib/formatTime";
+import { ROLE_BADGE_CLASSES, ROLE_DOT_CLASSES, STAFF_STATUS, fullName, initials, staffStatus } from "@/lib/staffRole";
 
-const initials = (user) =>
-  [user.first_name, user.last_name]
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "?";
+const SHORT_ROLE = { SUPER_ADMIN: "Super admin", ADMIN: "Admin", OPS_STAFF: "Ops staff" };
 
-const StatusBadge = ({ user }) => {
-  if (user.account_locked_until && new Date(user.account_locked_until) > new Date()) {
-    return <span className="inline-flex rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">Locked</span>;
-  }
-  if (!user.is_active) {
-    return <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Disabled</span>;
-  }
-  return <span className="inline-flex rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">Active</span>;
+const warehouseCell = (user) => {
+  if (user.role === "SUPER_ADMIN") return <span className="text-muted-foreground">All warehouses</span>;
+  if (!user.warehouse_id) return <span className="font-semibold text-destructive">Not assigned</span>;
+  return <span className="text-foreground">{user.warehouse_name || `Warehouse #${user.warehouse_id}`}</span>;
 };
 
-const StaffTable = ({
-  staff = [],
-  onEdit,
-  onResetPassword,
-  onResendInvite,
-  onToggleStatus,
-}) => {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted">
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">User</th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Role</th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Warehouse</th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Status</th>
-              <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {staff.map((user) => (
-              <tr key={user.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted">
-                <td className="px-5 py-4 sm:px-6">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+const StaffTable = ({ staff = [], isLoading, onEdit, onResetPassword, onResendInvite, onMove, onToggleStatus }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full min-w-[860px] text-sm">
+      <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <tr>
+          <th className="px-5 py-3 font-semibold">User</th>
+          <th className="px-5 py-3 font-semibold">Role</th>
+          <th className="px-5 py-3 font-semibold">Warehouse</th>
+          <th className="px-5 py-3 font-semibold">Status</th>
+          <th className="px-5 py-3 font-semibold">Last login</th>
+          <th className="w-14 px-5 py-3"><span className="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {isLoading && (
+          <tr>
+            <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">Loading users…</td>
+          </tr>
+        )}
+        {!isLoading && staff.length === 0 && (
+          <tr>
+            <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">No users match these filters.</td>
+          </tr>
+        )}
+        {!isLoading &&
+          staff.map((user) => {
+            const status = staffStatus(user);
+            return (
+              <tr key={user.id} className="border-t border-border transition-colors hover:bg-muted/50">
+                <td className="px-5 py-3">
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-[13px] font-bold text-primary">
                       {initials(user)}
                     </span>
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {[user.first_name, user.last_name].filter(Boolean).join(" ") || "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{user.phone || user.email}</p>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-5 py-4 sm:px-6">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_BADGE_CLASSES[user.role] || "bg-muted text-muted-foreground"}`}>
-                    {roleLabel(user.role)}
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-semibold text-foreground">{fullName(user)}</span>
+                      <span className="text-xs text-muted-foreground">{user.phone || user.email}</span>
+                    </span>
                   </span>
                 </td>
-
-                <td className="px-5 py-4 text-foreground sm:px-6">{user.warehouse_name || "—"}</td>
-
-                <td className="px-5 py-4 sm:px-6">
-                  <StatusBadge user={user} />
+                <td className="px-5 py-3">
+                  <StatusPill config={{ badge: ROLE_BADGE_CLASSES[user.role], dot: ROLE_DOT_CLASSES[user.role] }}>
+                    {SHORT_ROLE[user.role] || user.role}
+                  </StatusPill>
                 </td>
-
-                <td className="px-5 py-4 sm:px-6">
-                  <div className="flex items-center justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                        <MoreVertical className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit?.(user)}>
-                          <Edit2 className="mr-2 h-4 w-4" /> Edit details
+                <td className="px-5 py-3">{warehouseCell(user)}</td>
+                <td className="px-5 py-3">
+                  <StatusPill config={STAFF_STATUS[status]} />
+                </td>
+                <td className="px-5 py-3">
+                  {status === "LOCKED" ? (
+                    <span className="text-destructive">{user.failed_login_attempts || "Too many"} failed logins</span>
+                  ) : (
+                    <span className="text-muted-foreground">{formatLastLogin(user.last_login_at)}</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label={`Actions for ${fullName(user)}`}
+                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => onEdit(user)}>
+                        <Edit2 className="mr-2 h-4 w-4" /> Edit details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onResetPassword(user)}>
+                        <KeyRound className="mr-2 h-4 w-4" /> Reset password
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onResendInvite(user)}>
+                        <Send className="mr-2 h-4 w-4" /> Resend login details
+                      </DropdownMenuItem>
+                      {user.role !== "SUPER_ADMIN" && (
+                        <DropdownMenuItem onClick={() => onMove(user)}>
+                          <ArrowRightLeft className="mr-2 h-4 w-4" /> Move to another warehouse
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onResetPassword?.(user)}>
-                          <KeyRound className="mr-2 h-4 w-4" /> Reset password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onResendInvite?.(user)}>
-                          <Send className="mr-2 h-4 w-4" /> Resend login details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onToggleStatus?.(user)}>
-                          {user.is_active ? (
-                            <>
-                              <Ban className="mr-2 h-4 w-4" /> Disable account
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="mr-2 h-4 w-4" /> Enable account
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onToggleStatus(user)}
+                        className={user.is_active ? "text-destructive focus:text-destructive" : ""}
+                      >
+                        {user.is_active ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                        {user.is_active ? "Disable account" : "Enable account"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
               </tr>
-            ))}
-
-            {staff.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  No users found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
+            );
+          })}
+      </tbody>
+    </table>
+  </div>
+);
 
 export default StaffTable;

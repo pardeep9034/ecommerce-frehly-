@@ -10,8 +10,9 @@ const pageTitles = {
   "/dashboard/categories": "Categories",
   "/dashboard/inventory": "Inventory",
   "/dashboard/warehouses": "Warehouses",
-  "/dashboard/staff": "Staff & Admins",
-  "/dashboard/staff/new": "Add User",
+  "/dashboard/warehouses/new": "Add warehouse",
+  "/dashboard/staff": "Staff & admins",
+  "/dashboard/staff/new": "Add user",
   "/dashboard/orders": "Orders",
   "/dashboard/customers": "Customers",
   "/dashboard/discounts": "Discounts",
@@ -24,7 +25,11 @@ const DashboardLayout = () => {
   const location = useLocation();
   const user = useSelector((state) => state.auth.user);
   console.log("dash",user)
-  const title = pageTitles[location.pathname] || "Freshly";
+  // Detail pages (/dashboard/warehouses/12) take their section title.
+  const titlePath = Object.keys(pageTitles)
+    .filter((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  const title = pageTitles[titlePath] || "Freshly";
 
   useEffect(() => {
     setMobileOpen(false);

@@ -1,160 +1,90 @@
-import { Edit2, Trash2, Eye } from "lucide-react";
-import ConfirmationModal from "@/components/common/ConfirmationModal";
-import { useState } from "react";
+import { Link } from "react-router-dom";
+import StatusPill from "@/components/dashboard/StatusPill";
+import TableSkeleton from "@/components/dashboard/TableSkeleton";
+import { WAREHOUSE_STATUS } from "@/lib/warehouseStatus";
 
-const WarehousesTable = ({ warehouses = [], onEdit, onDelete, onView, isLoading }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [deleteWarehouse, setDeleteWarehouse] = useState(null);
+const HEADERS = [
+  { label: "Warehouse" },
+  { label: "Zone" },
+  { label: "Status" },
+  { label: "Manager" },
+  { label: "Staff", align: "text-right" },
+  { label: "Orders today", align: "text-right" },
+  { label: "", srLabel: "Actions" },
+];
+
+// rows: [{ warehouse, status, zone, manager, staffCount, ordersToday }]
+const WarehousesTable = ({ rows = [], isLoading }) => {
+  if (isLoading) return <TableSkeleton rows={5} columns={7} />;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted">
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Name
-              </th>
-
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Code
-              </th>
-
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                city
-              </th>
-
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                zone
-              </th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                contact person
-              </th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                contact phone
-              </th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                status
-              </th>
-
-              <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {warehouses.map((warehouse) => (
-              <tr
-                key={warehouse.id}
-                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted"
-                onClick={() => onView?.(warehouse)}
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr>
+            {HEADERS.map((header) => (
+              <th
+                key={header.label || header.srLabel}
+                scope="col"
+                className={`bg-muted px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${header.align || "text-left"}`}
               >
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {warehouse.name}
-                </td>
-
-                <td className="px-5 py-4 sm:px-6">
-                  <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium capitalize text-muted-foreground">
-                    {warehouse.code}
-                  </span>
-                </td>
-
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {warehouse.city}
-                </td>
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {warehouse.zone_id}
-                </td>
-                    <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                    {warehouse.contact_person}
-                    </td>
-                    <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                    {warehouse.contact_phone}
-                    </td>
-
-                <td className="px-5 py-4 sm:px-6">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      warehouse.is_active
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {warehouse.is_active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-
-                <td className="px-5 py-4 sm:px-6" onClick={(event) => event.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onView?.(warehouse)}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onEdit?.(warehouse)}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModalOpen(true);
-                        setDeleteWarehouse(warehouse);
-                      }}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                {header.label || <span className="sr-only">{header.srLabel}</span>}
+              </th>
             ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ warehouse, status, zone, manager, staffCount, ordersToday }) => (
+            <tr key={warehouse.id} className="border-t border-border">
+              <td className="px-4 py-3.5">
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-bold text-foreground">{warehouse.name}</span>
+                  <span className="text-xs text-muted-foreground">{warehouse.code}</span>
+                </span>
+              </td>
+              <td className="px-4 py-3.5 text-foreground">{zone}</td>
+              <td className="px-4 py-3.5">
+                <StatusPill config={WAREHOUSE_STATUS[status]} />
+              </td>
+              <td className="px-4 py-3.5">
+                {manager ? (
+                  <span className="text-foreground">{manager}</span>
+                ) : (
+                  <span className="font-semibold text-destructive">No manager yet</span>
+                )}
+              </td>
+              <td className="px-4 py-3.5 text-right tabular-nums text-foreground">{staffCount}</td>
+              <td className="px-4 py-3.5 text-right tabular-nums text-foreground">{ordersToday ?? "—"}</td>
+              <td className="px-4 py-3.5 text-right">
+                {status === "DRAFT" ? (
+                  <Link
+                    to={`/dashboard/warehouses/new?draft=${warehouse.id}`}
+                    className="inline-flex h-9 items-center whitespace-nowrap rounded-xl bg-primary px-[18px] text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Continue setup
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/dashboard/warehouses/${warehouse.id}`}
+                    aria-label={`View ${warehouse.name}`}
+                    className="inline-flex h-9 items-center whitespace-nowrap rounded-xl border border-border bg-white px-[18px] text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                  >
+                    View
+                  </Link>
+                )}
+              </td>
+            </tr>
+          ))}
 
-            {warehouses.length === 0 && !isLoading && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-6 py-10 text-center text-sm text-muted-foreground"
-                >
-                  No warehouses found.
-                </td>
-              </tr>
-            )}
-            {isLoading && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-6 py-10 text-center text-sm text-muted-foreground"
-                >
-              Loading ...
-                </td>
-              </tr>
-            )}
-         <ConfirmationModal
-            open={isModalOpen}
-            title={"are you sure to delete this"}
-            cancelBtnName={"Cancel"}
-            proceedBtnName={"Delete"}
-            onSuccess={() => {onDelete?.(deleteWarehouse.id);
-              setIsModalOpen(false);
-              setDeleteWarehouse(null);
-            }}
-            onClose={()=>setIsModalOpen(false)}
-
-
-            />
-          </tbody>
-        </table>
-      </div>
-
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={HEADERS.length} className="border-t border-border px-6 py-10 text-center text-sm text-muted-foreground">
+                No warehouses match these filters.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
