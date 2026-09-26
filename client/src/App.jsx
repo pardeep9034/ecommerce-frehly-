@@ -39,20 +39,19 @@ import StockMovementPage from "./pages/dashboard/StockMovementPage";
 import StockReservationPage from "./pages/dashboard/StockReservationPage";
 import Orders from "./pages/dashboard/Orders";
 import AdminOrderDetail from "./pages/dashboard/AdminOrderDetail";
+import { getTokenRole } from "./lib/auth";
+import PartnerLayout from "./components/partner/PartnerLayout";
+import PartnerLogin from "./pages/partner/PartnerLogin";
+import PartnerDashboard from "./pages/partner/PartnerDashboard";
+import PartnerOrders from "./pages/partner/PartnerOrders";
+import PartnerHistory from "./pages/partner/PartnerHistory";
+import PartnerProfile from "./pages/partner/PartnerProfile";
 
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
-
-const getTokenRole = (token) => {
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return payload.role || null;
-  } catch {
-    return null;
-  }
-};
+const PARTNER_ROLES = ["DELIVERY_PARTNER"];
 
 const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(localStorage.getItem("token")));
+const hasPartnerAccess = () => PARTNER_ROLES.includes(getTokenRole(localStorage.getItem("token")));
 
 function App() {
   const dispatch = useDispatch();
@@ -73,6 +72,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/partner/login" element={<PartnerLogin />} />
 
         {/* PUBLIC ROUTES */}
         <Route element={<PublicLayout />}>
@@ -119,6 +119,17 @@ function App() {
           <Route path="products/product-attribute"element={<ProductAttributePage/>}/>
           <Route path="products/variants"element={<VariantPage/>}/>
 
+        </Route>
+
+        {/* DELIVERY PARTNER ROUTES */}
+        <Route
+          path="/partner"
+          element={hasPartnerAccess() ? <PartnerLayout /> : <Navigate to="/partner/login" replace />}
+        >
+          <Route index element={<PartnerDashboard />} />
+          <Route path="orders" element={<PartnerOrders />} />
+          <Route path="history" element={<PartnerHistory />} />
+          <Route path="profile" element={<PartnerProfile />} />
         </Route>
 
         {/* 404 - FALLBACK */}
