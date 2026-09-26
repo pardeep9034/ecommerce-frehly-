@@ -39,8 +39,16 @@ import StockMovementPage from "./pages/dashboard/StockMovementPage";
 import StockReservationPage from "./pages/dashboard/StockReservationPage";
 import Orders from "./pages/dashboard/Orders";
 import AdminOrderDetail from "./pages/dashboard/AdminOrderDetail";
+import StoreLayout from "./components/store/StoreLayout";
+import StoreLogin from "./pages/store/StoreLogin";
+import StoreBoard from "./pages/store/StoreBoard";
+import StoreOrderDetail from "./pages/store/StoreOrderDetail";
+import StoreHandover from "./pages/store/StoreHandover";
+import StoreStock from "./pages/store/StoreStock";
+import StoreSettings from "./pages/store/StoreSettings";
 
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
+const STORE_ROLES = ["STORE_STAFF"];
 
 const getTokenRole = (token) => {
   if (!token) return null;
@@ -53,6 +61,7 @@ const getTokenRole = (token) => {
 };
 
 const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(localStorage.getItem("token")));
+const hasStoreAccess = () => STORE_ROLES.includes(getTokenRole(localStorage.getItem("token")));
 
 function App() {
   const dispatch = useDispatch();
@@ -73,6 +82,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/store/login" element={<StoreLogin />} />
 
         {/* PUBLIC ROUTES */}
         <Route element={<PublicLayout />}>
@@ -119,6 +129,18 @@ function App() {
           <Route path="products/product-attribute"element={<ProductAttributePage/>}/>
           <Route path="products/variants"element={<VariantPage/>}/>
 
+        </Route>
+
+        {/* STORE OPERATIONS ROUTES */}
+        <Route
+          path="/store"
+          element={hasStoreAccess() ? <StoreLayout /> : <Navigate to="/store/login" replace />}
+        >
+          <Route index element={<StoreBoard />} />
+          <Route path="orders/:orderId" element={<StoreOrderDetail />} />
+          <Route path="handover" element={<StoreHandover />} />
+          <Route path="stock" element={<StoreStock />} />
+          <Route path="settings" element={<StoreSettings />} />
         </Route>
 
         {/* 404 - FALLBACK */}
