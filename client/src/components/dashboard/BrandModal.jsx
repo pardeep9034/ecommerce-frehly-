@@ -2,16 +2,15 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 const brandSchema = z.object({
   name: z.string().min(1, "Enter a brand name"),
-  logo_url: z.string().min(1, "Enter a logo URL"),
+  logo_url: z.string().optional().default(""),
   description: z.string().min(1, "Enter a description"),
   is_active: z.boolean().default(true),
 });
@@ -23,7 +22,11 @@ const EMPTY_BRAND = {
   is_active: true,
 };
 
-const BrandModal = ({ open, onClose, brand, onSave }) => {
+const initials = (name = "") =>
+  name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+
+// Inline edit panel next to the brand table (BrandPage), not a modal — `brand` null means "add new".
+const BrandModal = ({ brand, onCancel, onSave }) => {
   const isEditMode = Boolean(brand);
 
   const form = useForm({
@@ -32,119 +35,116 @@ const BrandModal = ({ open, onClose, brand, onSave }) => {
   });
 
   useEffect(() => {
-    if (brand) {
-      form.reset({
-        name: brand.name || "",
-        logo_url: brand.logo_url || "",
-        description: brand.description || "",
-        is_active: Boolean(brand.is_active),
-      });
-      return;
-    }
-    form.reset(EMPTY_BRAND);
-  }, [brand, open]);
-
-  if (!open) {
-    return null;
-  }
+    form.reset(
+      brand
+        ? {
+            name: brand.name || "",
+            logo_url: brand.logo_url || "",
+            description: brand.description || "",
+            is_active: Boolean(brand.is_active),
+          }
+        : EMPTY_BRAND
+    );
+  }, [brand, form]);
 
   const onSubmit = (values) => {
     onSave(isEditMode ? { ...values, id: brand.id } : values);
-    onClose();
   };
 
+  const name = form.watch("name");
+  const logoUrl = form.watch("logo_url");
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="mx-4 w-full max-w-lg rounded-xl border border-border bg-white shadow-card max-h-[90vh] overflow-y-auto"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-5 sm:px-7">
-          <h2 className="font-display text-lg font-semibold text-foreground">
-            {isEditMode ? "Edit Brand" : "Add Brand"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-border bg-white p-5 shadow-card lg:w-85">
+      <h2 className="font-display text-base font-semibold text-foreground">
+        {isEditMode ? `Edit · ${brand.name}` : "Add brand"}
+      </h2>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Brand name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter brand name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col gap-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter brand name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="logo_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Logo URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter logo URL" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea rows={3} placeholder="Enter brand description" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
+          <FormField
+            control={form.control}
+            name="logo_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Logo</FormLabel>
+                <div className="flex items-center gap-3">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover" />
+                  ) : (
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-sm font-bold text-accent-foreground">
+                      {initials(name) || "?"}
+                    </span>
+                  )}
                   <FormControl>
-                    <Textarea rows={3} placeholder="Enter brand description" {...field} />
+                    <Input placeholder="Logo URL" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            {/* Active Toggle */}
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem className="mt-2 flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
-                  <FormControl>
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
+          <FormField
+            control={form.control}
+            name="is_active"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-lg border border-border px-4 py-3">
+                <div className="flex-1">
                   <FormLabel className="cursor-pointer">Active</FormLabel>
-                </FormItem>
-              )}
-            />
+                  <p className="text-xs text-muted-foreground">Brand can be picked on products</p>
+                </div>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">{isEditMode ? "Save changes" : "Add brand"}</Button>
-            </div>
-          </form>
-        </Form>
-      </div>
-    </div>
+          <div className="mt-auto flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                form.reset(EMPTY_BRAND);
+                onCancel();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">{isEditMode ? "Save" : "Add brand"}</Button>
+          </div>
+        </form>
+      </Form>
+    </aside>
   );
 };
 
