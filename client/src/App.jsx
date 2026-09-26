@@ -46,9 +46,9 @@ import StoreOrderDetail from "./pages/store/StoreOrderDetail";
 import StoreHandover from "./pages/store/StoreHandover";
 import StoreStock from "./pages/store/StoreStock";
 import StoreSettings from "./pages/store/StoreSettings";
+import { STORE_ROLES } from "./lib/storeRole";
 
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
-const STORE_ROLES = ["STORE_STAFF"];
 
 const getTokenRole = (token) => {
   if (!token) return null;

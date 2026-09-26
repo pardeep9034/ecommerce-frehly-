@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff, Leaf, LockKeyhole, Phone } from "lucide-react";
 import { loginWithPassword } from "@/apis/authApi";
+import { STORE_ROLES } from "@/lib/storeRole";
 
 const isValidPhoneNumber = (phone) => /^[+]?[1-9][\d]{0,15}$/.test(phone);
 
@@ -9,6 +10,7 @@ const isValidPhoneNumber = (phone) => /^[+]?[1-9][\d]{0,15}$/.test(phone);
 // login-via-OTP endpoint today (authApi only has OTP for signup verification
 // — see STORE_OPERATIONS_MODULE.md). This mirrors AdminLogin/PartnerLogin's
 // working phone+password flow instead of building a UI with nothing behind it.
+// Reuses OPS_STAFF (store staff) / ADMIN (store manager) — no new role.
 const StoreLogin = () => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -25,8 +27,8 @@ const StoreLogin = () => {
       }
       try {
         const payload = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-        if (payload.role !== "STORE_STAFF") {
-          setError("This account isn't a store staff account.");
+        if (!STORE_ROLES.includes(payload.role)) {
+          setError("This account isn't a store staff or manager account.");
           return;
         }
       } catch {

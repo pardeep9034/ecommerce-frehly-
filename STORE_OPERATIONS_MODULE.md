@@ -20,8 +20,12 @@ New files:
   `Order.status` plus two fields that don't exist yet (`is_packed`, item-level review
   state). There is no PICKING/PACKING value in `ORDER_STATUS` — see "Headline blocker"
   below.
-- Routes: `/store/login` (public) and `/store/*` (guarded by a `STORE_STAFF` role that
-  **does not exist yet** — see backend change #1)
+- Routes: `/store/login` (public) and `/store/*` (guarded by `client/src/lib/storeRole.js`'s
+  `STORE_ROLES = ["OPS_STAFF", "ADMIN"]` — **reuses existing roles, no migration needed**:
+  `OPS_STAFF` acts as store staff, `ADMIN` acts as store manager. `storeDesignation(role)`
+  picks the label shown in the sidebar/settings. This replaces an earlier draft of this
+  module that proposed a brand-new `STORE_STAFF` role — dropped once it was confirmed
+  `OPS_STAFF`/`ADMIN` already reach the relevant services (see backend changes below).
 
 `StoreStock.jsx` deliberately reuses the *existing* `useInventory` / `useStockMovement`
 hooks and `InventoryApi.fetchInventoryByWarehouse` / `StockMovementApi.createStockMovement`
@@ -53,10 +57,11 @@ have staff who can act on it?).
 ## APIs needed
 
 All under a new `/store` gateway prefix. Auth: `Authorization: Bearer <JWT>`, role
-`STORE_STAFF`. Like the delivery-partner APIs, nothing takes a warehouse id or staff id
-from the client — every endpoint resolves "my warehouse" server-side from the caller's
+`OPS_STAFF` (store staff) or `ADMIN` (store manager) — see backend change #1 for why no
+new role is needed. Like the delivery-partner APIs, nothing takes a warehouse id or staff
+id from the client — every endpoint resolves "my warehouse" server-side from the caller's
 own `user_id`, never from the `x-warehouse-id` header the client currently sends (see
-backend change #3).
+backend change #5).
 
 ### `GET /store/me`
 Staff member's own profile.
@@ -72,7 +77,7 @@ Staff member's own profile.
 Every open order for the staff member's own warehouse. `stage` is optional and is the
 derived value from `orderStage.js` (`NEW|PICKING|WAITING|PACKING|READY|ASSIGNED`) —
 computing it server-side would remove the client's need to know about `is_packed`, but
-either resolution point works as long as it's centralized (see backend change #2).
+either resolution point works as long as it's centralized (see backend change #3).
 ```json
 { "success": true, "data": { "items": [ {
   "id": 10495, "order_number": "10495", "status": "PLACED",
@@ -93,12 +98,12 @@ Ownership-checked (order's `warehouse_id` must match caller's own), plus
 Same bodies as the existing `PATCH /orders/:orderId/items/:itemId/status` and
 `POST /orders/:orderId/items/finalize` — **these already exist** in
 `order.service.js`/`order.routes.js` and already do exactly what the Pick screen needs.
-They just need `STORE_STAFF` added to their `requireRole` allow-list plus a
-warehouse-ownership check, not a new implementation. See backend change #2.
+`ADMIN` already passes their `requireRole` check (see backend change #2); they just need
+`OPS_STAFF` added, plus a warehouse-ownership check — not a new implementation.
 
 ### `POST /store/me/orders/:orderId/pack`
 Body: `{ "bag_count": 2, "rack_label": "B-4" }`. New — no `bag_count`/`rack_label`/
-`is_packed` fields exist on `Order` today (see backend change #4). Sets `is_packed: true`.
+`is_packed` fields exist on `Order` today (see backend change #3). Sets `is_packed: true`.
 
 ### `GET /store/me/orders/:orderId/available-riders`
 ### `POST /store/me/orders/:orderId/assign-rider`
@@ -117,22 +122,33 @@ already denormalizes pickup/delivery info for the partner-facing endpoints.
 ### `POST /store/me/orders/:orderId/handover`
 Body: `{ "pickup_code": "4821" }`. This is the store side of
 `HandleOrderService.confirmHandover`/`confirmReciept`, which already exist in
-delivery-service but are dispatch-only today — see backend change #5. This module is the
-actor [[DELIVERY_PARTNER_MODULE]]'s "Deferred" section said that flow was waiting for.
+delivery-service — see backend change #5 (the role check already passes; only a
+warehouse-ownership wrapper is needed). This module is the actor
+[[DELIVERY_PARTNER_MODULE]]'s "Deferred" section said that flow was waiting for.
 
 ## Backend changes required (none made in this pass)
 
-1. **New role.** `auth-service/src/models/User.model.js`'s role enum is exactly
-   `CUSTOMER, ADMIN, SUPER_ADMIN, OPS_STAFF, DELIVERY_PARTNER` — no store-staff value.
-   Unlike delivery-partner (which reused an existing enum value), this needs a real
-   migration adding `STORE_STAFF`. Login can then reuse `POST /auth/login/password`
-   exactly like admin/partner do — `StoreLogin.jsx` already posts to it and just checks
-   the returned role client-side, same pattern as `PartnerLogin.jsx`. (The design's
-   `WebLogin.dc.html` shows a mobile+OTP flow; there's no login-via-OTP endpoint today —
-   `authApi.js` only has OTP for signup verification — so the password flow was used
-   instead of building UI with nothing behind it.)
+1. **No new role — reuses `OPS_STAFF` (store staff) and `ADMIN` (store manager).**
+   An earlier draft of this doc proposed a new `STORE_STAFF` role requiring an
+   auth-service migration. That's dropped: `OPS_STAFF` already exists on
+   `User.model.js`'s enum, already authenticates against every relevant service (see
+   points 2, 5 and 6 below), and login already works today via the existing
+   `POST /auth/login/password` — `StoreLogin.jsx` just checks the returned role
+   client-side, same pattern as `PartnerLogin.jsx`/`AdminLogin.jsx`. Zero auth-service
+   changes needed for this module. (The design's `WebLogin.dc.html` shows a mobile+OTP
+   flow; there's no login-via-OTP endpoint today — `authApi.js` only has OTP for signup
+   verification — so the password flow was used instead of building UI with nothing
+   behind it.)
 
-2. **No PICKING/PACKING order status exists.** `ORDER_STATUS` has `PLACED → CONFIRMED →
+2. **Item-status endpoints need `OPS_STAFF` added, plus warehouse scoping.**
+   `PATCH /orders/:orderId/items/:itemId/status` and `POST /orders/:orderId/items/finalize`
+   (`order.routes.js`) are `requireRole("ADMIN","SUPER_ADMIN","SUPPORT")`-only — `ADMIN`
+   (store manager) already passes; `OPS_STAFF` (store staff) needs adding. Either way —
+   same lesson as [[DELIVERY_PARTNER_MODULE]] point 2 — never trust a client-supplied
+   warehouse id: resolve the caller's own warehouse from their staff record (point 4) and
+   403 if the order's `warehouse_id` doesn't match.
+
+3. **No PICKING/PACKING order status exists.** `ORDER_STATUS` has `PLACED → CONFIRMED →
    READY_FOR_ASSIGNMENT`, with nothing in between. This module's board derives "Picking"
    from `PLACED`/`CONFIRMED` + partially-reviewed items, and "Packing" from
    `READY_FOR_ASSIGNMENT` + a not-yet-existing `is_packed` flag — deliberately *not*
@@ -144,22 +160,20 @@ actor [[DELIVERY_PARTNER_MODULE]]'s "Deferred" section said that flow was waitin
    the API returns) should be the *only* place that does — don't let both the client and
    a future admin view invent their own derivation and drift apart.
 
-3. **Item-status endpoints need role + warehouse scoping.**
-   `PATCH /orders/:orderId/items/:itemId/status` and `POST /orders/:orderId/items/finalize`
-   (`order.routes.js`) are `requireRole("ADMIN","SUPER_ADMIN","SUPPORT")`-only. Add
-   `STORE_STAFF`, but — same lesson as [[DELIVERY_PARTNER_MODULE]] point 2 — never trust a
-   client-supplied warehouse id: resolve the caller's own warehouse from their staff
-   record and 403 if the order's `warehouse_id` doesn't match.
-
 4. **Orders aren't tied to a warehouse at all.** `Order.model.js` has no `warehouse_id`
    column, and `Warehouse.model.js` has no staff/manager association — confirmed via a
    full read of both models, and `find -iname "*staff*"` turns up no staff model
    anywhere in the backend. Two things are needed:
-   - A `WarehouseStaff` join table (`user_id`, `warehouse_id`, `designation`) — the store
-     equivalent of `DeliveryPartnerZone` — so `GET /store/me` and every warehouse-scoped
-     query can resolve "my warehouse" from the caller's own account. This is also exactly
-     what the queued **Admin Warehouses & Staff** module's "Assign staff" screen needs, so
-     build it once, shared by both, rather than each module inventing its own version.
+   - A `WarehouseStaff` join table (`user_id`, `warehouse_id`, `role` — staff vs manager
+     derived from the user's existing `OPS_STAFF`/`ADMIN` role, not a new column) — the
+     store equivalent of `DeliveryPartnerZone` — so `GET /store/me` and every
+     warehouse-scoped query can resolve "my warehouse" from the caller's own account.
+     This is also exactly what the queued **Admin Warehouses & Staff** module's "Assign
+     staff" screen needs, so build it once, shared by both, rather than each module
+     inventing its own version. Note this means an `ADMIN` user acting as store manager
+     is scoped to *one* warehouse here even though the same account has global access via
+     `/dashboard` — that's intentional (this join table is what makes them "this
+     warehouse's manager" specifically), not a contradiction.
    - `Order.warehouse_id`, set at order-placement time (order-service already knows which
      warehouse's stock it reserved against, via `StockReservation`). Without it there's no
      efficient way to answer "what orders does my store need to work on" at all.
@@ -172,23 +186,43 @@ actor [[DELIVERY_PARTNER_MODULE]]'s "Deferred" section said that flow was waitin
    header; they resolve the warehouse from the `WarehouseStaff` row in point 4 instead,
    the same "never trust a client-supplied id" rule as delivery-partner's "me" endpoints.
 
-6. **Stock page needs no new endpoint** — `InventoryApi.fetchInventoryByWarehouse` and
-   `StockMovementApi.createStockMovement` already exist and are used by
-   `StoreStock.jsx`. Two things do need attention: (a) `fetchInventoryByWarehouse`'s
-   response has never actually been rendered by any existing page (admin's own
-   `Inventory.jsx` has a "will be connected when the API is available" stub), so its
-   field names in this doc (`current_stock`, `reserved_stock`, `low_stock_threshold` — real
-   `Inventory.model.js` columns) are best-effort until confirmed against a real response;
-   (b) `/inventory/*` write routes need `STORE_STAFF` added to their role check, scoped to
-   the staff member's own `warehouse_id` from point 4 — currently open to any
-   authenticated user per `warehouse.routes.js`/inventory routes.
+6. **inventory-service's own auth middleware has two live bugs that block any real
+   warehouse scoping there**, found while checking whether `OPS_STAFF`/`ADMIN` already
+   reach it (`backend/services/inventory-service/src/middleware/auth.js`):
+   - `authenticateToken` checks
+     `if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF")` — the classic
+     `a === "X" || "Y"` bug called out in `backend/CLAUDE.md`. `"SUPER_ADMIN"` and
+     `"OPS_STAFF"` are non-empty strings, always truthy, so this condition is **always
+     true** — any authenticated user of any role currently passes, not just
+     admin/ops-staff. Needs `["ADMIN","SUPER_ADMIN","OPS_STAFF"].includes(decoded.role)`.
+   - On success it sets `req.user = decoded.user_id` — a bare id, not the full payload —
+     so `requireRole` (defined in the same file) can never work here: it reads
+     `req.user.role`, which is `undefined` on a bare id. Needs `req.user = decoded`, matching
+     the "`req.user` = full decoded JWT payload" convention used elsewhere.
+   - Neither bug is exercised today — `inventory.routes.js`/`stockMovement.routes.js`
+     only call `authenticateToken`, never `requireRole` — so nothing currently breaks, but
+     fixing bug #1 correctly (with `.includes()`) must keep `OPS_STAFF` and `ADMIN` in the
+     list, or this module's `StoreStock.jsx` (which already relies on these routes today
+     via the bug) and the existing admin dashboard's inventory pages both lose access.
+   - Once fixed, `/inventory/*` and `/stock-movements` write routes should add
+     `requireRole("ADMIN","SUPER_ADMIN","OPS_STAFF")` explicitly rather than relying on
+     `authenticateToken`'s role check doing double duty, plus scope writes to the caller's
+     own `warehouse_id` from point 4.
+   - Separately, `fetchInventoryByWarehouse`'s response has never actually been rendered
+     by any existing page (admin's own `Inventory.jsx` has a "will be connected when the
+     API is available" stub), so the field names this doc assumes
+     (`current_stock`, `reserved_stock`, `low_stock_threshold` — real `Inventory.model.js`
+     columns) are best-effort until confirmed against a real response.
 
-7. **Handover needs the store-side actor for an existing but dormant flow.**
-   `HandleOrderService.handOver`/`confirmHandover`/`confirmReciept` already exist in
-   delivery-service and were flagged in [[DELIVERY_PARTNER_MODULE]] as "dispatch-only,
-   revisit alongside a real actor." This module *is* that actor for the store side — wrap
-   `confirmHandover` with a `STORE_STAFF`-safe path that checks the order's warehouse
-   matches the caller's, the same shape as delivery-partner's status-update wrapper.
+7. **Handover needs a warehouse-ownership wrapper, not a role change.**
+   `HandleOrderService.handOver`/`confirmHandover`/`confirmReciept` sit behind
+   `requireDispatchRole = requireRole(["ADMIN","SUPER_ADMIN","OPS_STAFF"])` in
+   `handleOrder.routes.js` — confirmed by reading the route file — so both store roles
+   *already* pass. [[DELIVERY_PARTNER_MODULE]] flagged this as "dispatch-only, revisit
+   alongside a real actor"; this module is that actor. The only new work is wrapping
+   `confirmHandover` with a check that the order's warehouse matches the caller's own
+   (point 4), the same shape as delivery-partner's status-update wrapper — not a
+   `requireRole` change.
 
 8. **Rider assignment depends on the same missing presence column.**
    `GET /store/me/orders/:orderId/available-riders` needs to know which delivery

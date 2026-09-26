@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { ClipboardList, PackageCheck, Boxes, Settings } from "lucide-react";
+import { getStoreDesignation } from "../../lib/storeRole";
 
 const NAV_ITEMS = [
   { to: "/store", label: "Orders", icon: ClipboardList, end: true },
@@ -56,7 +57,7 @@ const StoreSidebar = ({ staff }) => {
         </span>
         <div className="flex flex-col">
           <span className="text-sm font-semibold">{staff?.name || "Loading…"}</span>
-          <span className="text-xs text-white/75">{staff?.designation || "Store staff"}</span>
+          <span className="text-xs text-white/75">{staff?.designation || getStoreDesignation()}</span>
         </div>
       </div>
     </aside>

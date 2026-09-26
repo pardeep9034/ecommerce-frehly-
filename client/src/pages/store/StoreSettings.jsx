@@ -1,6 +1,7 @@
 import { useOutletContext } from "react-router-dom";
 import { logout as logoutAction } from "../../redux/authSlice";
 import { useDispatch } from "react-redux";
+import { getStoreDesignation } from "../../lib/storeRole";
 
 // Only "My profile" + logout — the design's "Store settings" tab (hours,
 // pack-by target, auto-assign, racks) has no backing fields anywhere in
@@ -37,7 +38,7 @@ const StoreSettings = () => {
         </span>
         <h2 className="text-lg font-bold text-foreground">{staff?.name || "Loading…"}</h2>
         <p className="text-sm text-muted-foreground">
-          {staff?.designation || "Store staff"} · {staff?.warehouse_name || "—"}
+          {staff?.designation || getStoreDesignation()} · {staff?.warehouse_name || "—"}
         </p>
         <p className="text-sm text-muted-foreground">{staff?.phone}</p>
         <button
