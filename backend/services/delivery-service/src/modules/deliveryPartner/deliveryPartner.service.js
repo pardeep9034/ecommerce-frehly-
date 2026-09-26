@@ -2,6 +2,8 @@ import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.
 import DeliveryPartnerZoneRepository from "../repository/deliveryPartnerZone.repository.js";
 import { Op, Sequelize } from "sequelize";
 import AppError from "../../utils/AppError.js";
+import { env } from "../../config/env.js";
+import { calculateDistance } from "../../utils/helper.js";
 
 class DeliveryPartnerService {
   async createDeliveryPartner(data, user) {
@@ -35,35 +37,39 @@ class DeliveryPartnerService {
   }
 
   async getAllDeliveryPartnersByZoneId(zone_id) {
-    const partner =
-    await DeliveryPartnerRepository.findOne({
-        status: "ACTIVE",
-        zone_id: zoneId,
-        current_active_orders: {
-            [Op.lt]: Sequelize.col("max_active_orders")
-        },
-        order: [
-            ["current_active_orders", "ASC"]
-        ]
+    return await DeliveryPartnerRepository.findAll({
+      status: "ACTIVE",
+      zone_id,
+      current_active_orders: {
+        [Op.lt]: Sequelize.col("max_active_orders")
+      }
+    }, {
+      order: [["current_active_orders", "ASC"]]
     });
-    return partner; 
-    
   }
-  async getAvalableDeliveryPartners(warehouseId) {
-    const response = await fetch(`http://localhost:3003/warehouses/${warehouseId}`);
 
-    const zoneId =response.data.data.zone_id
-    const partners=await this.getAllDeliveryPartnersByZoneId(zoneId);
+  async getAvalableDeliveryPartners(warehouseId) {
+    const response = await fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}/${warehouseId}`);
+    if (!response.ok) {
+      throw new AppError("Warehouse not found", 404);
+    }
+    const warehouse = await response.json();
+
+    const partners = await this.getAllDeliveryPartnersByZoneId(warehouse.data.zone_id);
     if (!partners || partners.length === 0) {
       throw new AppError("No active delivery partners available in the zone", 404);
     }
 
- const riderWithDistance =partners.map(partner=>{
-     const distance = calculateDistance(response.data.data.latitude,response.data.data.longitude, partner.current_latitude, partner.current_longitude);
-     return {...partner, distance};
- }) 
- return riderWithDistance.sort((a, b) => a.distance - b.distance);
-
+    const riderWithDistance = partners.map((partner) => {
+      const distance = calculateDistance(
+        warehouse.data.latitude,
+        warehouse.data.longitude,
+        partner.current_latitude,
+        partner.current_longitude
+      );
+      return { ...partner.toJSON(), distance };
+    });
+    return riderWithDistance.sort((a, b) => a.distance - b.distance);
   }
 
   async getDeliveryPartnerById(id) {

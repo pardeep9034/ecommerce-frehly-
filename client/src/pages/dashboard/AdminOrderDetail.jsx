@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, CreditCard, Package } from "lucide-react";
 import { useOrderDetail } from "@/hooks/use-order";
 import OrderFulfillmentTab from "@/components/dashboard/OrderFulfillmentTab";
+import DeliveryAssignmentTab from "@/components/dashboard/DeliveryAssignmentTab";
 
 const InfoItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
@@ -19,6 +20,7 @@ const InfoItem = ({ icon: Icon, label, value }) => (
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "fulfillment", label: "Fulfillment" },
+  { id: "delivery", label: "Delivery" },
 ];
 
 const AdminOrderDetail = () => {
@@ -181,8 +183,10 @@ const AdminOrderDetail = () => {
             </div>
           </div>
         </>
-      ) : (
+      ) : activeTab === "fulfillment" ? (
         <OrderFulfillmentTab order={order} />
+      ) : (
+        <DeliveryAssignmentTab order={order} />
       )}
     </div>
   );

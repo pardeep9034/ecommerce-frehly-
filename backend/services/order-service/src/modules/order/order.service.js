@@ -243,6 +243,15 @@ if(!userAddress.success){
         }, { transaction });
            await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
 
+        // COD orders start at PLACED with no payment webhook to trigger
+        // finalization later, so confirm reservations and auto-finalize
+        // right here instead — same as the online-payment path does once
+        // its webhook lands.
+        if (isCOD) {
+          await this.confirmReservations(order.id, authorization);
+          await this.autoFinalizeOrder(order.id, authorization, transaction);
+        }
+
         const details = await this.getOrderDetails(order.id, user, { transaction });
 
         return {
@@ -631,71 +640,102 @@ if(!userAddress.success){
         throw new AppError(`${pendingCount} item(s) still pending review`, 400);
       }
 
-      const readyItems = items.filter((item) => item.status === "READY");
-      const unavailableItems = items.filter((item) => item.status === "NOT_AVAILABLE");
-
-      let refundTotal = 0;
-
-      for (const item of unavailableItems) {
-        if (item.reservation_id) {
-          await this.requestInventory(
-            `/stock-reservations/${item.reservation_id}/release`,
-            { method: "PATCH" },
-            authorization
-          );
-        }
-
-        const refundAmount = Number(item.line_total);
-        refundTotal += refundAmount;
-
-        await OrderItemRepository.updateItem(item.id, {
-          refund_amount: refundAmount,
-          refunded_at: new Date()
-        }, { transaction });
-      }
-
-      const oldStatus = order.status;
-      let newStatus;
-
-      if (unavailableItems.length === 0) {
-        newStatus = ORDER_STATUS.READY_FOR_ASSIGNMENT;
-      } else if (readyItems.length === 0) {
-        newStatus = ORDER_STATUS.CANCELLED;
-      } else {
-        newStatus = ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION;
-      }
-
-      this.assertTransition(oldStatus, newStatus);
-
-      await OrderRepository.updateOrder(order.id, {
-        status: newStatus,
-        refunded_amount: Number(order.refunded_amount) + refundTotal
-      }, { transaction });
-
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
-        old_status: oldStatus,
-        new_status: newStatus,
-        changed_by: getUserId(user),
-        remarks: unavailableItems.length > 0
-          ? `${unavailableItems.length} item(s) unavailable, ₹${refundTotal.toFixed(2)} refunded`
-          : "All items ready for delivery"
-      }, { transaction });
-
-      await publisher.publish(OrderEvents.ORDER_ITEMS_FINALIZED, {
-        orderId: order.id,
-        readyItems: readyItems.map((item) => ({ id: item.id, product_name: item.product_name })),
-        unavailableItems: unavailableItems.map((item) => ({
-          id: item.id,
-          product_name: item.product_name,
-          remarks: item.admin_remarks
-        })),
-        refundAmount: refundTotal,
-        newStatus
-      });
-
-      return await this.getOrderDetails(order.id, user, { transaction });
+      return await this.finalizeReviewedItems(order, transaction, user, authorization);
     });
+  }
+
+  // Shared by the manual admin finalize endpoint and auto-finalize-on-payment
+  // (see autoFinalizeOrder): both start from an order whose items already
+  // carry a READY/NOT_AVAILABLE status and just need the order-level
+  // transition + refund bookkeeping that follows from that.
+  async finalizeReviewedItems(order, transaction, user, authorization) {
+    const items = order.items || [];
+    const readyItems = items.filter((item) => item.status === "READY");
+    const unavailableItems = items.filter((item) => item.status === "NOT_AVAILABLE");
+
+    let refundTotal = 0;
+
+    for (const item of unavailableItems) {
+      if (item.reservation_id) {
+        await this.requestInventory(
+          `/stock-reservations/${item.reservation_id}/release`,
+          { method: "PATCH" },
+          authorization
+        );
+      }
+
+      const refundAmount = Number(item.line_total);
+      refundTotal += refundAmount;
+
+      await OrderItemRepository.updateItem(item.id, {
+        refund_amount: refundAmount,
+        refunded_at: new Date()
+      }, { transaction });
+    }
+
+    const oldStatus = order.status;
+    let newStatus;
+
+    if (unavailableItems.length === 0) {
+      newStatus = ORDER_STATUS.READY_FOR_ASSIGNMENT;
+    } else if (readyItems.length === 0) {
+      newStatus = ORDER_STATUS.CANCELLED;
+    } else {
+      newStatus = ORDER_STATUS.AWAITING_CUSTOMER_CONFIRMATION;
+    }
+
+    this.assertTransition(oldStatus, newStatus);
+
+    await OrderRepository.updateOrder(order.id, {
+      status: newStatus,
+      refunded_amount: Number(order.refunded_amount) + refundTotal
+    }, { transaction });
+
+    await OrderStatusHistoryRepository.createStatusHistory({
+      order_id: order.id,
+      old_status: oldStatus,
+      new_status: newStatus,
+      changed_by: getUserId(user),
+      remarks: unavailableItems.length > 0
+        ? `${unavailableItems.length} item(s) unavailable, ₹${refundTotal.toFixed(2)} refunded`
+        : "All items ready for delivery"
+    }, { transaction });
+
+    await publisher.publish(OrderEvents.ORDER_ITEMS_FINALIZED, {
+      orderId: order.id,
+      readyItems: readyItems.map((item) => ({ id: item.id, product_name: item.product_name })),
+      unavailableItems: unavailableItems.map((item) => ({
+        id: item.id,
+        product_name: item.product_name,
+        remarks: item.admin_remarks
+      })),
+      refundAmount: refundTotal,
+      newStatus
+    });
+
+    return await this.getOrderDetails(order.id, user, { transaction });
+  }
+
+  // Every item's stock reservation is already confirmed by the time an
+  // order reaches PLACED (see confirmReservations calls below), so there's
+  // nothing left for an admin to decide in the normal case — skip straight
+  // to the same transition the manual review flow ends with. Failures are
+  // swallowed: the order just stays at PLACED and the existing manual
+  // OrderFulfillmentTab flow remains a working fallback for it.
+  async autoFinalizeOrder(orderId, authorization, transaction) {
+    try {
+      const order = await OrderRepository.getOrderWithItems(orderId, { transaction });
+      const items = order.items || [];
+
+      for (const item of items) {
+        await OrderItemRepository.updateItem(item.id, { status: "READY" }, { transaction });
+        item.status = "READY";
+      }
+
+      await this.finalizeReviewedItems(order, transaction, null, authorization);
+    } catch (error) {
+      logger.error("order.autoFinalize.failed", { orderId, error: error.message });
+    }
   }
 
   async confirmPartialOrder(orderId, decision, user, authorization) {
@@ -815,6 +855,8 @@ if(!userAddress.success){
         changed_by: null,
         remarks: data.remarks || "Payment successful"
       }, { transaction });
+
+      await this.autoFinalizeOrder(order.id, authorization, transaction);
 
       return await this.getOrderDetails(order.id, null, { transaction });
     });

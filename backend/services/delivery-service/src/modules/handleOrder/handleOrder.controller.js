@@ -4,9 +4,8 @@ import ResponseUtil from "../../utils/response.js";
 class HandleOrderController {
   async assignOrder(req, res, next) {
     try {
-        
-    
-      const result = await HandleOrderService.assignOrder(req.body, req.user, req.headers.authorization);
+      const warehouse_id = req.headers["x-warehouse-id"];
+      const result = await HandleOrderService.assignOrder({ ...req.body, warehouse_id }, req.user, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order assigned successfully", 201);
     } catch (error) {
       return next(error);
