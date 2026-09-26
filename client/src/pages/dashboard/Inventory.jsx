@@ -22,7 +22,7 @@ const Inventory = () => {
     const pageSize = 10;
 
     const quickLinks = [
-        { label: "Warehouse", icon: Warehouse, path: "/dashboard/inventory/warehouses" },
+        { label: "Warehouse", icon: Warehouse, path: "/dashboard/warehouses" },
         { label: "Stock Movement", icon: ArrowLeftRight, path: "/dashboard/inventory/stock-movement" },
         { label: "Stock Reservation", icon: Lock, path: "/dashboard/inventory/stock-reservation" },
     ];

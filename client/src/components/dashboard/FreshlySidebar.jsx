@@ -4,8 +4,10 @@ import {
   Package,
   FolderTree,
   Warehouse,
+  Building2,
   ShoppingCart,
   Users,
+  UserCog,
   BadgePercent,
   Settings,
   ChevronLeft,
@@ -19,11 +21,13 @@ const primaryItems = [
   { title: "Products", path: "/dashboard/products", icon: Package },
   { title: "Categories", path: "/dashboard/categories", icon: FolderTree },
   { title: "Inventory", path: "/dashboard/inventory", icon: Warehouse },
+  { title: "Warehouses", path: "/dashboard/warehouses", icon: Building2 },
 ];
 
 const managementItems = [
   { title: "Orders", path: "/dashboard/orders", icon: ShoppingCart },
   { title: "Customers", path: "/dashboard/customers", icon: Users },
+  { title: "Staff & Admins", path: "/dashboard/staff", icon: UserCog },
   { title: "Promotions", path: "/dashboard/promotions", icon: BadgePercent },
   { title: "Assigned Promos", path: "/dashboard/assign-promotions", icon: Tag },
   { title: "Settings", path: "/dashboard/settings", icon: Settings },

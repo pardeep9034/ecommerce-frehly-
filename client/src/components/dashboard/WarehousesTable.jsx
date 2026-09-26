@@ -1,17 +1,10 @@
-import { Edit2, Trash2 } from "lucide-react";
-import ConfirmationModal from "@/components/common/ConfirmationModal"
+import { Edit2, Trash2, Eye } from "lucide-react";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 import { useState } from "react";
 
-
-const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
-  console.log("warehouses ---------", warehouses);
-  const [isModalOpen,setIsModalOpen] =useState(false)
-  const [deleteWarehouse,setDeleteWarehouse]=useState(null)
-//   if(isLoading){
-//     return (<span className="text-sm text-gray-500">
-//     Loading...
-//   </span>)
-//   }
+const WarehousesTable = ({ warehouses = [], onEdit, onDelete, onView, isLoading }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteWarehouse, setDeleteWarehouse] = useState(null);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
@@ -54,7 +47,8 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
             {warehouses.map((warehouse) => (
               <tr
                 key={warehouse.id}
-                className="border-b border-border transition-colors last:border-0 hover:bg-muted"
+                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted"
+                onClick={() => onView?.(warehouse)}
               >
                 <td className="px-5 py-4 font-medium text-foreground sm:px-6">
                   {warehouse.name}
@@ -91,8 +85,16 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
                   </span>
                 </td>
 
-                <td className="px-5 py-4 sm:px-6">
+                <td className="px-5 py-4 sm:px-6" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onView?.(warehouse)}
+                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => onEdit?.(warehouse)}
@@ -103,7 +105,10 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
 
                     <button
                       type="button"
-                      onClick={()=>{setIsModalOpen(true),setDeleteWarehouse(warehouse)}}
+                      onClick={() => {
+                        setIsModalOpen(true);
+                        setDeleteWarehouse(warehouse);
+                      }}
                       className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -111,13 +116,12 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
                   </div>
                 </td>
               </tr>
-              
             ))}
 
             {warehouses.length === 0 && !isLoading && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={8}
                   className="px-6 py-10 text-center text-sm text-muted-foreground"
                 >
                   No warehouses found.
@@ -127,7 +131,7 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
             {isLoading && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={8}
                   className="px-6 py-10 text-center text-sm text-muted-foreground"
                 >
               Loading ...
@@ -150,7 +154,7 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
           </tbody>
         </table>
       </div>
-        
+
     </div>
   );
 };
