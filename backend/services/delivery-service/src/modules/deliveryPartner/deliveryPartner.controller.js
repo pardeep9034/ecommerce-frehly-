@@ -17,11 +17,7 @@ class DeliveryPartnerController {
 
   async getAllDeliveryPartnersByZoneId(req, res, next) {
     try {
-      // const page = Number.parseInt(req.query.page, 10) || 1;
-      // const limit = Number.parseInt(req.query.limit, 10) || 10;
       const zone_id = Number.parseInt(req.query.zone_id, 10);
-    
-      const offset = (page - 1) * limit;
       const result = await DeliveryPartnerService.getAllDeliveryPartnersByZoneId(zone_id);
 
       return ResponseUtil.success(res, result, "Delivery partners fetched");
@@ -29,9 +25,9 @@ class DeliveryPartnerController {
       next(error);
     }
   }
-  async getAvalableDeliveryPartners(res,req,next){
+  async getAvalableDeliveryPartners(req, res, next){
     try{
-      const warehouseId = req.header("X-Warehouse-Id");
+      const warehouseId = req.headers["x-warehouse-id"];
       const result = await DeliveryPartnerService.getAvalableDeliveryPartners(warehouseId);
       return ResponseUtil.success(res, result, "Available delivery partners fetched");
 

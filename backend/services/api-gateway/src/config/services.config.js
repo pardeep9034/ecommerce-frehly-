@@ -100,6 +100,10 @@ export default [
     target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
   },
   {
+    route: "/delivery-slots",
+    target: process.env.DELIVERY_SERVICE_URL || "http://delivery-service:3000"
+  },
+  {
     route: "/users",
     target: process.env.USER_SERVICE_URL || "http://user-service:3000"
   },

@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import DeliveryAssignmentRepository from "../repository/deliveryAssignment.repository.js";
 import DeliveryAssignmentHistoryRepository from "../repository/deliveryAssignmentHistory.repository.js";
 import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.js";
@@ -9,6 +10,21 @@ import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
 import { Op, Sequelize } from "sequelize";
 import initializeModels from "../../models/index.js";
+import logger from "../../utils/Logger.js";
+
+// DeliveryAssignment.status is a narrow lifecycle enum
+// (ACTIVE/TRANSFERRED/COMPLETED/CANCELLED/FAILED) — it doesn't share the
+// order's PICKED_UP/OUT_FOR_DELIVERY vocabulary, so it (and the assigned
+// partner's active-order count) should only change once the order reaches
+// one of these terminal states.
+const TERMINAL_ASSIGNMENT_STATUS = {
+  DELIVERED: "COMPLETED",
+  DELIVERY_FAILED: "FAILED"
+};
+const TERMINAL_HISTORY_ACTION = {
+  DELIVERED: "COMPLETED",
+  DELIVERY_FAILED: "CANCELLED"
+};
 
 class HandleOrderService {
   async assignOrder(data, user, authorization) {
@@ -63,7 +79,7 @@ class HandleOrderService {
             warehouse_id: data.warehouse_id,
             pickup_name: warehouse.data.name,
             pickup_address: warehouse.data.address,
-            pickup_latitude: warehouse.data.lattitude,
+            pickup_latitude: warehouse.data.latitude,
             pickup_longitude: warehouse.data.longitude,
             pickup_contact_name: warehouse.data.contact_person,
             pickup_contact_phone: warehouse.data.contact_phone,
@@ -98,13 +114,59 @@ class HandleOrderService {
         throw new AppError("Failed to update order status to ASSIGNED", statusResponse.status || 500);
       }
 
+      await DeliveryPartnerRepository.updateDeliveryPartner(
+        data.delivery_partner_id,
+        { current_active_orders: Sequelize.literal("current_active_orders + 1") },
+        { transaction }
+      );
+
       await transaction.commit();
+
+      this.scheduleAutoProgression(assignment.id);
 
       return assignment;
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  // No delivery-partner app exists to trigger these for real, so once an
+  // order is manually assigned, simulate the rest of the timeline on a
+  // timer instead of requiring more manual status calls.
+  // ponytail: in-memory timers don't survive a process restart — an order
+  // mid-chain would freeze if this service redeploys. Acceptable for this
+  // stage; a periodic sweep over stale assignments is the upgrade path if
+  // that starts to matter.
+  scheduleAutoProgression(assignmentId) {
+    const steps = [
+      { status: "PICKED_UP", delay: env.AUTO_PROGRESS_PICKUP_MS },
+      { status: "OUT_FOR_DELIVERY", delay: env.AUTO_PROGRESS_TRANSIT_MS },
+      { status: "DELIVERED", delay: env.AUTO_PROGRESS_DELIVERED_MS }
+    ];
+
+    let cumulativeDelay = 0;
+
+    for (const step of steps) {
+      cumulativeDelay += step.delay;
+
+      setTimeout(async () => {
+        try {
+          await this.updateStatus(assignmentId, { status: step.status }, null, this.buildSystemAuthorization());
+        } catch (error) {
+          logger.error(`Auto-progression to ${step.status} failed for assignment ${assignmentId}: ${error.message}`);
+        }
+      }, cumulativeDelay);
+    }
+  }
+
+  // A timer callback has no caller's JWT to forward — mint a short-lived
+  // internal one instead. Every service verifies against the same shared
+  // JWT_SECRET, so order-service accepts this exactly like a real token
+  // (mirrors order-service's own buildSystemAuthorization()).
+  buildSystemAuthorization() {
+    const token = jwt.sign({ user_id: "system", role: "SYSTEM" }, env.JWT_SECRET, { expiresIn: "1h" });
+    return `Bearer ${token}`;
   }
   async reAssignOrder(data, user, assignmentId) {
     //check assingment exist or not
@@ -367,18 +429,31 @@ throw new AppError("order is not found",404)
     const db = await initializeModels();
     const transaction = await db.sequelize.transaction();
     try {
-      const updateAssignment = DeliveryAssignmentRepository.updateById(
-        assignmentId,
-        { status: data.status },
-        { transaction },
-      );
-      // create history
-      const assignmentHistory = DeliveryAssignmentHistoryRepository.create({
-        order_id: assignment.order_id,
-        assignment_id: assignment.id,
-        action: data.status,
-        old_delivery_partner_id: assignment.old_delivery_partner_id,
-      });
+      const terminalAssignmentStatus = TERMINAL_ASSIGNMENT_STATUS[data.status];
+
+      if (terminalAssignmentStatus) {
+        await DeliveryAssignmentRepository.updateById(
+          assignmentId,
+          { status: terminalAssignmentStatus },
+          { transaction },
+        );
+        await DeliveryPartnerRepository.updateDeliveryPartner(
+          assignment.delivery_partner_id,
+          { current_active_orders: Sequelize.literal("GREATEST(current_active_orders - 1, 0)") },
+          { transaction },
+        );
+      }
+
+      const historyAction = TERMINAL_HISTORY_ACTION[data.status];
+
+      if (historyAction) {
+        await DeliveryAssignmentHistoryRepository.createAssignmentHistory({
+          order_id: assignment.order_id,
+          assignment_id: assignment.id,
+          action: historyAction,
+          old_delivery_partner_id: assignment.delivery_partner_id,
+        }, { transaction });
+      }
       // inform order or update order
       const updatedOrder = await fetch(
         `${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`,
@@ -391,6 +466,10 @@ throw new AppError("order is not found",404)
           body: JSON.stringify({ status: data.status }),
         },
       );
+      if (!updatedOrder.ok) {
+        throw new AppError("Failed to update order status", updatedOrder.status || 500);
+      }
+
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();

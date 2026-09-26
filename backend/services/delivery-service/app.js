@@ -10,6 +10,7 @@ import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner
 import deliveryZoneRoutes from "./src/modules/deliveryZone/deliveryZone.routes.js";
 import deliveryPartnerZoneRoutes from "./src/modules/deliveryPartnerZone/deliveryPartnerZone.routes.js";
 import handleOrderRoutes from "./src/modules/handleOrder/handleOrder.routes.js";
+import deliverySlotRoutes from "./src/modules/deliverySlot/deliverySlot.routes.js";
 import logger from "./src/utils/Logger.js";
 
 dotenv.config();
@@ -60,6 +61,7 @@ app.use("/delivery-partners", deliveryPartnerRoutes);
 app.use("/delivery-zones", deliveryZoneRoutes);
 app.use("/delivery-partner-zones", deliveryPartnerZoneRoutes);
 app.use("/handle-orders", handleOrderRoutes);
+app.use("/delivery-slots", deliverySlotRoutes);
 
 /* ================= 404 HANDLER ================= */
 app.use((req, res) => {
