@@ -78,6 +78,10 @@ export default (sequelize) => {
         type: DataTypes.STRING(100),
         allowNull: true
       },
+      warehouse_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true // owned by inventory-service, so no FK
+      },
       placed_at: {
         type: DataTypes.DATE
       }

@@ -45,6 +45,24 @@ class OrderController {
     }
   }
 
+  async getOrderStats(req, res, next) {
+    try {
+      const result = await orderService.getOrderStats(req.query);
+      return ResponseUtil.success(res, result, "Order stats fetched successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async getCustomerStats(req, res, next) {
+    try {
+      const result = await orderService.getCustomerStats(req.query);
+      return ResponseUtil.success(res, result, "Customer stats fetched successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   async getOrderDetails(req, res, next) {
     try {
       const orderId = parsePositiveInt(req.params.orderId);

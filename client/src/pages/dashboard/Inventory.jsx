@@ -11,6 +11,8 @@ import useInventory from "@/hooks/use-inventory";
 import { toast } from "@/components/ui/sonner";
 import { Plus, Search, Warehouse, ArrowLeftRight, Lock, AlertCircle } from "lucide-react";
 
+const EMPTY = [];
+const STOCK_FILTERS = ["All", "Low", "Out"];
 
 const Inventory = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -18,17 +20,19 @@ const Inventory = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [warehouseId, setWarehouseId] = useState("");
+    const [stockFilter, setStockFilter] = useState("All");
 
     const pageSize = 10;
 
     const quickLinks = [
-        { label: "Warehouse", icon: Warehouse, path: "/dashboard/inventory/warehouses" },
-        { label: "Stock Movement", icon: ArrowLeftRight, path: "/dashboard/inventory/stock-movement" },
-        { label: "Stock Reservation", icon: Lock, path: "/dashboard/inventory/stock-reservation" },
+        { label: "Warehouse", icon: Warehouse, path: "/dashboard/warehouses" },
+        { label: "Stock Movement", icon: ArrowLeftRight, path: "/dashboard/stock-movement" },
+        { label: "Stock Reservation", icon: Lock, path: "/dashboard/stock-reservation" },
     ];
 
     const {
         inventory: inventoryData,
+        inventoryStats,
         isLoading,
         error,
         createInventory,
@@ -44,12 +48,12 @@ const Inventory = () => {
     const warehouseData = warehousesResponse?.data ?? warehousesResponse;
     const warehouses = Array.isArray(warehouseData)
         ? warehouseData
-        : warehouseData?.warehouses ?? warehouseData?.rows ?? [];
+        : warehouseData?.warehouses ?? warehouseData?.rows ?? EMPTY;
 
     const inventoryPayload = inventoryData?.data ?? inventoryData;
     const inventoryList = Array.isArray(inventoryPayload)
         ? inventoryPayload
-        : inventoryPayload?.inventory ?? inventoryPayload?.variants ?? inventoryPayload?.rows ?? [];
+        : inventoryPayload?.inventory ?? inventoryPayload?.variants ?? inventoryPayload?.rows ?? EMPTY;
     const pagination = inventoryData?.data?.pagination || {};
 
     const filteredInventory = useMemo(() => {
@@ -60,9 +64,29 @@ const Inventory = () => {
                     item.variant.measurementUnit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.variant.unit?.toLowerCase().includes(searchTerm.toLowerCase())
                 ));
-            return searchMatch;
+            const stockMatch =
+                stockFilter === "All" ||
+                (stockFilter === "Low" && item.current_stock > 0 && item.current_stock <= item.low_stock_threshold) ||
+                (stockFilter === "Out" && item.current_stock <= 0);
+            return searchMatch && stockMatch;
         });
-    }, [inventoryList, searchTerm]);
+    }, [inventoryList, searchTerm, stockFilter]);
+
+    // Stat cards are scoped to the selected warehouse (real numbers from
+    // inventoryStats, a wider fetch of the same warehouse — see use-inventory.js).
+    // No cross-warehouse aggregate endpoint exists, so "across all warehouses"
+    // from the design isn't shown; these are honest per-warehouse totals instead.
+    const stockStats = useMemo(() => {
+        const lowStock = inventoryStats.filter((i) => i.current_stock > 0 && i.current_stock <= i.low_stock_threshold).length;
+        const outOfStock = inventoryStats.filter((i) => i.current_stock <= 0).length;
+        const reserved = inventoryStats.reduce((sum, i) => sum + (i.reserved_stock || 0), 0);
+        return {
+            variantsStocked: inventoryStats.length,
+            lowStock,
+            outOfStock,
+            reserved,
+        };
+    }, [inventoryStats]);
 
     const totalPages = pagination.totalPages || 1;
 
@@ -128,6 +152,25 @@ const Inventory = () => {
                 }
             />
               <QuickNavBar links={quickLinks} />
+
+            {warehouseId && (
+                <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+                    {[
+                        { label: "Variants stocked", value: stockStats.variantsStocked, hint: "In this warehouse" },
+                        { label: "Low stock", value: stockStats.lowStock, warn: true },
+                        { label: "Out of stock", value: stockStats.outOfStock, warn: true },
+                        { label: "Reserved now", value: stockStats.reserved },
+                    ].map((card) => (
+                        <div key={card.label} className="rounded-xl border border-border bg-white p-4 shadow-card">
+                            <p className="text-xs text-muted-foreground">{card.label}</p>
+                            <p className={`mt-1 font-display text-2xl font-bold ${card.warn ? "text-destructive" : "text-foreground"}`}>
+                                {card.value}
+                            </p>
+                            {card.hint && <p className="mt-0.5 text-xs text-muted-foreground">{card.hint}</p>}
+                        </div>
+                    ))}
+                </div>
+            )}
         {/*
         <button
         onClick={()=>navigate("/dashboard/products/category")}
@@ -183,6 +226,22 @@ const Inventory = () => {
                                 disabled={isWarehousesLoading}
                                 className="w-full disabled:bg-gray-50 disabled:text-gray-500"
                             />
+                        </div>
+                        <div className="flex gap-1.5">
+                            {STOCK_FILTERS.map((filter) => (
+                                <button
+                                    key={filter}
+                                    type="button"
+                                    onClick={() => setStockFilter(filter)}
+                                    className={`h-9 rounded-full px-3 text-xs font-semibold transition-colors ${
+                                        stockFilter === filter
+                                            ? "bg-primary text-white"
+                                            : "border border-border bg-white text-foreground hover:bg-muted"
+                                    }`}
+                                >
+                                    {filter}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

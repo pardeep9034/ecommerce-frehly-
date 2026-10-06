@@ -1,6 +1,6 @@
 # Backend conventions
 
-This is a Node.js/Express microservices backend (`backend/services/<name>-service`). Every service with real business logic (`auth`, `user`, `cart`, `product`, `inventory`, `order`, `delivery`) follows the same layering and naming rules below. `config-service`, `api-gateway`, `notification-service`, `payment-service` are gateway/stub services and don't have this layering.
+This is a Node.js/Express microservices backend (`backend/services/<name>-service`). Every service with real business logic (`auth`, `user`, `cart`, `product`, `inventory`, `order`, `delivery`, `config`) follows the same layering and naming rules below. `api-gateway`, `notification-service`, `payment-service` are gateway/stub services and don't have this layering.
 
 ## Layering
 
@@ -27,7 +27,7 @@ When adding a new module, match the existing sibling modules in that service exa
 
 ## Errors
 
-`throw new AppError(message, statusCode)` everywhere business logic can fail — never a bare `throw new Error(...)` and never an ad hoc `res.status(x).json(...)` written inline in a controller. Each service has its own `src/utils/AppError.js` (`constructor(message, statusCode)`); there's no shared package yet, so if you touch a service missing one (`user-service`, `config-service`, `api-gateway`), add one matching the existing signature instead of inventing a new shape. The global error handler in each service's `app.js` must check `error.isOperational` (or `instanceof AppError`) before falling back to a generic 500 — a handler that skips this check silently turns every `AppError` into a 500.
+`throw new AppError(message, statusCode)` everywhere business logic can fail — never a bare `throw new Error(...)` and never an ad hoc `res.status(x).json(...)` written inline in a controller. Each service has its own `src/utils/AppError.js` (`constructor(message, statusCode)`); there's no shared package yet, so if you touch a service missing one (`user-service`, `api-gateway`), add one matching the existing signature instead of inventing a new shape. The global error handler in each service's `app.js` must check `error.isOperational` (or `instanceof AppError`) before falling back to a generic 500 — a handler that skips this check silently turns every `AppError` into a 500.
 
 ## Responses
 

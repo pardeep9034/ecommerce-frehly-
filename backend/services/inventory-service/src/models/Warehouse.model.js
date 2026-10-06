@@ -59,6 +59,11 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      operational_status: {
+        type: DataTypes.ENUM("OPEN", "PAUSED", "MAINTENANCE", "SETTING_UP"),
+        allowNull: false,
+        defaultValue: "OPEN",
+      },
     },
     {
       tableName: "warehouses",

@@ -1,5 +1,6 @@
 import joi from "joi";
 
+const MOVEMENT_TYPES=["STOCK_IN","SALE","ADJUSTMENT","DAMAGE","RETURN"];
 
 const schemas={
     createInventorySchema:joi.object({
@@ -21,10 +22,14 @@ const schemas={
     deleteInventorySchema:joi.object({
         id:joi.number().integer().required(),
     }),
+    listStockMovementsSchema:joi.object({
+        type:joi.string().valid(...MOVEMENT_TYPES).empty(""),
+        warehouse_id:joi.number().integer().positive().empty(""),
+    }).unknown(true),
     createStockMovementSchema:joi.object({
         variant_id:joi.number().integer().required(),
         warehouse_id:joi.number().integer().required(),
-        movement_type:joi.string().valid("STOCK_IN","SALE","ADJUSTMENT","DAMAGE","RETURN").required(),
+        movement_type:joi.string().valid(...MOVEMENT_TYPES).required(),
         quantity:joi.number().integer().positive().required(),
         after_stock:joi.when("movement_type", {
             is: "ADJUSTMENT",
@@ -49,11 +54,12 @@ const schemas={
         state:joi.string(),
         country:joi.string(),
         zone_id:joi.number(),
-        latitude:joi.string().required(),
-        longitude:joi.string().required(),
+        latitude:joi.number().required(),
+        longitude:joi.number().required(),
         contact_person:joi.string(),
         contact_phone:joi.string(),
-        is_active:joi.string()
+        is_active:joi.boolean(),
+        operational_status:joi.string().valid("OPEN","PAUSED","MAINTENANCE","SETTING_UP")
 
 
 
@@ -66,21 +72,22 @@ const schemas={
         state:joi.string().optional(),
         country:joi.string().optional(),
         zone_id:joi.number().optional(),
-        latitude:joi.string().optional(),
-        longitude:joi.string().optional(),
+        latitude:joi.number().optional(),
+        longitude:joi.number().optional(),
         contact_person:joi.string().optional(),
         contact_phone:joi.string().optional(),
-        is_active:joi.boolean().optional()
+        is_active:joi.boolean().optional(),
+        operational_status:joi.string().valid("OPEN","PAUSED","MAINTENANCE","SETTING_UP").optional()
     })
     
 };
 
-export function validate(schema){
+export function validate(schema,source="body"){
     return (req,res,next)=>{
         if(!schemas[schema]){
             return res.status(500).json({error:`Validation schema ${schema} not found`});
         }
-        const {error}=schemas[schema].validate(req.body);
+        const {error}=schemas[schema].validate(req[source]);
         if(error){
             return res.status(400).json({error:error.details[0].message});
         }

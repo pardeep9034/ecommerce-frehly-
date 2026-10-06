@@ -4,7 +4,7 @@ export const fetchPromotions = async (page = 1, limit = 10, type = null) => {
   try {
     const params = new URLSearchParams({ page, limit });
     if (type && type !== "All") params.append("type", type);
-    const response = await api.get(`/products/promotions?${params.toString()}`);
+    const response = await api.get(`/promotions?${params.toString()}`);
     return response.data;
   } catch (error) {
     console.error("Error fetching promotions:", error);
@@ -14,7 +14,7 @@ export const fetchPromotions = async (page = 1, limit = 10, type = null) => {
 
 export const createPromotion = async (promotionData) => {
   try {
-    const response = await api.post("/products/promotions", promotionData);
+    const response = await api.post("/promotions", promotionData);
     return response.data;
   } catch (error) {
     console.error("Error creating promotion:", error);
@@ -24,7 +24,7 @@ export const createPromotion = async (promotionData) => {
 
 export const updatePromotion = async (id, promotionData) => {
   try {
-    const response = await api.put(`/products/promotions/${id}`, promotionData);
+    const response = await api.put(`/promotions/${id}`, promotionData);
     return response.data;
   } catch (error) {
     console.error("Error updating promotion:", error);
@@ -34,7 +34,7 @@ export const updatePromotion = async (id, promotionData) => {
 
 export const deletePromotion = async (id) => {
   try {
-    const response = await api.delete(`/products/promotions/${id}`);
+    const response = await api.delete(`/promotions/${id}`);
     return response.data;
   } catch (error) {
     console.error("Error deleting promotion:", error);

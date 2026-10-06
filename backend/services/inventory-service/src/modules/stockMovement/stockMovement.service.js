@@ -32,7 +32,7 @@ const getCreatedBy = (user, fallbackCreatedBy) => {
 };
 
 class StockMovementServices {
-  async getAllStockMovements(limit, offset) {
+  async getAllStockMovements(limit, offset, filters = {}) {
     if (limit <= 0 || offset < 0) {
       throw new AppError(
         "Invalid limit or offset values. Limit must be greater than 0 and offset must be non-negative.",
@@ -41,7 +41,7 @@ class StockMovementServices {
     }
 
     const { count, rows } =
-      await StockMovementRepository.getAllStockMovements(limit, offset);
+      await StockMovementRepository.getAllStockMovements(limit, offset, filters);
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(count / limit);
 

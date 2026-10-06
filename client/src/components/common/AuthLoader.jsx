@@ -24,7 +24,7 @@ const AuthLoader = ({ children }) => {
     };
 
     initAuth();
-  }, []);
+  }, [dispatch]);
 
   return children;
 };

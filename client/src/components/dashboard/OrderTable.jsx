@@ -1,19 +1,31 @@
 import { Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+// Tone per status matches the design's chip colors: blue = active/moving,
+// teal = being prepared in-store, violet = waiting on the customer,
+// green = ready/done, amber = awaiting payment, red = failed/cancelled.
 const STATUS_STYLES = {
-  DELIVERED: "bg-success/10 text-success",
-  CONFIRMED: "bg-success/10 text-success",
-  PLACED: "bg-primary/10 text-primary",
+  PENDING_PAYMENT: "bg-amber/10 text-amber",
+  PAYMENT_FAILED: "bg-destructive/10 text-destructive",
+  PAYMENT_EXPIRED: "bg-destructive/10 text-destructive",
+  PLACED: "bg-info/10 text-info",
+  CONFIRMED: "bg-teal/10 text-teal",
+  AWAITING_CUSTOMER_CONFIRMATION: "bg-violet/10 text-violet",
   READY_FOR_ASSIGNMENT: "bg-primary/10 text-primary",
-  ASSIGNED: "bg-primary/10 text-primary",
-  PICKED_UP: "bg-primary/10 text-primary",
-  OUT_FOR_DELIVERY: "bg-primary/10 text-primary",
-  HANDOVER_IN_PROGRESS: "bg-primary/10 text-primary",
-  CANCELLED: "bg-warning/10 text-warning-foreground",
-  PAYMENT_FAILED: "bg-warning/10 text-warning-foreground",
-  PAYMENT_EXPIRED: "bg-warning/10 text-warning-foreground",
-  DELIVERY_FAILED: "bg-warning/10 text-warning-foreground",
+  ASSIGNED: "bg-info/10 text-info",
+  PICKED_UP: "bg-info/10 text-info",
+  OUT_FOR_DELIVERY: "bg-info/10 text-info",
+  HANDOVER_IN_PROGRESS: "bg-info/10 text-info",
+  DELIVERED: "bg-primary/10 text-primary",
+  CANCELLED: "bg-destructive/10 text-destructive",
+  DELIVERY_FAILED: "bg-destructive/10 text-destructive",
+};
+
+const PAYMENT_STATUS_STYLES = {
+  SUCCESS: "bg-primary/10 text-primary",
+  PENDING: "bg-amber/10 text-amber",
+  FAILED: "bg-destructive/10 text-destructive",
+  REFUNDED: "bg-violet/10 text-violet",
 };
 
 export const StatusBadge = ({ status }) => (
@@ -23,6 +35,16 @@ export const StatusBadge = ({ status }) => (
     }`}
   >
     {String(status || "").replaceAll("_", " ").toLowerCase()}
+  </span>
+);
+
+export const PaymentStatusBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
+      PAYMENT_STATUS_STYLES[status] || "bg-muted text-muted-foreground"
+    }`}
+  >
+    {String(status || "").toLowerCase()}
   </span>
 );
 
@@ -36,7 +58,6 @@ const OrderTable = ({ orders = [], isLoading }) => {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Order</th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Customer</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Placed</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Status</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Payment</th>
@@ -49,7 +70,6 @@ const OrderTable = ({ orders = [], isLoading }) => {
             {orders.map((order) => (
               <tr key={order.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted">
                 <td className="px-5 py-4 font-medium text-foreground sm:px-6">{order.order_number}</td>
-                <td className="px-5 py-4 text-muted-foreground sm:px-6">#{order.user_id}</td>
                 <td className="px-5 py-4 text-muted-foreground sm:px-6">
                   {new Date(order.created_at).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -61,9 +81,7 @@ const OrderTable = ({ orders = [], isLoading }) => {
                   <StatusBadge status={order.status} />
                 </td>
                 <td className="px-5 py-4 sm:px-6">
-                  <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium capitalize text-muted-foreground">
-                    {String(order.payment_status || "").toLowerCase()}
-                  </span>
+                  <PaymentStatusBadge status={order.payment_status} />
                 </td>
                 <td className="px-5 py-4 text-right font-medium text-foreground sm:px-6">
                   ₹{Number(order.total_amount).toFixed(2)}
@@ -84,7 +102,7 @@ const OrderTable = ({ orders = [], isLoading }) => {
 
             {orders.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   No orders found.
                 </td>
               </tr>
@@ -92,7 +110,7 @@ const OrderTable = ({ orders = [], isLoading }) => {
 
             {isLoading && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   Loading...
                 </td>
               </tr>

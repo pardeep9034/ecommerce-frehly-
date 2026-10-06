@@ -1,5 +1,6 @@
 import AppError from "../../utils/AppError.js";
 import measurementUnitRepository from "../repository/measurementUnit.repository.js";
+const UNIT_CATEGORIES=["WEIGHT","VOLUME","COUNT","PACKAGING"]; // keep in sync with MeasurementUnit.category enum
 class measurementUnitService{
  
   async createUnit(data){
@@ -15,10 +16,13 @@ class measurementUnitService{
       throw new AppError(error.message,500);
     }
   }
-  async getAllUnits({page=1,limit=10}){
+  async getAllUnits({page=1,limit=10,category,search}){
     const offset=(page-1)*limit;
     try {
-      const {count,rows}=await measurementUnitRepository.getAllUnits({offset,limit});
+      if (category && !UNIT_CATEGORIES.includes(category)) {
+        throw new AppError(`category must be one of ${UNIT_CATEGORIES.join(", ")}`,400);
+      }
+      const {count,rows}=await measurementUnitRepository.getAllUnits({offset,limit,category,search});
       const totalPages = Math.ceil(count / limit);
       const currentPage = Math.floor((offset / limit)) + 1;
       return {

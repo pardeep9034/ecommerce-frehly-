@@ -6,8 +6,8 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
+const PERSISTENT_REFRESH_COOKIE = { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 }; // 7 days
 
 class AuthController {
 
@@ -36,7 +36,7 @@ class AuthController {
       const result = await AuthService.register(req,req.body);
       
         if (result.data?.refreshToken) {
-        res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
+        res.cookie("refreshToken", result.data.refreshToken, PERSISTENT_REFRESH_COOKIE);
       }
       return ResponseUtil.success(res, { user: result.user }, result.message, 200);
     } catch (error) {
@@ -57,13 +57,15 @@ class AuthController {
   async loginWithPassword(req,res,next){
 
     try {
-      const { phone, password ,guest_cart} = req.body;
+      const { identifier, password ,guest_cart, rememberMe} = req.body;
       const warehouseId=req.headers["x-warehouse-id"]
       const deviceId = req.headers["x-device-id"] || null;
       const userAgent = req.headers["user-agent"] || null;
 
-      const result = await AuthService.loginWithPassword(phone, password,guest_cart,warehouseId, deviceId, userAgent );
-      res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
+      const result = await AuthService.loginWithPassword(identifier, password,guest_cart,warehouseId, deviceId, userAgent );
+      // rememberMe === false → session cookie (cleared when the browser closes).
+      // Omitted/true → persistent 7-day cookie, same as before this flag existed.
+      res.cookie("refreshToken", result.data.refreshToken, rememberMe === false ? COOKIE_OPTIONS : PERSISTENT_REFRESH_COOKIE);
       return ResponseUtil.success(res, result.data, result.message, 200);
     } catch (error) {
       next(error);
@@ -76,7 +78,13 @@ class AuthController {
     try {
       const refreshToken = req.cookies.refreshToken;
       const result = await AuthService.refreshToken(refreshToken);
-      res.cookie("refreshToken", result.data.refreshToken, COOKIE_OPTIONS);
+      // ponytail: always reissues as persistent — the browser doesn't echo back
+      // whether the original cookie was session-only, so a non-remembered login
+      // that stays open past its access-token lifetime gets its cookie upgraded
+      // on the first silent refresh. Harmless today (nothing calls this route
+      // proactively), but a real fix needs a "remembered" flag stored per
+      // refresh-token record in the DB.
+      res.cookie("refreshToken", result.data.refreshToken, PERSISTENT_REFRESH_COOKIE);
       return ResponseUtil.success(res, { accessToken: result.data.accessToken }, result.message, 200);
     } catch (error) {
       next(error);

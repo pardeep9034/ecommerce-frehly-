@@ -5,12 +5,10 @@ import CategoryTable from "@/components/dashboard/CategoryTable";
 import CategoryPanel from "@/components/dashboard/CategoryModal";
 import TableSkeleton from "@/components/dashboard/TableSkeleton";
 import PageHeader from "@/components/dashboard/PageHeader";
-import Pagination from "@/components/common/Pagination";
 import useCategory from "@/hooks/use-category";
 
 // Large enough that a typical category tree fits on one page — parent/child rows can otherwise
 // land on different pages and break the tree view (see ADMIN_PANEL_REDESIGN.md).
-const PAGE_SIZE = 50;
 
 const STATUS_OPTIONS = ["All", "Active", "Inactive"];
 
@@ -19,8 +17,8 @@ const Categories = () => {
   const isProductSubRoute = location.pathname === "/dashboard/products/category";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [currentPage, setCurrentPage] = useState(1);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [showPanel, setShowPanel] = useState(false);
 
   const {
     categories: categoriesData,
@@ -29,10 +27,9 @@ const Categories = () => {
     createCategory: createMutation,
     updateCategory: updateMutation,
     deleteCategory: deleteMutation,
-  } = useCategory(currentPage, PAGE_SIZE);
+  } = useCategory();
 
   const categoriesList = categoriesData?.data?.categories || [];
-  const pagination = categoriesData?.data?.pagination || {};
 
   const matchesFilters = (category) => {
     const term = searchTerm.trim().toLowerCase();
@@ -69,11 +66,22 @@ const Categories = () => {
       createMutation.mutate(payload);
     }
     setEditingCategory(null);
+    setShowPanel(false);
+  };
+
+  const closePanel = () => {
+    setEditingCategory(null);
+    setShowPanel(false);
+  };
+
+  const editCategory = (category) => {
+    setEditingCategory(category);
+    setShowPanel(true);
   };
 
   const handleDelete = (categoryId) => {
     deleteMutation.mutate(categoryId);
-    if (editingCategory?.id === categoryId) setEditingCategory(null);
+    if (editingCategory?.id === categoryId) closePanel();
   };
 
   if (error) {
@@ -90,7 +98,10 @@ const Categories = () => {
         action={
           <button
             type="button"
-            onClick={() => setEditingCategory(null)}
+            onClick={() => {
+              setEditingCategory(null);
+              setShowPanel(true);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
@@ -140,21 +151,14 @@ const Categories = () => {
             <CategoryTable
               roots={treeRoots}
               flat={flatMatches}
-              onEdit={setEditingCategory}
+              onEdit={editCategory}
               onDelete={handleDelete}
-              selectedId={editingCategory?.id}
+              selectedId={showPanel ? editingCategory?.id : undefined}
             />
           )}
-
-          <Pagination
-            currentPage={currentPage}
-            totalPages={pagination?.totalPages ?? 0}
-            totalItems={pagination?.totalItems ?? 0}
-            onPageChange={setCurrentPage}
-          />
         </div>
 
-        <CategoryPanel category={editingCategory} onCancel={() => setEditingCategory(null)} onSave={saveCategory} />
+        {showPanel && <CategoryPanel category={editingCategory} onCancel={closePanel} onSave={saveCategory} />}
       </div>
     </div>
   );

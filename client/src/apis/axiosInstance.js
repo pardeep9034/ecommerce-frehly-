@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getToken, setToken, clearToken } from "@/lib/tokenStorage";
 
 /* ================= AXIOS INSTANCE ================= */
 
@@ -15,7 +16,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
 
-  const token = localStorage.getItem("token");
+  const token = getToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -85,7 +86,10 @@ api.interceptors.response.use(
 
         /* ================= STORE NEW TOKEN ================= */
 
-        localStorage.setItem("token", newAccessToken);
+        // Keep whichever storage the old token was already in, so a
+        // non-remembered admin session doesn't get silently upgraded
+        // to a persistent one on refresh.
+        setToken(newAccessToken, !!localStorage.getItem("token"));
 
         api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
 
@@ -103,7 +107,7 @@ api.interceptors.response.use(
         // yank the user off whatever page they're on. Callers decide what
         // to do with a failed/expired session (AuthLoader dispatches
         // logout(); route guards like /dashboard re-check on next render).
-        localStorage.removeItem("token");
+        clearToken();
 
         return Promise.reject(refreshError);
 

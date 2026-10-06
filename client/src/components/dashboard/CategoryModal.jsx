@@ -32,7 +32,7 @@ const initials = (name = "") =>
 const CategoryModal = ({ category, onCancel, onSave }) => {
   const isEditMode = Boolean(category);
   const [searchTerm, setSearchTerm] = useState("");
-  const { allCategories } = useCategory(1, 10, searchTerm);
+  const { allCategories } = useCategory(searchTerm);
   const categoriesList = (allCategories?.data?.categories || []).filter((item) => item.id !== category?.id);
 
   const form = useForm({
@@ -63,7 +63,7 @@ const CategoryModal = ({ category, onCancel, onSave }) => {
   const imageUrl = form.watch("image_url");
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-border bg-white p-5 shadow-card lg:w-85">
+    <aside className="flex w-full shrink-0 animate-in flex-col gap-4 rounded-xl border border-border bg-white p-5 shadow-card duration-200 fade-in slide-in-from-right-4 lg:w-85">
       <h2 className="font-display text-base font-semibold text-foreground">
         {isEditMode ? `Edit · ${category.name}` : "Add category"}
       </h2>

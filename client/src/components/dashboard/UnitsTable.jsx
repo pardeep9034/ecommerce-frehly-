@@ -2,15 +2,17 @@ import { Edit2, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal"
 import { useState } from "react";
 
-const UnitsTable = ({ units = [], onEdit, onDelete,isLoading }) => {
-  console.log("units ---------", units);
+// Matches the design's per-category pill colors.
+const CATEGORY_BADGE = {
+  WEIGHT: "bg-teal/10 text-teal",
+  VOLUME: "bg-info/10 text-info",
+  COUNT: "bg-amber/10 text-amber",
+  PACKAGING: "bg-violet/10 text-violet",
+};
+
+const UnitsTable = ({ units = [], onEdit, onDelete, isLoading, selectedId }) => {
   const [isModalOpen,setIsModalOpen] =useState(false)
   const [deleteUnit,setDeleteUnit]=useState(null)
-//   if(isLoading){
-//     return (<span className="text-sm text-gray-500">
-//     Loading...
-//   </span>)
-//   }
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
@@ -19,7 +21,7 @@ const UnitsTable = ({ units = [], onEdit, onDelete,isLoading }) => {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Name
+                Unit
               </th>
 
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
@@ -44,20 +46,28 @@ const UnitsTable = ({ units = [], onEdit, onDelete,isLoading }) => {
             {units.map((unit) => (
               <tr
                 key={unit.id}
-                className="border-b border-border transition-colors last:border-0 hover:bg-muted"
+                className={`border-b border-border transition-colors last:border-0 hover:bg-muted ${
+                  selectedId === unit.id ? "bg-secondary" : ""
+                }`}
               >
                 <td className="px-5 py-4 font-medium text-foreground sm:px-6">
                   {unit.name}
                 </td>
 
                 <td className="px-5 py-4 sm:px-6">
-                  <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium capitalize text-muted-foreground">
+                  <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
                     {unit.code}
                   </span>
                 </td>
 
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {unit.category}
+                <td className="px-5 py-4 sm:px-6">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
+                      CATEGORY_BADGE[unit.category] || "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {unit.category?.toLowerCase()}
+                  </span>
                 </td>
 
                 <td className="px-5 py-4 sm:px-6">

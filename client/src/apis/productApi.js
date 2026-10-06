@@ -13,8 +13,9 @@ const ProductApi = {
         const response = await api.get(`/product/search?name=${search}`);
         return response.data;
     },
-    async getAllProducts(page = 1, limit = 10, status) {
-        const response = await api.get(`/product?page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`);
+    // filters: { category_id, brand_id, search } — empty values are dropped by axios
+    async getAllProducts(page = 1, limit = 10, status, filters = {}) {
+        const response = await api.get("/product", { params: { page, limit, status, ...filters } });
         return response.data;
     },
     async getProductsByType(type, page = 1, limit = 10) {

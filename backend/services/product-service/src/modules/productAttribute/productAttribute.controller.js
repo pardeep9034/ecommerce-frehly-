@@ -6,7 +6,10 @@ class productAttributeController{
       const page=parseInt(req.query.page)||1;
       const limit=parseInt(req.query.limit)||10;
       const offset=(page-1)*limit;
-        const result=await productAttributeService.getAllProductAttributes({limit,offset});
+        const { product_id } = req.query;
+        const search = req.query.search?.trim();
+        const is_filterable = req.query.is_filterable === "true";
+        const result=await productAttributeService.getAllProductAttributes({limit,offset,product_id,search,is_filterable});
         return ResponseUtil.success(res, result);
         }catch(error){
             next(error);

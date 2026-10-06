@@ -3,10 +3,20 @@ import { useParams, useNavigate } from "react-router-dom";
 import { usePromotionItemsQuery, useRemovePromotionItemMutation } from "@/hooks/use-promotion-item";
 import useProducts  from "@/hooks/use-product";
 import usePromotion from "@/hooks/use-promotion";
-import { Plus, Search, Trash2, PackageSearch } from "lucide-react";
+import { Plus, Search, Trash2, PackageSearch, Info } from "lucide-react";
 import PromotionItemModal from "@/components/dashboard/PromotionItemModal";
+import PromotionEditCard from "@/components/dashboard/PromotionEditCard";
 import TableSkeleton from "@/components/dashboard/TableSkeleton";
 import PageHeader from "@/components/dashboard/PageHeader";
+
+const getPromoStatus = (promo) => {
+    const now = Date.now();
+    const start = promo.startDate ? new Date(promo.startDate).getTime() : null;
+    const end = promo.endDate ? new Date(promo.endDate).getTime() : null;
+    if (!promo.isActive || (end && end < now)) return "Ended";
+    if (start && start > now) return "Scheduled";
+    return "Live";
+};
 
 const PromotionItems = () => {
     const { promotionId } = useParams();
@@ -16,10 +26,14 @@ const PromotionItems = () => {
 
     // Queries
     const { data: promotionItems, isLoading: isLoadingItems } = usePromotionItemsQuery(promotionId);
-    const { promotions: promotionData, isLoading: isLoadingPromotion } = usePromotion(1, 100);
-    
+    const { promotions: promotionData, isLoading: isLoadingPromotion, updatePromotion } = usePromotion(1, 100);
+
     // Mutations
     const removeMutation = useRemovePromotionItemMutation(promotionId);
+
+    const handleSavePromotion = (payload) => {
+        updatePromotion.mutate({ id: Number(promotionId), data: payload });
+    };
 
     if (isLoadingItems || isLoadingPromotion) {
         return (
@@ -63,16 +77,7 @@ const PromotionItems = () => {
         <div className="p-8 max-w-7xl mx-auto">
             <div className="mb-8">
                 <PageHeader
-                    title={
-                        <span className="flex items-center gap-3">
-                            {promotion.title} Items
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                promotion.isActive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
-                            }`}>
-                                {promotion.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                        </span>
-                    }
+                    title={promotion.title}
                     description="Manage products included in this promotion."
                     backTo="/dashboard/promotions"
                     backLabel="Back to Promotions"
@@ -88,26 +93,17 @@ const PromotionItems = () => {
                 />
             </div>
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {[
-                    { title: "Total Items", value: promotionItems?.length || 0, color: "text-blue-600" },
-                    { title: "Discount Type", value: promotion.discountType, color: "text-purple-600" },
-                    { 
-                        title: "Discount Value", 
-                        value: `${promotion.discountType === 'FLAT' ? '₹' : ''}${promotion.discountValue}${promotion.discountType === 'PERCENT' ? '%' : ''}`,
-                        color: "text-success" 
-                    }
-                ].map((stat) => (
-                    <div key={stat.title} className="rounded-xl border border-border bg-white p-5 shadow-sm">
-                        <p className="text-sm font-semibold text-muted-foreground">{stat.title}</p>
-                        <p className={`mt-2 text-3xl font-black ${stat.color}`}>{stat.value}</p>
-                    </div>
-                ))}
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="w-full lg:w-[420px] lg:shrink-0">
+                <PromotionEditCard promotion={promotion} status={getPromoStatus(promotion)} onSave={handleSavePromotion} />
             </div>
 
+            <div className="min-w-0 flex-1">
             {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex items-center">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex items-center justify-between">
+                <h2 className="font-display text-base font-semibold text-foreground shrink-0 mr-4">
+                    Products in this promotion · {promotionItems?.length || 0}
+                </h2>
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
@@ -193,10 +189,17 @@ const PromotionItems = () => {
                 </div>
             </div>
 
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                A product in two live promotions uses the one with the lower priority number.
+            </div>
+            </div>
+            </div>
+
             {/* Add Product Modal */}
-            <PromotionItemModal 
-                isOpen={isAddModalOpen} 
-                onClose={() => setIsAddModalOpen(false)} 
+            <PromotionItemModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
                 promotionId={promotionId}
                 existingItems={promotionItems || []}
             />

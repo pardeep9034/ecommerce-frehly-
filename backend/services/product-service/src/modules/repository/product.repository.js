@@ -41,17 +41,24 @@ class ProductRepository extends BaseRepository{
         }
      );
 }
-    async getAllProducts(limit = 0, offset = 0, status) {
+    async getAllProducts(limit = 0, offset = 0, { status, category_id, brand_id, search } = {}) {
+        const where = {};
+        if (status) where.status = status;
+        if (category_id) where.category_id = category_id;
+        if (brand_id) where.brand_id = brand_id;
+        if (search) where.name = { [Op.iLike]: `%${search}%` };
 
-        return await this.findAndCountAll(status ? { status } : {},{
-           include: [
-    { association: "variants" },
-    { association: "category" }
-],
+        return await this.findAndCountAll(where,{
+            include: [
+                { association: "variants" },
+                { association: "category" },
+                { association: "brand", attributes: ["id", "name"] },
+                { association: "productType", attributes: ["id", "name"] },
+            ],
             limit,
             offset,
+            distinct: true, // variants is hasMany: without this the total counts product x variant rows
             order: [["created_at", "DESC"]],
-          
         });
     }
     async findExisting(name,slug,excludeId){

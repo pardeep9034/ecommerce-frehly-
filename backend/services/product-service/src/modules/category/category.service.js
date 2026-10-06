@@ -17,10 +17,8 @@ class CategoryService {
 
   }
 
-  async getAllCategories({ offset = 0, limit = 10 }) {
-    const { count, rows } = await CategoryRepository.getAllCategories({ offset, limit });
-    const currentPage = Math.floor(offset / limit) + 1;
-    const totalPages = Math.ceil(count / limit);
+  async getAllCategories() {
+    const { rows } = await CategoryRepository.getAllCategories();
 
     return {
     
@@ -35,22 +33,14 @@ class CategoryService {
             description:row.description,
             sort_order:row.sort_order,
             is_active:row.is_active,
-            children:row.children,
+            productCount:Number(row.get("productCount")) || 0,
+            children:row.children?.map((child)=>({ ...child.toJSON(), productCount:Number(child.get("productCount")) || 0 })),
             parent:row.parent,
             
             
           }
         }),
-        pagination: {
-          totalItems: count,
-          totalPages,
-          currentPage,
-          limit,
-          hasNextPage: currentPage < totalPages,
-          hasPrevPage: currentPage > 1,
-        },
-      
-    };
+      };
   }
   async getCategorySelection({ offset = 0, limit = 10, search = "" }) {
     const { count, rows } = await CategoryRepository.getCategorySelection({ offset, limit, search });

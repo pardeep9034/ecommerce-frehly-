@@ -1,7 +1,11 @@
 import { Bell, Search, Menu } from "lucide-react";
 
+const formatRole = (role) =>
+  role
+    ? role.toLowerCase().split("_").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")
+    : "Store Admin";
+
 const FreshlyHeader = ({ title, onMenuClick, user }) => {
-  console.log('admin',user)
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.name || "Admin";
   const initials = fullName
     .split(" ")
@@ -41,7 +45,7 @@ const FreshlyHeader = ({ title, onMenuClick, user }) => {
         <div className="flex items-center gap-2">
           <div className="hidden text-right sm:block">
             <p className="max-w-32 truncate text-sm font-semibold text-foreground">{fullName}</p>
-            <p className="text-xs text-muted-foreground">Store Admin</p>
+            <p className="text-xs text-muted-foreground">{formatRole(user?.role)}</p>
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
             {initials}

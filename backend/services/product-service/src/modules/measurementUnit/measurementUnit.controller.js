@@ -13,7 +13,9 @@ class measurementUnitController{
         try {
             const page=parseInt(req.query.page)||1;
             const limit=parseInt(req.query.limit)||10;
-            const result=await measurementUnitService.getAllUnits({page,limit});
+            const { category } = req.query;
+            const search = req.query.search?.trim();
+            const result=await measurementUnitService.getAllUnits({page,limit,category,search});
             return ResponseUtil.success(res, result);
         } catch (error) {
             next(error);

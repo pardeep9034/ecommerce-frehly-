@@ -26,6 +26,7 @@ const CategoryRow = ({ category, indent, onEdit, onDelete, selectedId }) => (
     </td>
     <td className="px-5 py-3.5 font-mono text-xs text-muted-foreground sm:px-6">{category.slug}</td>
     <td className="px-5 py-3.5 text-right text-muted-foreground sm:px-6">{category.sort_order ?? 0}</td>
+    <td className="px-5 py-3.5 text-right text-foreground sm:px-6">{Number(category.productCount) || 0}</td>
     <td className="px-5 py-3.5 sm:px-6">
       <span
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -72,6 +73,7 @@ const CategoryTable = ({ roots, flat, onEdit, onDelete, selectedId }) => {
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Category</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Slug</th>
               <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Sort</th>
+              <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Products</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Status</th>
               <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Actions</th>
             </tr>
@@ -105,7 +107,7 @@ const CategoryTable = ({ roots, flat, onEdit, onDelete, selectedId }) => {
 
             {isEmpty && (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   No categories found.
                 </td>
               </tr>

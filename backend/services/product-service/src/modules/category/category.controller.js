@@ -21,12 +21,8 @@ class CategoryController {
   }
 
   async getAllCategories(req, res,next) {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
     try {
-      const result = await CategoryService.getAllCategories({ offset, limit });
+      const result = await CategoryService.getAllCategories();
 
         return ResponseUtil.success(
           res,
@@ -40,7 +36,7 @@ next(error);
   }
   async getCategorySelection(req,res,next){
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 1000; // categories are few; the selector wants them all
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
     try{

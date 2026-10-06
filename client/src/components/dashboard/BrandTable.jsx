@@ -16,6 +16,7 @@ const BrandTable = ({ brands = [], onEdit, onDelete, isLoading, selectedId }) =>
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Brand</th>
+              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Products</th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Status</th>
               <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Actions</th>
             </tr>
@@ -46,6 +47,8 @@ const BrandTable = ({ brands = [], onEdit, onDelete, isLoading, selectedId }) =>
                     </div>
                   </div>
                 </td>
+
+                <td className="px-5 py-4 text-foreground sm:px-6">{Number(brand.productCount) || 0}</td>
 
                 <td className="px-5 py-4 sm:px-6">
                   <span
@@ -85,14 +88,14 @@ const BrandTable = ({ brands = [], onEdit, onDelete, isLoading, selectedId }) =>
 
             {brands.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={3} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={4} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   No brands found.
                 </td>
               </tr>
             )}
             {isLoading && (
               <tr>
-                <td colSpan={3} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={4} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   Loading ....
                 </td>
               </tr>

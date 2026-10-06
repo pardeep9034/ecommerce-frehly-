@@ -1,14 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import productAttributeApi from "@/apis/productAttributeApi";
-const useProductAttribute=(page=1,limit=10,brandId)=>{
+const useProductAttribute=(page=1,limit=10,filters={})=>{
     const queryClient=useQueryClient();
       const {
     data,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["productAttributes", page, limit],
-    queryFn: () => productAttributeApi.getAllProductAttribute(page, limit),
+    queryKey: ["productAttributes", page, limit, filters.product_id, filters.is_filterable, filters.search],
+    queryFn: () => productAttributeApi.getAllProductAttribute(page, limit, filters),
+    placeholderData: keepPreviousData,
   });
   const createMutation=useMutation({
     mutationFn:(data)=>productAttributeApi.createProductAttribute(data),

@@ -1,4 +1,3 @@
-'uses strict'
 import { MapPinned } from "lucide-react";
 
 const AddressCard = ({ 
@@ -20,7 +19,7 @@ const AddressCard = ({
       isDefault ? 'border-slate-200 bg-muted' : 'border-slate-50 bg-white hover:border-slate-100 hover:shadow-2xl shadow-slate-200/40'}`}>
     
     {(isDefault || isSelected) && (
-      <div className="absolute right-0 top-0 rounded-bl-[1.5rem] bg-primary px-6 py-2 shadow-2xl z-20">
+      <div className="absolute right-0 top-0 rounded-bl-3xl bg-primary px-6 py-2 shadow-2xl z-20">
           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white">
             {isSelected ? "Selected" : "Default"}
           </span>
@@ -44,7 +43,7 @@ const AddressCard = ({
 
     <div className="space-y-2 relative z-10 text-left">
       <p className="text-base font-black text-slate-900 tracking-tight">{name}</p>
-      <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-[220px]">{address}, {city}, {state} - {pincode}</p>
+      <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-55">{address}, {city}, {state} - {pincode}</p>
       <div className="flex items-center gap-2 mt-4 text-xs font-black text-primary">
           <span className="px-2 py-0.5 rounded bg-primary/10">TEL</span>
           {phone}

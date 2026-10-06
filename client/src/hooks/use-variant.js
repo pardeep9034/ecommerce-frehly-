@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import VariantApi from "@/apis/variantApi";
 
-const useVariant = ({productId,variantIds=[]}) => {
+const useVariant = ({productId,variantIds=[],page=1,limit=100}) => {
   const queryClient = useQueryClient();
 
   // GET - fetch all variants for a product
@@ -10,16 +10,12 @@ const useVariant = ({productId,variantIds=[]}) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["variants", productId],
-    queryFn: () => VariantApi.getAllVariants(productId),
+    queryKey: ["variants", productId, page, limit],
+    queryFn: () => VariantApi.getAllVariants(productId, page, limit),
     enabled: !!productId,
   });
   const {
     data: variantInfoData,
-    isLoading: isVariantInfoLoading,
-    isError: isVariantInfoError,
-    error: variantInfoError,
-   
   } = useQuery({
     queryKey: ["variantInfo", variantIds],
     queryFn: () => VariantApi.variantsInfo(variantIds),
@@ -57,6 +53,7 @@ const useVariant = ({productId,variantIds=[]}) => {
 
   return {
     variants: variantsData?.data.variants || [],
+    pagination: variantsData?.data?.pagination,
     variantInfo:variantInfoData?.data,
     isLoading,
     error,

@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@/components/ui/sonner";
 import VariantTable from "@/components/dashboard/VariantTable";
 import VariantModal from "@/components/dashboard/VariantModal";
@@ -10,31 +10,33 @@ import SearchableSelector from "@/components/common/SearchableSelector";
 import StockModal from "@/components/dashboard/StockModal";
 import PageHeader from "@/components/dashboard/PageHeader";
 
+const PAGE_SIZE = 10;
+
 const VariantPage=()=>{
-    // const [searchTerm, setSearchTerm] = useState("")
-        // const [isModalOpen, setIsModalOpen] = useState(false);
         const [searchQuery,setSearchQuery]=useState("")
         const [selectedProductId,setSelectedProductId]= useState(null)
-        console.log("selectedProductId",selectedProductId)
-        const [currentPage, setCurrentPage] = useState(1);
           const [stockVariantId, setStockVariantId] = useState(null);
-        
+          const [currentPage, setCurrentPage] = useState(1);
+
           const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
           const [editingVariant, setEditingVariant] = useState(null);
-        // const {data,isLoading,createMutation,updateMutation,deleteMutation}=useProductAttribute(currentPage,1)
           const {
             variants,
+            pagination,
             createVariant,
             updateVariant,
             deleteVariant
-          } = useVariant({productId:selectedProductId});
-          const {products}=useProduct(searchQuery,currentPage,10)
-   
-        const pagination=variants?.data?.pagination;
+          } = useVariant({productId:selectedProductId, page: currentPage, limit: PAGE_SIZE});
+          const { productSelection } = useProduct({ search: searchQuery, page: 1, limit: 20 });
+
+        const products = productSelection?.data?.products ?? [];
+
+        useEffect(() => {
+          setCurrentPage(1);
+        }, [selectedProductId]);
 
           const openAddVariant = () => {
               if (!selectedProductId) {
-    // alert("Please select a product first.");
     toast.error("Please select a product first.");
     return;
   }
@@ -62,8 +64,8 @@ const VariantPage=()=>{
   };
 
 
-     
-        
+
+
     return(
          <div className="space-y-6 lg:space-y-7">
               <PageHeader
@@ -84,10 +86,11 @@ const VariantPage=()=>{
               />
               <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
                 <SearchableSelector
-                data={products?.data?.products}
-                placeholder="select a product"
-                onSelect={(id)=>{setSelectedProductId(id);console.log("selectedProductId",selectedProductId);}}
-                onSearchChange={(q)=>setSearchQuery(q)}
+                data={products}
+                placeholder="Select a product"
+                onSelect={(id)=>setSelectedProductId(id)}
+                onSearchChange={setSearchQuery}
+                serverSearch={true}
                 />
               </div>
 
@@ -111,14 +114,14 @@ const VariantPage=()=>{
         variantId={stockVariantId}
         onClose={() => setStockVariantId(null)}
       />
-        
+
                 <Pagination
   currentPage={currentPage}
   totalPages={pagination?.totalPages ?? 0}
   totalItems={pagination?.totalItems ?? 0}
   onPageChange={setCurrentPage}
 />
-        
+
               </div>
     )
 

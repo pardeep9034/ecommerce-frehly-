@@ -5,15 +5,14 @@ const VariantApi = {
         const response = await api.post(`/product-variant/${productId}/variants`, variantData);
         return response.data;
     },
-    async getAllVariants(productId) {
-        const response = await api.get(`/product-variant/${productId}/variants`);
+    async getAllVariants(productId, page = 1, limit = 100) {
+        const response = await api.get(`/product-variant/${productId}/variants?page=${page}&limit=${limit}`);
         return response.data;
     },
     async variantsInfo(variantIds) {
         const response = await api.post(`/product-variant/variants/by-ids`,{
             variantIds: variantIds
         });
-        console.log("variantinfo",response.data)
         return response.data;
     },
     async getVariantById(id) {

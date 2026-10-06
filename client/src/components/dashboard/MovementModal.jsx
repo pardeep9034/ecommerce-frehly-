@@ -63,7 +63,7 @@ const MovementModal = ({ open, onClose, movement, onSave }) => {
 
   useEffect(() => {
     form.reset(EMPTY_MOVEMENT);
-  }, [movement, open]);
+  }, [movement, open, form]);
 
   if (!open) {
     return null;

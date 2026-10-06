@@ -71,7 +71,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
     }
 
     form.reset(EMPTY_VARIANT);
-  }, [variant, open]);
+  }, [variant, open, form]);
 
   if (!open) {
     return null;

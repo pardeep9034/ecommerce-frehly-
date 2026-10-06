@@ -1,8 +1,9 @@
 import api from "./axiosInstance";
 
 const stockResrvationApi={
-    async getAllReservation(page,limit){
-        const response= await api.get(`/stock-reservations?page=${page}&limit=${limit}`)
+    // `status` (ACTIVE | CONFIRMED | RELEASED | EXPIRED) is filtered server-side; omit for all.
+    async getAllReservation(page,limit,status){
+        const response= await api.get("/stock-reservations",{params:{page,limit,status}})
         return response.data;
 
     },

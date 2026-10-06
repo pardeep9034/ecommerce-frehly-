@@ -43,7 +43,7 @@ const envSchema = Joi.object({
 
   LOCK_TIME: Joi.number()
     .integer()
-    .default(7200000), // 2 hours in ms
+    .default(900000), // 15 minutes in ms
   RABBITMQ_URL: Joi.string()
     .uri()
     .required()

@@ -7,11 +7,14 @@ class VariantRepository extends BaseRepository {
         super("ProductVariant");
     }
     async searchVariantsByProductName(search) {
-        return await this.findAndCountAll({
-                name: { [Op.like]: `%${search}%` },
-            
-            
-            order: [["createdAt", "DESC"]],
+        // A variant has no name of its own: it is shown as "<product name> · <qty> <unit>", so match the product's name.
+        // ponytail: capped at 200 variants; paginate if a search can legitimately match more than that.
+        const like = `%${search.replace(/[\\%_]/g, "\\$&")}%`; // a typed % or _ is literal, not a wildcard
+        return await this.findAndCountAll({}, {
+            attributes: ["id", "product_id"],
+            include: [{ association: "product", attributes: ["id", "name"], where: { name: { [Op.iLike]: like } } }],
+            order: [["id", "DESC"]],
+            limit: 200,
         });
     }
 

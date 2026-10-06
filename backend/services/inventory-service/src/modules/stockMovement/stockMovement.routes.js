@@ -5,7 +5,7 @@ import { validate } from "../../middleware/validate.js";
 
 const router = express.Router();
 
-router.get("/", StockMovementController.getAllStockMovements);
+router.get("/", validate("listStockMovementsSchema", "query"), StockMovementController.getAllStockMovements);
 router.get("/variant/:variantId", StockMovementController.getStockMovementsByVariantId);
 router.get("/:id", StockMovementController.getStockMovementById);
 router.post(

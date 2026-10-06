@@ -58,7 +58,7 @@ const InventoryModal = ({ open, onClose, inventory, onSave, warehouses = [], sel
     form.reset({ ...EMPTY_INVENTORY, warehouseId: selectedWarehouseId ? String(selectedWarehouseId) : "" });
     setProductSearch("");
     setSelectedProductId(null);
-  }, [inventory, open, selectedWarehouseId]);
+  }, [inventory, open, selectedWarehouseId, form]);
 
   if (!open) {
     return null;

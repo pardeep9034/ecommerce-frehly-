@@ -17,8 +17,14 @@ class measurementUnitRepository extends BaseRepository{
             }
         );
     }
-    async getAllUnits({offset=0,limit=10}){
-        return await this.findAndCountAll({},{offset,limit,order:[["created_at","DESC"]]});
+    async getAllUnits({offset=0,limit=10,category,search}){
+        const where={};
+        if(category) where.category=category;
+        if(search) where[Op.or]=[
+            {name:{[Op.iLike]:`%${search}%`}},
+            {code:{[Op.iLike]:`%${search}%`}},
+        ];
+        return await this.findAndCountAll(where,{offset,limit,order:[["created_at","DESC"]]});
     }
     
 

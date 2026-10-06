@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries, keepPreviousData } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 
 const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => {
@@ -102,6 +102,50 @@ error:searchedProductError
     updateProduct: updateMutation,
     deleteProduct: deleteMutation,
     productsByType,
+  };
+};
+
+// GET /product filters (status, category_id, brand_id, search) and paginates on the server.
+export const useAdminProducts = ({ page = 1, limit = 10, status, categoryId, brandId, search }) => {
+  const query = useQuery({
+    queryKey: ["admin-products", page, limit, status, categoryId, brandId, search],
+    queryFn: () =>
+      ProductApi.getAllProducts(page, limit, status, { category_id: categoryId, brand_id: brandId, search }),
+    placeholderData: keepPreviousData,
+  });
+
+  return {
+    products: query.data?.data?.products || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    pagination: query.data?.data?.pagination || { totalItems: 0, currentPage: page, totalPages: 1 },
+  };
+};
+
+// No endpoint returns per-status counts, so this fires one lightweight
+// (limit=1) query per status and reads totalItems — same approach as
+// useOrderStatusCounts in use-order.js.
+const PRODUCT_STATUSES = ["ACTIVE", "DRAFT", "INACTIVE", "ARCHIVED"];
+
+export const useProductStatusCounts = () => {
+  const results = useQueries({
+    queries: [undefined, ...PRODUCT_STATUSES].map((status) => ({
+      queryKey: ["admin-product-count", status],
+      queryFn: () => ProductApi.getAllProducts(1, 1, status),
+      staleTime: 30000,
+    })),
+  });
+
+  const [allResult, ...statusResults] = results;
+  const counts = {};
+  PRODUCT_STATUSES.forEach((status, index) => {
+    counts[status] = statusResults[index].data?.data?.pagination?.totalItems ?? 0;
+  });
+
+  return {
+    total: allResult.data?.data?.pagination?.totalItems ?? 0,
+    counts,
+    isLoading: results.some((result) => result.isLoading),
   };
 };
 

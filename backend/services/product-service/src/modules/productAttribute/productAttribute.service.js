@@ -1,10 +1,13 @@
 import productAttributeRepository from "../repository/productAttribute.repository.js";
 import AppError from "../../utils/AppError.js";
 class productAttributeService{
-    async getAllProductAttributes({offset,limit}){
+    async getAllProductAttributes({offset,limit,...filters}){
 
         try {
-            const {count,rows}=await productAttributeRepository.getAllProductAttributes({offset,limit});
+            if (filters.product_id && !Number.isInteger(Number(filters.product_id))) {
+                throw new AppError("product_id must be a number",400);
+            }
+            const {count,rows}=await productAttributeRepository.getAllProductAttributes({offset,limit,...filters});
             const totalPages=Math.ceil(count/limit);
             const currentPage=Math.floor(offset/limit)+1;
             return {

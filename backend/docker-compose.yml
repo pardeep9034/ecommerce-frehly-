@@ -141,6 +141,13 @@ services:
         condition: service_healthy
     restart: always
 
+  config-service:
+    build: ./services/config-service
+    container_name: config-service
+    env_file:
+      - ./services/config-service/.env
+    restart: always
+
   order-service:
     build: ./services/order-service
     container_name: order-service

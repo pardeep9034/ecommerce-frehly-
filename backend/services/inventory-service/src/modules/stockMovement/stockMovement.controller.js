@@ -8,9 +8,14 @@ class StockMovementController {
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
 
+      const filters = {};
+      if (req.query.type) filters.movement_type = req.query.type;
+      if (req.query.warehouse_id) filters.warehouse_id = Number(req.query.warehouse_id);
+
       const result = await StockMovementServices.getAllStockMovements(
         limit,
         offset,
+        filters,
       );
 
       return ResponseUtil.success(
@@ -66,7 +71,7 @@ class StockMovementController {
     try {
       const result = await StockMovementServices.createStockMovement(
         req.body,
-        req.user,
+        req.user.user_id,
       );
 
       return ResponseUtil.success(

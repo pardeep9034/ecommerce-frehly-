@@ -57,7 +57,7 @@ const PromotionModal = ({ open, onClose, promotion, onSave }) => {
       return;
     }
     form.reset(EMPTY_PROMOTION);
-  }, [promotion, open]);
+  }, [promotion, open, form]);
 
   if (!open) {
     return null;

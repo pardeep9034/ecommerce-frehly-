@@ -1,7 +1,8 @@
 import api from "./axiosInstance";
 const productAttributeApi={
-    async getAllProductAttribute(page,limit){
-        const response=await api.get(`/product-attribute?page=${page}&limit=${limit}`)
+    // filters: { product_id, is_filterable, search } — empty values are dropped by axios
+    async getAllProductAttribute(page,limit,filters={}){
+        const response=await api.get("/product-attribute",{params:{page,limit,...filters}})
         return response.data;
 
     } ,
@@ -17,6 +18,10 @@ const productAttributeApi={
     },
     async deleteProductAttribute(id){
         const response=await api.delete(`/product-attribute/${id}`)
+        return response.data;
+    },
+    async getByProductId(productId){
+        const response=await api.get(`/product-attribute/product/${productId}`)
         return response.data;
     }
 }

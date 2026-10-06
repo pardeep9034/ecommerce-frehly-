@@ -31,7 +31,7 @@ const EMPTY_PRODUCTATTRIBUTE = {
   sort_order: 0,
 };
 
-const ProductAttributeModal = ({ open, onClose, productAttribute, onSave }) => {
+const ProductAttributeModal = ({ open, onClose, productAttribute, onSave, lockedProductId, lockedProductName }) => {
   const isEditMode = Boolean(productAttribute);
   const [searchQuery, setSearchQuery] = useState("");
   const { productSelection } = useProduct({ search: searchQuery, page: 1, limit: 10 });
@@ -54,8 +54,8 @@ const ProductAttributeModal = ({ open, onClose, productAttribute, onSave }) => {
       });
       return;
     }
-    form.reset(EMPTY_PRODUCTATTRIBUTE);
-  }, [productAttribute, open]);
+    form.reset(lockedProductId ? { ...EMPTY_PRODUCTATTRIBUTE, product_id: String(lockedProductId) } : EMPTY_PRODUCTATTRIBUTE);
+  }, [productAttribute, open, lockedProductId, form]);
 
   if (!open) {
     return null;
@@ -92,30 +92,39 @@ const ProductAttributeModal = ({ open, onClose, productAttribute, onSave }) => {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
-            <FormField
-              control={form.control}
-              name="product_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product</FormLabel>
-                  <FormControl>
-                    <SearchableSelector
-                      id={field.name}
-                      ref={field.ref}
-                      data={productsList}
-                      labelKey="name"
-                      valueKey="id"
-                      placeholder="Search product"
-                      value={field.value}
-                      onSelect={field.onChange}
-                      onSearchChange={setSearchQuery}
-                      serverSearch={true}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {lockedProductId ? (
+              <FormItem>
+                <FormLabel>Product</FormLabel>
+                <div className="rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground">
+                  {lockedProductName}
+                </div>
+              </FormItem>
+            ) : (
+              <FormField
+                control={form.control}
+                name="product_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product</FormLabel>
+                    <FormControl>
+                      <SearchableSelector
+                        id={field.name}
+                        ref={field.ref}
+                        data={productsList}
+                        labelKey="name"
+                        valueKey="id"
+                        placeholder="Search product"
+                        value={field.value}
+                        onSelect={field.onChange}
+                        onSearchChange={setSearchQuery}
+                        serverSearch={true}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField

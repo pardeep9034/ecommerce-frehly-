@@ -4,13 +4,14 @@ import { useDispatch } from "react-redux";
 import { Leaf, LockKeyhole } from "lucide-react";
 import { loginWithPassword } from "@/apis/authApi";
 import { loginSuccess } from "@/redux/authSlice";
+import { setToken } from "@/lib/tokenStorage";
 
 const isValidPhoneNumber = (phone) => /^[+]?[1-9][\d]{0,15}$/.test(phone);
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const AdminLogin = () => {
   const dispatch = useDispatch();
-  const [identifier, setIdentifier] = useState("");
+  const [credentialIdentifier, setCredentialIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -26,7 +27,7 @@ const AdminLogin = () => {
         return;
       }
 
-      localStorage.setItem("token", accessToken);
+      setToken(accessToken, rememberMe);
       dispatch(loginSuccess({ token: accessToken, user: response?.data?.user }));
       window.location.replace("/dashboard");
     },
@@ -37,7 +38,7 @@ const AdminLogin = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const trimmedIdentifier = identifier.trim();
+    const trimmedIdentifier = credentialIdentifier.trim();
     const isEmail = isValidEmail(trimmedIdentifier);
     const normalizedPhone = trimmedIdentifier.replace(/[\s\-()]/g, "");
 
@@ -54,7 +55,7 @@ const AdminLogin = () => {
     setError("");
     // Backend resolves this field by phone OR email (UserRepository.findByPhoneOrEmail),
     // so the wire key stays "phone" for compatibility with the storefront login too.
-    signIn({ phone: isEmail ? trimmedIdentifier : normalizedPhone, password, guest_cart: [], rememberMe });
+    signIn({ identifier: isEmail ? trimmedIdentifier : normalizedPhone, password, guest_cart: [], rememberMe });
   };
 
   return (
@@ -104,8 +105,8 @@ const AdminLogin = () => {
                 <span className="mb-2 block text-sm font-semibold text-foreground">Email or mobile</span>
                 <input
                   type="text"
-                  value={identifier}
-                  onChange={(event) => setIdentifier(event.target.value)}
+                  value={credentialIdentifier}
+                  onChange={(event) => setCredentialIdentifier(event.target.value)}
                   placeholder="you@freshly.in or mobile number"
                   autoComplete="username"
                   className="w-full rounded-xl border border-border bg-card px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10"
@@ -158,7 +159,7 @@ const AdminLogin = () => {
               </button>
 
               <p className="flex gap-2 rounded-xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                <span>5 incorrect attempts will temporarily lock this account.</span>
+                <span>5 incorrect attempts will lock this account for 15 minutes.</span>
               </p>
             </form>
           </div>

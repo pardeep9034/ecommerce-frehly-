@@ -1,5 +1,5 @@
 import BaseRepository from "./baseRepository.js";
-import { Op } from "sequelize";
+import { Op, literal } from "sequelize";
 class brandRepository extends BaseRepository{
     constructor(){
         super("Brand");
@@ -19,7 +19,20 @@ class brandRepository extends BaseRepository{
         });
     }
     async getAllBrands({offset=0,limit=10}){
-        return await this.findAndCountAll({},{offset,limit,order:[["created_at","DESC"]]});
+        // Scalar subquery instead of a JOIN+GROUP BY: no GROUP means findAndCountAll's
+        // total-brand count stays a plain number, and the subquery only runs for the
+        // page's rows (indexed on products.brand_id), not the whole products table.
+        return await this.findAndCountAll({},{
+            offset,
+            limit,
+            order:[["created_at","DESC"]],
+            attributes:{
+                include:[[
+                    literal('(SELECT COUNT(*) FROM products WHERE products.brand_id = "Brands"."id")'),
+                    "productCount"
+                ]]
+            }
+        });
     }
 
 }

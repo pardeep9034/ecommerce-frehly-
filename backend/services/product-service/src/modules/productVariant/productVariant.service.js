@@ -2,7 +2,6 @@
 import AppError from "../../utils/AppError.js";
 import { generateSku } from "../../utils/helper.js";
 import variantRepository from "../repository/variant.repository.js";
-import productRepository from "../repository/product.repository.js";
 import logger from "../../utils/Logger.js";
 const VariantServices = {
     async searchVariantsByProductName(search) {
@@ -10,8 +9,8 @@ const VariantServices = {
             if (!search || search.trim() === "") {
                throw new AppError("Search query is required",400)
             }
-            const products = await productRepository.searchVariantsByProductName(search.trim());
-            return products;
+            const variants = await variantRepository.searchVariantsByProductName(search.trim());
+            return variants;
         } catch (error) {
            if (error instanceof AppError) throw error;
            throw new AppError("Failed to search variants",400)

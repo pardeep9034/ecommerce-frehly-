@@ -55,7 +55,7 @@ const BrandModal = ({ brand, onCancel, onSave }) => {
   const logoUrl = form.watch("logo_url");
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-border bg-white p-5 shadow-card lg:w-85">
+    <aside className="flex w-full shrink-0 animate-in flex-col gap-4 rounded-xl border border-border bg-white p-5 shadow-card duration-200 fade-in slide-in-from-right-4 lg:w-85">
       <h2 className="font-display text-base font-semibold text-foreground">
         {isEditMode ? `Edit · ${brand.name}` : "Add brand"}
       </h2>

@@ -23,8 +23,28 @@ const fetchVariantDetails = async (variantId) => {
   }
 };
 
+// Ids of the variants whose product name matches `search` (product-service owns names; it caps the list).
+const fetchVariantIdsByProductName = async (search) => {
+  try {
+    const response = await fetch(
+      `${env.API_GATEWAY_URL}/product-variant/variants/search?search=${encodeURIComponent(search)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`product-service returned ${response.status}`);
+    }
+
+    const result = await response.json();
+    return (result.data?.rows ?? []).map((variant) => variant.id);
+  } catch (error) {
+    throw new AppError(`Failed to search variants: ${error.message}`, 502);
+  }
+};
+
+const RESERVATION_STATUSES = ["ACTIVE", "CONFIRMED", "RELEASED", "EXPIRED"];
+
 class StockReservationServices {
-  async getAllStockReservations(limit, offset) {
+  async getAllStockReservations(limit, offset, { status, warehouse_id, search } = {}) {
     if (limit <= 0 || offset < 0) {
       throw new AppError(
         "Invalid limit or offset values. Limit must be greater than 0 and offset must be non-negative.",
@@ -32,13 +52,33 @@ class StockReservationServices {
       );
     }
 
-    const { count, rows } =
-      await StockReservationRepository.getAllStockReservations(limit, offset);
+    const wanted = status ? String(status).toUpperCase() : undefined;
+    if (wanted && !RESERVATION_STATUSES.includes(wanted)) {
+      throw new AppError(`status must be one of ${RESERVATION_STATUSES.join(", ")}`, 400);
+    }
+
+    const warehouseId = warehouse_id ? Number(warehouse_id) : undefined;
+    if (warehouse_id && (!Number.isInteger(warehouseId) || warehouseId <= 0)) {
+      throw new AppError("warehouse_id must be a positive number", 400);
+    }
+
+    const term = search ? String(search).trim().slice(0, 100) : "";
+    const filters = {
+      warehouseId,
+      search: term || undefined,
+      variantIds: term ? await fetchVariantIdsByProductName(term) : [],
+    };
+
+    const [{ count, rows }, statusCounts] = await Promise.all([
+      StockReservationRepository.getAllStockReservations(limit, offset, { status: wanted, ...filters }),
+      StockReservationRepository.countByStatus(filters),
+    ]);
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(count / limit);
 
     return {
       stockReservations: rows,
+      statusCounts,
       pagination: {
         totalItems: count,
         totalPages,

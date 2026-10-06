@@ -26,6 +26,8 @@ const SearchableSelector = forwardRef(({
     if (selectedItem && !showDropdown) {
       setSearch(selectedItem[labelKey]);
     }
+  // Re-sync only when the selected value/options change, not when the dropdown toggles.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, data]);
 
   const filteredData = serverSearch
@@ -62,7 +64,7 @@ const SearchableSelector = forwardRef(({
 
   return (
     <div className="relative w-full">
-      <div className="relative ">
+      <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground " />
         <input
           ref={ref}
@@ -76,7 +78,8 @@ const SearchableSelector = forwardRef(({
           onBlur={handleBlur}
           className={cn(
             "w-full rounded-lg border border-border bg-white py-2 pl-9 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-primary/40 focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50",
-            className
+            className,
+            "pl-9 pr-9" // last, so a caller's px-* can't push the text under the icons
           )}
         />
         <ChevronDown

@@ -16,6 +16,8 @@ import useVariant from "@/hooks/use-variant";
 import useInventory from "@/hooks/use-inventory";
 import ShopProductCard from "@/components/freshly/ShopProductCard";
 
+const EMPTY = [];
+
 const Shop = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -34,11 +36,11 @@ const Shop = () => {
 
   const {
     categories: categoriesData,
-  } = useCategory(1, 100);
+  } = useCategory();
 
-  const productsList = productsData?.data?.products || productsData?.products || [];
+  const productsList = productsData?.data?.products || productsData?.products || EMPTY;
   const pagination = productsData?.data?.pagination || productsData?.pagination || {};
-  const categoriesList = categoriesData?.data?.categories || categoriesData?.categories || [];
+  const categoriesList = categoriesData?.data?.categories || categoriesData?.categories || EMPTY;
 
   const categories = useMemo(() => {
     const cats = categoriesList.map((c) => c.name);

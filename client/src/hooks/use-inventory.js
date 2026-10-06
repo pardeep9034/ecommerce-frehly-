@@ -11,8 +11,17 @@ const useInventory = (page = 1, limit = 10, warehouseId, variantIds = []) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["inventory", "warehouse", warehouseId],
-    queryFn: () => InventoryApi.fetchInventoryByWarehouse(warehouseId),
+    queryKey: ["inventory", "warehouse", warehouseId, page, limit],
+    queryFn: () => InventoryApi.fetchInventoryByWarehouse(warehouseId, page, limit),
+    enabled: Boolean(warehouseId),
+  });
+
+  // GET - a wider, unpaginated-ish fetch of the same warehouse used only to compute
+  // stat-card totals (low/out-of-stock counts) across the whole warehouse, not just
+  // the current page. One extra request per warehouse selection, not per-row.
+  const { data: inventoryStatsData } = useQuery({
+    queryKey: ["inventory", "warehouse", warehouseId, "stats"],
+    queryFn: () => InventoryApi.fetchInventoryByWarehouse(warehouseId, 1, 1000),
     enabled: Boolean(warehouseId),
   });
 
@@ -56,6 +65,7 @@ const useInventory = (page = 1, limit = 10, warehouseId, variantIds = []) => {
 
   return {
     inventory,
+    inventoryStats: inventoryStatsData?.data?.inventory ?? [],
     isLoading,
     error,
     inStockVariantIds: inStockData?.data,

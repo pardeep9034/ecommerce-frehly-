@@ -6,6 +6,8 @@ export const notify = {
   info: (message, options) => toast.info(message, options),
   warning: (message, options) => toast.warning(message, options),
   promise: (promise, messages) => toast.promise(promise, messages),
+  // For buttons whose backend doesn't exist yet (see BACKEND_REQUIREMENTS.md).
+  notWired: (what) => toast(`${what} isn't wired up yet`),
   apiError: (error, fallback = "Something went wrong") =>
     toast.error(error?.response?.data?.message || fallback),
 };

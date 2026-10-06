@@ -1,10 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@500;600;700&display=swap");
 @import "tailwindcss/preflight";
 @config "../tailwind.config.js";
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
-
-/* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@500;600;700&display=swap"); */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@500;600;700&display=swap");
 
 @layer base {
   :root {
@@ -28,6 +26,14 @@
     --success-foreground: 0 0% 100%;
     --warning: 32 95% 44%;
     --warning-foreground: 220 20% 15%;
+    --info: 214 66% 34%;
+    --info-foreground: 0 0% 100%;
+    --violet: 267 46% 39%;
+    --violet-foreground: 0 0% 100%;
+    --teal: 189 81% 23%;
+    --teal-foreground: 0 0% 100%;
+    --amber: 42 100% 24%;
+    --amber-foreground: 220 20% 15%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 143 64% 24%;
@@ -64,6 +70,14 @@
     --success-foreground: 0 0% 100%;
     --warning: 32 90% 55%;
     --warning-foreground: 150 20% 10%;
+    --info: 214 58% 46%;
+    --info-foreground: 0 0% 100%;
+    --violet: 267 40% 52%;
+    --violet-foreground: 0 0% 100%;
+    --teal: 189 70% 34%;
+    --teal-foreground: 0 0% 100%;
+    --amber: 42 85% 38%;
+    --amber-foreground: 150 20% 10%;
     --border: 155 10% 20%;
     --input: 155 10% 20%;
     --ring: 143 50% 32%;
@@ -102,4 +116,28 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
+}
+/* Slim, rounded scrollbar for the dark admin sidebar: invisible until you hover the menu. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.3);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.5);
 }

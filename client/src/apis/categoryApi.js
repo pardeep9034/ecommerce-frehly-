@@ -1,17 +1,17 @@
 import api from "./axiosInstance";
 
-export const fetchCategories = async (page = 1, limit = 10) => {
+export const fetchCategories = async () => {
   try {
-    const response = await api.get(`/category?page=${page}&limit=${limit}`);
+    const response = await api.get("/category");
     return response.data;
   } catch (error) {
     console.error("Error fetching categories:", error);
     throw error;
   }
 };
-export const fetchAllCategories = async (page = 1, limit = 10, searchTerm = "") => {
+export const fetchAllCategories = async (searchTerm = "") => {
   try {
-    const response = await api.get(`/category/selection?page=${page}&limit=${limit}&search=${searchTerm}`);
+    const response = await api.get(`/category/selection?search=${searchTerm}`);
     return response.data;
   } catch (error) {
     console.error("Error fetching all categories:", error);

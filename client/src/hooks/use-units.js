@@ -1,15 +1,15 @@
 import { useQuery,useMutation,useQueryClient } from "@tanstack/react-query";
 import unitApi from "@/apis/unitsApi";
 
-const useUnits=(page,limit)=>{
+const useUnits=(page,limit,filters={})=>{
       const queryClient = useQueryClient();
 const {
     data:unitsData,
     isLoading,
     error,
 }=useQuery({
-    queryKey:['units',page,limit],
-    queryFn:()=>unitApi.getAllUnits(page,limit),
+    queryKey:['units',page,limit,filters.search,filters.category],
+    queryFn:()=>unitApi.getAllUnits(page,limit,filters),
      placeholderData: (previousData) => previousData,
 
 })

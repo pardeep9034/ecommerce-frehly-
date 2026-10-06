@@ -1,44 +1,75 @@
 import { BrowserRouter as Router, Navigate, Routes, Route } from "react-router-dom";
-import Home from "./pages/freshly/Home";
-import LoginPage from "./components/freshly/LoginPage";
-import SignUp from "./pages/freshly/SignUp";
-import OtpPage from "./components/freshly/OtpPage";
-import Shop from "./pages/freshly/Shop";
-import ForgetPassword from "./components/freshly/ForgetPassword";
-import Dashboard from "./pages/dashboard/Dashboard";
-import Products from "./pages/dashboard/Products";
-import ProductDetail from "./pages/dashboard/ProductDetail";
-import Categories from "./pages/dashboard/Categories";
-import Inventory from "./pages/dashboard/Inventory";
-import PlaceholderPage from "./pages/dashboard/PlaceholderPage";
-import Promotions from "./pages/dashboard/Promotions";
-import PromotionItems from "./pages/dashboard/PromotionItems";
-import AssignPromotions from "./pages/dashboard/AssignPromotions";
-import MyOrders from "./pages/freshly/MyOrders";
-import OrderDetail from "./pages/freshly/OrderDetail";
-import ShopProductDetail from "./pages/freshly/ShopProductDetail";
-import About from "./pages/freshly/About";
-import Profile from "./pages/freshly/Profile";
-import Contact from "./pages/freshly/Contact";
 import PublicLayout from "./components/freshly/PublicLayout";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
-import CartPage from "./pages/freshly/CartPage";
-import PhoneLoginPage from "./components/freshly/PhoneLoginPage";
-import AdminLogin from "./pages/dashboard/AdminLogin";
-import UnitsPage from "./pages/dashboard/UnitsPage";
 import "./styles/app.css";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { loginSuccess, logout } from "./redux/authSlice";
 import { useDispatch } from "react-redux";
-import BrandPage from "./pages/dashboard/BrandPage";
-import ProductTypePage from "./pages/dashboard/ProductTypePage";
-import ProductAttributePage from "./pages/dashboard/ProductAttributePage";
-import VariantPage from "./pages/dashboard/VariantPage";
-import WarehousePage from "./pages/dashboard/WarehousePage";
-import StockMovementPage from "./pages/dashboard/StockMovementPage";
-import StockReservationPage from "./pages/dashboard/StockReservationPage";
-import Orders from "./pages/dashboard/Orders";
-import AdminOrderDetail from "./pages/dashboard/AdminOrderDetail";
+import { getToken } from "@/lib/tokenStorage";
+
+// Route-level code splitting: storefront and admin dashboard are separate bundles, so shoppers never download
+// admin code (and vice versa). Only the router shell and PublicLayout load up front.
+const Home = lazy(() => import("./pages/freshly/Home"));
+const LoginPage = lazy(() => import("./components/freshly/LoginPage"));
+const SignUp = lazy(() => import("./pages/freshly/SignUp"));
+const OtpPage = lazy(() => import("./components/freshly/OtpPage"));
+const Shop = lazy(() => import("./pages/freshly/Shop"));
+const ForgetPassword = lazy(() => import("./components/freshly/ForgetPassword"));
+const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+const Products = lazy(() => import("./pages/dashboard/Products"));
+const ProductDetail = lazy(() => import("./pages/dashboard/ProductDetail"));
+const Categories = lazy(() => import("./pages/dashboard/Categories"));
+const Inventory = lazy(() => import("./pages/dashboard/Inventory"));
+const Promotions = lazy(() => import("./pages/dashboard/Promotions"));
+const PromotionItems = lazy(() => import("./pages/dashboard/PromotionItems"));
+const AssignPromotions = lazy(() => import("./pages/dashboard/AssignPromotions"));
+const MyOrders = lazy(() => import("./pages/freshly/MyOrders"));
+const OrderDetail = lazy(() => import("./pages/freshly/OrderDetail"));
+const ShopProductDetail = lazy(() => import("./pages/freshly/ShopProductDetail"));
+const About = lazy(() => import("./pages/freshly/About"));
+const Profile = lazy(() => import("./pages/freshly/Profile"));
+const Contact = lazy(() => import("./pages/freshly/Contact"));
+const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
+const CartPage = lazy(() => import("./pages/freshly/CartPage"));
+const PhoneLoginPage = lazy(() => import("./components/freshly/PhoneLoginPage"));
+const AdminLogin = lazy(() => import("./pages/dashboard/AdminLogin"));
+const UnitsPage = lazy(() => import("./pages/dashboard/UnitsPage"));
+const BrandPage = lazy(() => import("./pages/dashboard/BrandPage"));
+const ProductTypePage = lazy(() => import("./pages/dashboard/ProductTypePage"));
+const ProductAttributePage = lazy(() => import("./pages/dashboard/ProductAttributePage"));
+const VariantPage = lazy(() => import("./pages/dashboard/VariantPage"));
+const WarehousePage = lazy(() => import("./pages/dashboard/WarehousePage"));
+const StockMovementPage = lazy(() => import("./pages/dashboard/StockMovementPage"));
+const StockReservationPage = lazy(() => import("./pages/dashboard/StockReservationPage"));
+const Zones = lazy(() => import("./pages/dashboard/Zones"));
+const Customers = lazy(() => import("./pages/dashboard/Customers"));
+const Settings = lazy(() => import("./pages/dashboard/Settings"));
+const Orders = lazy(() => import("./pages/dashboard/Orders"));
+const AdminOrderDetail = lazy(() => import("./pages/dashboard/AdminOrderDetail"));
+const DeliveryPartners = lazy(() => import("./pages/dashboard/DeliveryPartners"));
+const DeliveryPartnerDetail = lazy(() => import("./pages/dashboard/DeliveryPartnerDetail"));
+const AddDeliveryPartner = lazy(() => import("./pages/dashboard/AddDeliveryPartner"));
+const PartnerApplicationReview = lazy(() => import("./pages/dashboard/PartnerApplicationReview"));
+// Delivery-partner app: phone screens at /partner/*, desktop workspace at /partner/web/*. Demo data, no auth guard yet.
+const PartnerLogin = lazy(() => import("./pages/partner/Login"));
+const PartnerHome = lazy(() => import("./pages/partner/Home"));
+const PartnerPickup = lazy(() => import("./pages/partner/Pickup"));
+const PartnerDeliver = lazy(() => import("./pages/partner/Deliver"));
+const PartnerConfirm = lazy(() => import("./pages/partner/Confirm"));
+const PartnerFailed = lazy(() => import("./pages/partner/Failed"));
+const PartnerHandover = lazy(() => import("./pages/partner/Handover"));
+const PartnerHistory = lazy(() => import("./pages/partner/History"));
+const PartnerProfile = lazy(() => import("./pages/partner/Profile"));
+const PartnerWebToday = lazy(() => import("./pages/partner/web/Today"));
+const PartnerWebOrders = lazy(() => import("./pages/partner/web/Orders"));
+const PartnerWebHistory = lazy(() => import("./pages/partner/web/History"));
+const PartnerWebProfile = lazy(() => import("./pages/partner/web/Profile"));
+const PartnerApply = lazy(() => import("./pages/partner/apply/Apply"));
+const PartnerDocuments = lazy(() => import("./pages/partner/apply/Documents"));
+const PartnerStatus = lazy(() => import("./pages/partner/apply/Status"));
+
+const PageLoader = () => (
+  <div className="flex h-screen items-center justify-center bg-muted text-sm text-muted-foreground">Loading…</div>
+);
 
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
 
@@ -52,12 +83,12 @@ const getTokenRole = (token) => {
   }
 };
 
-const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(localStorage.getItem("token")));
+const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(getToken()));
 
 function App() {
   const dispatch = useDispatch();
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (token && getTokenRole(token) === "CUSTOMER") {
       dispatch(loginSuccess({ token }));
     } else if (!token) {
@@ -71,6 +102,7 @@ function App() {
 
   return (
     <Router>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -102,24 +134,48 @@ function App() {
           <Route path="products/:productId" element={<ProductDetail />} />
           <Route path="categories" element={<Categories />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="inventory/warehouses" element={<WarehousePage />} />
-          <Route path="inventory/stock-movement" element={<StockMovementPage />} />
-          <Route path="inventory/stock-reservation" element={<StockReservationPage />} />
+          <Route path="warehouses" element={<WarehousePage />} />
+          <Route path="stock-movement" element={<StockMovementPage />} />
+          <Route path="stock-reservation" element={<StockReservationPage />} />
+          <Route path="delivery-zones" element={<Zones />} />
           <Route path="orders" element={<Orders />} />
           <Route path="orders/:orderId" element={<AdminOrderDetail />} />
-          <Route path="customers" element={<PlaceholderPage />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="delivery-partners" element={<DeliveryPartners />} />
+          <Route path="delivery-partners/new" element={<AddDeliveryPartner />} />
+          <Route path="delivery-partners/applications/:applicationId" element={<PartnerApplicationReview />} />
+          <Route path="delivery-partners/:partnerId" element={<DeliveryPartnerDetail />} />
           <Route path="promotions" element={<Promotions />} />
           <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
           <Route path="assign-promotions" element={<AssignPromotions />} />
-          <Route path="settings" element={<PlaceholderPage />} />
-          <Route path="products/units"element={<UnitsPage/>}/>
-          <Route path="products/brands"element={<BrandPage/>}/>
-          <Route path="products/category" element={<Categories/>}/>
-          <Route path="products/product-type"element={<ProductTypePage/>}/>
-          <Route path="products/product-attribute"element={<ProductAttributePage/>}/>
-          <Route path="products/variants"element={<VariantPage/>}/>
+          <Route path="settings" element={<Settings />} />
+          <Route path="units"element={<UnitsPage/>}/>
+          <Route path="brands"element={<BrandPage/>}/>
+          <Route path="category" element={<Categories/>}/>
+          <Route path="product-type"element={<ProductTypePage/>}/>
+          <Route path="product-attribute"element={<ProductAttributePage/>}/>
+          <Route path="variants"element={<VariantPage/>}/>
 
         </Route>
+
+        {/* DELIVERY PARTNER APP */}
+        <Route path="/partner" element={<Navigate to="/partner/home" replace />} />
+        <Route path="/partner/login" element={<PartnerLogin />} />
+        <Route path="/partner/home" element={<PartnerHome />} />
+        <Route path="/partner/orders/:orderId/pickup" element={<PartnerPickup />} />
+        <Route path="/partner/orders/:orderId/deliver" element={<PartnerDeliver />} />
+        <Route path="/partner/orders/:orderId/confirm" element={<PartnerConfirm />} />
+        <Route path="/partner/orders/:orderId/failed" element={<PartnerFailed />} />
+        <Route path="/partner/handover" element={<PartnerHandover />} />
+        <Route path="/partner/history" element={<PartnerHistory />} />
+        <Route path="/partner/profile" element={<PartnerProfile />} />
+        <Route path="/partner/web" element={<PartnerWebToday />} />
+        <Route path="/partner/web/orders" element={<PartnerWebOrders />} />
+        <Route path="/partner/web/history" element={<PartnerWebHistory />} />
+        <Route path="/partner/web/profile" element={<PartnerWebProfile />} />
+        <Route path="/partner/apply" element={<PartnerApply />} />
+        <Route path="/partner/apply/documents" element={<PartnerDocuments />} />
+        <Route path="/partner/apply/status" element={<PartnerStatus />} />
 
         {/* 404 - FALLBACK */}
         <Route path="*" element={
@@ -133,6 +189,7 @@ function App() {
           </div>
         } />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

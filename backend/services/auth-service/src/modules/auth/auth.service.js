@@ -434,10 +434,10 @@ class AuthService {
     
   }
 
-  async loginWithPassword(phone, password, guest_cart = null, warehouseId, deviceId = null, userAgent = null, ) {
-    if (!phone ) throw new AppError("Phone number required", 400);
+  async loginWithPassword(identifier, password, guest_cart = null, warehouseId, deviceId = null, userAgent = null, ) {
+    if (!identifier ) throw new AppError("Phone or email  required", 400);
 
-    const user = await UserRepository.findByPhone(phone);
+    const user = await UserRepository.findByPhoneOrEmail(identifier);
     if (!user) {
      throw new AppError("User Not Found.", 404);
     }
@@ -445,11 +445,14 @@ class AuthService {
 
     // Check account lock
     const lockField = user.account_locked_until;
+    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    const isEmail=isValidEmail(identifier)
     if (lockField && new Date(lockField) > new Date()) {
       await AuditRepository.logEvent({
         user_id: user.id,
         event_type: "LOGIN_FAILURE",
-        phone,
+        phone:isEmail?null:identifier,
+        email:isEmail?identifier:null,
         status: "FAILURE",
         error_message: "Account locked",
       });
@@ -471,7 +474,7 @@ class AuthService {
       };
 
       if (attempts >= maxAttempts) {
-        const lockUntil = new Date(Date.now() + (env.LOCK_TIME || 7200000));
+        const lockUntil = new Date(Date.now() + (env.LOCK_TIME || 900000));
         updateData.account_locked_until = lockUntil;
        
       }
@@ -481,7 +484,8 @@ class AuthService {
       await AuditRepository.logEvent({
         user_id: user.id,
         event_type: "LOGIN_FAILURE",
-        phone,
+        phone: isEmail ? null : identifier,
+        email: isEmail ? identifier : null,
         device_id: deviceId,
         user_agent: userAgent,
         status: "FAILURE",
@@ -490,6 +494,21 @@ class AuthService {
       });
 
       throw new AppError("Invalid phone or password", 400);
+    }
+
+    // Checked after the password so the account status isn't revealed to someone who doesn't know it.
+    if (!user.is_active) {
+      await AuditRepository.logEvent({
+        user_id: user.id,
+        event_type: "LOGIN_FAILURE",
+        phone: isEmail ? null : identifier,
+        email: isEmail ? identifier : null,
+        device_id: deviceId,
+        user_agent: userAgent,
+        status: "FAILURE",
+        error_message: "Account is deactivated",
+      });
+      throw new AppError("Account is deactivated. Please contact support.", 403);
     }
 
     const db = await initializeModels();
@@ -546,7 +565,8 @@ class AuthService {
         await AuditRepository.logEvent({
           user_id: user.id,
           event_type: "LOGIN_SUCCESS",
-          phone,
+          phone: isEmail ? null : identifier,
+          email: isEmail ? identifier : null,
           device_id: deviceId,
           user_agent: userAgent,
           status: "SUCCESS",

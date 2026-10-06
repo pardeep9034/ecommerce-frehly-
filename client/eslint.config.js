@@ -28,4 +28,6 @@ export default defineConfig([
       "no-unused-vars": ["error", { varsIgnorePattern: "^[A-Z_]" }],
     },
   },
+  // shadcn/ui files export variant helpers next to components by design.
+  { files: ["src/components/ui/**"], rules: { "react-refresh/only-export-components": "off" } },
 ]);

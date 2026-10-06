@@ -12,8 +12,8 @@ const InventoryApi = {
     return response.data;
   },
 
-  async fetchInventoryByWarehouse(warehouseId) {
-    const response = await api.get(`inventory/warehouse/${warehouseId}`);
+  async fetchInventoryByWarehouse(warehouseId, page = 1, limit = 10) {
+    const response = await api.get(`inventory/warehouse/${warehouseId}?page=${page}&limit=${limit}`);
     return response.data;
   },
 

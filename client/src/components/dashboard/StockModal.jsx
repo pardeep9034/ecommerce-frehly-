@@ -61,7 +61,7 @@ const StockModal = ({ open, onClose, variantId }) => {
               labelKey="name"
               valueKey="id"
               onSelect={(id) => setWarehouseId(id)}
-              placeholder={warehousesQuery.isLoading ? "Loading warehouses..." : "Search and select a warehouse"}
+              placeholder={warehousesQuery.isLoading ? "Loading warehouses..." : "Search a warehouse"}
               disabled={warehousesQuery.isLoading}
               className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-500"
             />

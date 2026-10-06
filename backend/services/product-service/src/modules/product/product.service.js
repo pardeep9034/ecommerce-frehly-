@@ -43,9 +43,9 @@ class ProductServices {
             
         };
     }
-    async getAllProducts(limit,offset,status) {
+    async getAllProducts(limit,offset,filters) {
         try{
-      const { count, rows } = await  ProductRepository.getAllProducts(limit,offset,status);
+      const { count, rows } = await  ProductRepository.getAllProducts(limit,offset,filters);
       const currentPage = Math.floor(offset / limit) + 1;
       const totalPages = Math.ceil(count / limit);
      return {

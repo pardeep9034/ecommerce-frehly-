@@ -5,8 +5,9 @@ class StockMovementRepository extends BaseRepository {
     super("StockMovement");
   }
 
-  async getAllStockMovements(limit = 10, offset = 0) {
-    return await this.findAndCountAll({}, {
+  // filters: any of { movement_type, warehouse_id }
+  async getAllStockMovements(limit = 10, offset = 0, filters = {}) {
+    return await this.findAndCountAll(filters, {
       limit,
       offset,
       order: [["created_at", "DESC"]],

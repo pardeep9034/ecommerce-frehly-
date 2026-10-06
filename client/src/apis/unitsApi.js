@@ -1,8 +1,9 @@
 import api from "./axiosInstance";
 
 const unitApi={
-    async getAllUnits(page,limit){
-        const response=await api.get(`/units?page=${page}&limit=${limit}`);
+    // filters: { search, category } — empty values are dropped by axios
+    async getAllUnits(page,limit,filters={}){
+        const response=await api.get("/units",{params:{page,limit,...filters}});
         return response.data;
     },
     async createUnit(data){

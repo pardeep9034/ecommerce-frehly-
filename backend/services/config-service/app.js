@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
+import settingRoutes from "./src/modules/setting/setting.routes.js";
 import logger from "./src/utils/Logger.js";
 
 dotenv.config();
@@ -48,7 +49,7 @@ app.use((req, res, next) => {
 
 /* ================= ROUTES ================= */
 
-// app.use("/config", configRoutes); // Placeholder
+app.use("/config", settingRoutes);
 
 /* ================= HEALTH CHECK ================= */
 
@@ -70,6 +71,11 @@ app.use((req, res) => {
 
 app.use((error, req, res, next) => {
   logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
+
+  if (error.isOperational) {
+    return ResponseUtil.error(res, error.message, error.statusCode);
+  }
+
   ResponseUtil.error(
     res,
     process.env.NODE_ENV === "development"

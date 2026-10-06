@@ -1,53 +1,78 @@
-import { useMemo, useState } from "react";
-import { Plus, Search, Ruler, Award, FolderTree, Boxes, SlidersHorizontal, AlertCircle, RefreshCw, Layers } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Search, Ruler, Award, FolderTree, Boxes, SlidersHorizontal, Upload, Layers } from "lucide-react";
 import ProductTable from "@/components/dashboard/ProductTable";
 import ProductModal from "@/components/dashboard/ProductModal";
 import QuickNavBar from "@/components/dashboard/QuickNavBar";
 import PageHeader from "@/components/dashboard/PageHeader";
 import TableSkeleton from "@/components/dashboard/TableSkeleton";
+import Pagination from "@/components/common/Pagination";
+import { toast } from "@/components/ui/sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// import AssignPromotionModal from "@/components/dashboard/AssignPromotionModal";
-import useProduct from "@/hooks/use-product";
+import useProduct, { useAdminProducts, useProductStatusCounts } from "@/hooks/use-product";
+import useCategory from "@/hooks/use-category";
+import useBrand from "@/hooks/use-brand";
+import useProductType from "@/hooks/use-productType";
 
+const EMPTY = [];
+
+const PAGE_SIZE = 10;
+const STATUS_FILTERS = ["All", "ACTIVE", "DRAFT", "INACTIVE", "ARCHIVED"];
 
 const Products = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [brandFilter, setBrandFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  // const [assignPromotingProduct, setAssignPromotingProduct] = useState(null);
-  const pageSize = 5;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, categoryFilter, brandFilter]);
 
   const {
-    products: productsData,
-    isLoading,
-    error,
     createProduct: createMutation,
     updateProduct: updateMutation,
     deleteProduct: deleteMutation,
-  } = useProduct(currentPage, pageSize);
+  } = useProduct();
 
-  const productsList = productsData?.data?.products || productsData?.products || [];
+  const { products, isLoading, pagination } = useAdminProducts({
+    page: currentPage,
+    limit: PAGE_SIZE,
+    status: statusFilter === "All" ? undefined : statusFilter,
+    categoryId: categoryFilter === "All" ? undefined : categoryFilter,
+    brandId: brandFilter === "All" ? undefined : brandFilter,
+    search,
+  });
 
-  const pagination = productsData?.data?.pagination || productsData?.pagination || {};
+  const { total, counts } = useProductStatusCounts();
 
-  const categories = useMemo(() => {
-    const cats = productsList.map((item) => item.Category?.name || item.category?.name || item.category).filter(Boolean);
-    return ["All", ...new Set(cats)];
-  }, [productsList]);
+  const { allCategories } = useCategory();
+  const { brandsData } = useBrand(1, 200);
+  const { data: productTypeData } = useProductType(1, 200);
 
-  const filteredProducts = useMemo(() => {
-    return productsList.filter((product) => {
-      const name = product.name || "";
-      const category = product.Category?.name || product.category?.name || product.category || "";
-      const searchMatch = name.toLowerCase().includes(searchTerm.toLowerCase());
-      const categoryMatch = categoryFilter === "All" || category === categoryFilter;
-      return searchMatch && categoryMatch;
-    });
-  }, [productsList, searchTerm, categoryFilter]);
+  const categoriesList = allCategories?.data?.categories || EMPTY;
+  const brandsList = brandsData?.data?.brand || EMPTY;
+  const productTypesList = productTypeData?.data?.productTypes || EMPTY;
 
-  const totalPages = pagination.totalPages || 1;
+  const categoriesById = useMemo(
+    () => Object.fromEntries(categoriesList.map((category) => [category.id, category])),
+    [categoriesList]
+  );
+  const brandsById = useMemo(() => Object.fromEntries(brandsList.map((brand) => [brand.id, brand])), [brandsList]);
+  const productTypesById = useMemo(
+    () => Object.fromEntries(productTypesList.map((type) => [type.id, type])),
+    [productTypesList]
+  );
+
+  const totalPages = pagination?.totalPages || 1;
 
   const openAddModal = () => {
     setEditingProduct(null);
@@ -82,47 +107,20 @@ const Products = () => {
     deleteMutation.mutate(productId);
   };
 
-  const setPage = (page) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  };
-
-  const quickLinks = [
-    { label: "Variants", icon: Layers, path: "/dashboard/products/variants" },
-    { label: "Units", icon: Ruler, path: "/dashboard/products/units" },
-    { label: "Brands", icon: Award, path: "/dashboard/products/brands" },
-    { label: "Category", icon: FolderTree, path: "/dashboard/products/category" },
-    { label: "Product Type", icon: Boxes, path: "/dashboard/products/product-type" },
-    { label: "Product Attribute", icon: SlidersHorizontal, path: "/dashboard/products/product-attribute" },
+  const statCards = [
+    { label: "Products", value: total },
+    { label: "Active", value: counts.ACTIVE ?? 0 },
+    { label: "Drafts", value: counts.DRAFT ?? 0 },
   ];
 
-  if (error) {
-    return (
-  <div className="flex min-h-[300px] items-center justify-center p-10">
-    <div className="flex max-w-md flex-col items-center text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive">
-        <AlertCircle className="h-6 w-6 text-destructive" />
-      </div>
-
-      <h3 className="text-base font-semibold text-gray-900">
-        Unable to load products
-      </h3>
-
-      <p className="mt-1 text-sm text-gray-500">
-        Something went wrong while fetching the products. Please try again.
-      </p>
-
-      <button
-        // onClick={refetch}
-        className="mt-5 flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
-      >
-        <RefreshCw className="h-4 w-4" />
-        Try again
-      </button>
-    </div>
-  </div>
-);
-  }
+  const quickLinks = [
+    { label: "Variants", icon: Layers, path: "/dashboard/variants" },
+    { label: "Units", icon: Ruler, path: "/dashboard/units" },
+    { label: "Brands", icon: Award, path: "/dashboard/brands" },
+    { label: "Category", icon: FolderTree, path: "/dashboard/category" },
+    { label: "Product Type", icon: Boxes, path: "/dashboard/product-type" },
+    { label: "Product Attribute", icon: SlidersHorizontal, path: "/dashboard/product-attribute" },
+  ];
 
   return (
     <div className="space-y-6 lg:space-y-7">
@@ -130,88 +128,124 @@ const Products = () => {
         title="Products"
         description="Manage your catalog, pricing and availability."
         action={
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add Product
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toast("Import CSV isn't wired up yet")}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </button>
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              Add Product
+            </button>
+          </div>
         }
       />
-   <QuickNavBar links={quickLinks} />
+
+      <QuickNavBar links={quickLinks} />
+
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        {statCards.map((card) => (
+          <div key={card.label} className="rounded-xl border border-border bg-white p-4 shadow-card">
+            <p className="text-xs text-muted-foreground">{card.label}</p>
+            <p className="mt-1 font-display text-2xl font-bold text-foreground">
+              {card.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <div className="rounded-xl border border-border bg-white p-5 shadow-card sm:p-6">
-
         <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
             <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                  setCurrentPage(1);
-                }}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search products..."
                 className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
             </div>
 
-            <Select
-              value={categoryFilter}
-              onValueChange={(value) => {
-                setCategoryFilter(value);
-                setCurrentPage(1);
-              }}
-            >
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="min-w-37.5 py-2.5">
-                <SelectValue>{categoryFilter}</SelectValue>
+                <SelectValue>
+                  {categoryFilter === "All" ? "All categories" : categoriesList.find((c) => String(c.id) === categoryFilter)?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                <SelectItem value="All">All categories</SelectItem>
+                {categoriesList.map((category) => (
+                  <SelectItem key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={brandFilter} onValueChange={setBrandFilter}>
+              <SelectTrigger className="min-w-37.5 py-2.5">
+                <SelectValue>
+                  {brandFilter === "All" ? "All brands" : brandsById[brandFilter]?.name}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All brands</SelectItem>
+                {brandsList.map((brand) => (
+                  <SelectItem key={brand.id} value={String(brand.id)}>
+                    {brand.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          {STATUS_FILTERS.map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                statusFilter === status ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              {status === "All" ? "All" : status.toLowerCase()}
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={pageSize} columns={5} />
+        <TableSkeleton rows={PAGE_SIZE} columns={6} />
       ) : (
         <ProductTable
-          products={filteredProducts}
+          products={products}
+          categoriesById={categoriesById}
+          brandsById={brandsById}
+          productTypesById={productTypesById}
           onEdit={openEditModal}
           onDelete={handleDelete}
-          // onAssignPromotion={(product) => setAssignPromotingProduct(product)}
         />
       )}
 
-      {!isLoading && totalPages > 1 && (
-        <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:px-5">
-          <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages} ({pagination.totalItems} total)
-          </p>
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-              <button
-                type="button"
-                key={page}
-                onClick={() => setPage(page)}
-                className={`h-8 w-8 rounded-lg text-sm font-medium transition-colors ${page === currentPage ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
-                  }`}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-        </div>
+      {!isLoading && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={pagination?.totalItems ?? 0}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <ProductModal
@@ -223,14 +257,6 @@ const Products = () => {
         product={editingProduct}
         onSave={saveProduct}
       />
-      {/* <AssignPromotionModal 
-        isOpen={!!assignPromotingProduct} 
-        onClose={() => setAssignPromotingProduct(null)} 
-        product={assignPromotingProduct}
-        variantId={null} 
-      /> */}
-
-     
     </div>
   );
 };

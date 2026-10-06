@@ -99,7 +99,7 @@ const LoginPage = () => {
     if (newErrors.phoneNumber || newErrors.password) return;
 const guest_cart = localStorage.getItem('cart');
     mutate({
-      phone: cleanPhone,
+      identifier: cleanPhone,
       password: formData.password,
       guest_cart: guest_cart ? JSON.parse(guest_cart) : []
     });

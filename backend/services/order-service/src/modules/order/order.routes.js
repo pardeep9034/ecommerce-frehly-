@@ -7,7 +7,9 @@ const router = express.Router();
 
 router.post("/", authenticateToken, validate("createOrder"), orderController.createOrder);
 router.get("/", authenticateToken, orderController.getOrderHistory);
-router.get("/admin/all", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), orderController.getAllOrders);
+router.get("/admin/stats", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), orderController.getOrderStats);
+router.get("/admin/customer-stats", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), orderController.getCustomerStats);
+router.get("/admin/all",authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), orderController.getAllOrders);
 router.get("/:orderId", authenticateToken, orderController.getOrderDetails);
 router.patch("/:orderId/status", authenticateToken, requireRole("ADMIN", "SUPER_ADMIN", "SUPPORT"), validate("updateOrderStatus"), orderController.updateOrderStatus);
 router.patch("/:orderId/cancel", authenticateToken, validate("cancelOrder"), orderController.cancelOrder);

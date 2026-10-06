@@ -7,11 +7,15 @@ import { initializeTopology } from "../../messaging/index.js";
 import {env} from "../../config/env.js";
 import inventoryRepository from "../repository/inventory.repository.js";
 import logger from "../../utils/Logger.js";
-await initializeTopology()
-await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name,async(event)=>{
-  logger.debug("event consumed");
-
-})
+try {
+  await initializeTopology();
+  await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name, async (event) => {
+    logger.debug("event consumed");
+  });
+  logger.info("✅ Inventory Service: RabbitMQ topology initialized");
+} catch (err) {
+  logger.error(`❌ Failed to initialize RabbitMQ topology: ${err.message}`);
+}
 
 const fetchVariantDetails = async (variantId) => {
   try {

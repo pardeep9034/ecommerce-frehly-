@@ -1,10 +1,13 @@
 import app from "./app.js";
+import initializeModels from "./src/models/index.js";
 import logger from "./src/utils/Logger.js";
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3007;
 
 async function startServer() {
   try {
+    await initializeModels();
+
     /* ================= START SERVER ================= */
     const server = app.listen(PORT, () => {
       logger.info(`🚀 Config Service running on port ${PORT}`);

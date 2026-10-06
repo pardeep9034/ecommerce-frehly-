@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import useCategory from "@/hooks/use-category";
 
 export const PopularCategories = () => {
-    const { categories: categoriesData, isLoading, error } = useCategory(1, 10);
+    const { categories: categoriesData, isLoading, error } = useCategory();
     
     // Safety check for data structure
     const categories = categoriesData?.data?.categories || categoriesData?.categories || [];

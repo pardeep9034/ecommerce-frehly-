@@ -2,10 +2,9 @@ import { Edit2, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import { useState } from "react";
 
-const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoading}) => {
+const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete, isLoading, productsById = {}, selectedId }) => {
   const [isOpen,setIsOpen]=useState(false);
   const [deleteProductAttribute,setDeleteProductAttribute]=useState(null)
-  console.log("productAttribute ---------", productAttributes);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
@@ -14,22 +13,22 @@ const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoa
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Name
+                Product
+              </th>
+              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
+                Attribute
+              </th>
+              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
+                Value
               </th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
                 Type
               </th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Value
-              </th>
-
-           
-
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Filtrable
+                Filterable
               </th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Sort Order
+                Sort
               </th>
 
               <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">
@@ -42,36 +41,38 @@ const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoa
             {productAttributes.map((productAttribute) => (
               <tr
                 key={productAttribute.id}
-                className="border-b border-border transition-colors last:border-0 hover:bg-muted"
+                className={`border-b border-border transition-colors last:border-0 hover:bg-muted ${
+                  selectedId === productAttribute.id ? "bg-secondary" : ""
+                }`}
               >
+                <td className="px-5 py-4 text-muted-foreground sm:px-6">
+                  {productsById[productAttribute.product_id]?.name || `#${productAttribute.product_id}`}
+                </td>
                 <td className="px-5 py-4 font-medium text-foreground sm:px-6">
                   {productAttribute.attribute_name}
                 </td>
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {productAttribute.data_type}
-                </td>
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
+                <td className="px-5 py-4 text-foreground sm:px-6">
                   {productAttribute.attribute_value}
                 </td>
-
-                
+                <td className="px-5 py-4 sm:px-6">
+                  <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium capitalize text-muted-foreground">
+                    {productAttribute.data_type?.toLowerCase()}
+                  </span>
+                </td>
                 <td className="px-5 py-4 sm:px-6">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       productAttribute.is_filterable
                         ? "bg-success/10 text-success"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {productAttribute.is_filterable?"True":"False" }
+                    <span className={`h-1.5 w-1.5 rounded-full ${productAttribute.is_filterable ? "bg-success" : "bg-muted-foreground"}`} />
+                    {productAttribute.is_filterable ? "Yes" : "No"}
                   </span>
                 </td>
-                <td className="px-5 py-4 sm:px-6">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium `}
-                  >
-                    {productAttribute.sort_order }
-                  </span>
+                <td className="px-5 py-4 text-muted-foreground sm:px-6">
+                  {productAttribute.sort_order}
                 </td>
 
                 <td className="px-5 py-4 sm:px-6">
@@ -86,7 +87,7 @@ const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoa
 
                     <button
                       type="button"
-                      onClick={() => {setDeleteProductType(productAttribute);setIsOpen(true);}}
+                      onClick={() => {setDeleteProductAttribute(productAttribute);setIsOpen(true);}}
                       className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -99,7 +100,7 @@ const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoa
             {productAttributes.length === 0 && !isLoading && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={7}
                   className="px-6 py-10 text-center text-sm text-muted-foreground"
                 >
                   No Product Attribute Found.
@@ -109,7 +110,7 @@ const ProductAttributeTable = ({ productAttributes = [], onEdit, onDelete ,isLoa
             {isLoading &&(
                  <tr>
                 <td
-                  colSpan={5}
+                  colSpan={7}
                   className="px-6 py-10 text-center text-sm text-muted-foreground"
                 >
                   Loading ....

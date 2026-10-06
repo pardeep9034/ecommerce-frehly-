@@ -14,6 +14,9 @@ import PaymentEvents from "../../messaging/events/payment.events.js";
 import { paymentGateway } from "../../payment/index.js";
 import logger from "../../utils/Logger.js";
 
+const STATS_CACHE = new Map();
+const STATS_TTL_MS = 30 * 1000;
+
 const ORDER_STATUS = {
   PENDING_PAYMENT: "PENDING_PAYMENT",
   PLACED: "PLACED",
@@ -162,7 +165,8 @@ if(!userAddress.success){
           total_amount: totals.total_amount,
           payment_status: isCOD ? PAYMENT_STATUS.SUCCESS : PAYMENT_STATUS.PENDING,
           placed_at: isCOD ? new Date() : null,
-          idempotency_key: idempotencyKey
+          idempotency_key: idempotencyKey,
+          warehouse_id: data.warehouse_id ? Number(data.warehouse_id) : null
         }, { transaction });
 
         const createdItems = await OrderItemRepository.createOrderItems(
@@ -446,14 +450,30 @@ if(!userAddress.success){
     const page = Number.parseInt(query.page, 10) || 1;
     const limit = Number.parseInt(query.limit, 10) || 10;
     const offset = (page - 1) * limit;
-    const where = {};
 
-    if (query.status) {
-      where.status = query.status;
+    // One warehouse at a time: listing every warehouse's orders in one call is slow and not useful.
+    // Exception: one customer's orders (user_id) are few, so they may span warehouses.
+    const hasWarehouse = query.warehouse_id !== undefined && query.warehouse_id !== "";
+    const warehouseId = hasWarehouse ? Number.parseInt(query.warehouse_id, 10) : null;
+    if (hasWarehouse && (!Number.isInteger(warehouseId) || warehouseId <= 0)) {
+      throw new AppError("warehouse_id must be a positive number", 400);
     }
+    const hasUser = query.user_id !== undefined && query.user_id !== "";
+    const userId = hasUser ? Number(query.user_id) : null;
+    if (hasUser && (!Number.isInteger(userId) || userId <= 0)) {
+      throw new AppError("user_id must be a positive number", 400);
+    }
+    if (!warehouseId && !userId) {
+      throw new AppError("warehouse_id is required", 400);
+    }
+    const where = {};
+    if (warehouseId) where.warehouse_id = warehouseId;
+    if (userId) where.user_id = userId;
 
-    if (query.user_id) {
-      where.user_id = query.user_id;
+    // `status` may be one value, a comma list ("A,B") or repeated/array (status[]=A&status[]=B) → IN (...)
+    const statuses = [query.status].flat().flatMap((value) => String(value ?? "").split(",")).map((value) => value.trim()).filter(Boolean);
+    if (statuses.length) {
+      where.status = statuses.length === 1 ? statuses[0] : statuses;
     }
 
     if (query.search) {
@@ -479,6 +499,94 @@ if(!userAddress.success){
         hasPrevPage: page > 1
       }
     };
+  }
+
+  // Dashboard numbers: today's orders/revenue, per-day series, counts by status, cancel rate, avg delivery time.
+  // Cached 30 s per (warehouse, days, tz) so many admins refreshing don't repeat the same aggregate.
+  async getOrderStats(query = {}) {
+    const warehouseId = query.warehouse_id ? Number.parseInt(query.warehouse_id, 10) : null;
+    if (query.warehouse_id && (!Number.isInteger(warehouseId) || warehouseId <= 0)) {
+      throw new AppError("warehouse_id must be a positive number", 400);
+    }
+    const days = Math.min(Math.max(Number.parseInt(query.days, 10) || 7, 1), 90);
+    const tz = String(query.tz || "Asia/Kolkata");
+    if (!/^[A-Za-z0-9_+-/]{1,40}$/.test(tz)) {
+      throw new AppError("Invalid tz", 400);
+    }
+
+    const cacheKey = `${warehouseId ?? "all"}|${days}|${tz}`;
+    const hit = STATS_CACHE.get(cacheKey);
+    if (hit && Date.now() - hit.at < STATS_TTL_MS) return hit.data;
+
+    let raw;
+    try {
+      raw = await OrderRepository.getStats({ warehouseId, days, tz });
+    } catch (error) {
+      if (/time zone/i.test(error.message)) throw new AppError("Invalid tz", 400);
+      throw error;
+    }
+
+    const Order = await OrderRepository.getModel();
+    const byStatus = Object.fromEntries(Order.getAttributes().status.values.map((status) => [status, 0]));
+    raw.byStatus.forEach((row) => {
+      byStatus[row.status] = row.count;
+    });
+
+    const perDay = raw.perDay.map((row) => ({ ...row, orders: Number(row.orders), cancelled: Number(row.cancelled), revenue: Number(row.revenue) }));
+    const totalOrders = perDay.reduce((sum, row) => sum + row.orders, 0);
+    const totalCancelled = perDay.reduce((sum, row) => sum + row.cancelled, 0);
+    const today = perDay[perDay.length - 1] || { orders: 0, cancelled: 0, revenue: 0 };
+
+    const data = {
+      warehouse_id: warehouseId,
+      days,
+      tz,
+      today: { orders: today.orders, cancelled: today.cancelled, revenue: today.revenue },
+      byStatus,
+      perDay,
+      cancelRate: totalOrders ? Math.round((totalCancelled / totalOrders) * 1000) / 10 : null, // % over the window
+      avgDeliveryMinutes: raw.avgDeliveryMinutes
+    };
+
+    if (STATS_CACHE.size >= 100) STATS_CACHE.clear(); // tiny cache: keep it bounded
+    STATS_CACHE.set(cacheKey, { at: Date.now(), data });
+    return data;
+  }
+
+  // Order count / spend / recent orders for the given customers (the ids on the Customers page),
+  // plus store-wide figures for its stat cards. `user_ids` is a comma list, max 100.
+  async getCustomerStats(query = {}) {
+    const userIds = String(query.user_ids ?? "").split(",").map((value) => value.trim()).filter(Boolean).map(Number);
+    if (userIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      throw new AppError("user_ids must be a comma list of positive numbers", 400);
+    }
+    if (userIds.length > 100) {
+      throw new AppError("user_ids can have at most 100 ids", 400);
+    }
+    const tz = String(query.tz || "Asia/Kolkata");
+    if (!/^[A-Za-z0-9_+-/]{1,40}$/.test(tz)) {
+      throw new AppError("Invalid tz", 400);
+    }
+
+    let raw;
+    try {
+      raw = await OrderRepository.getCustomerStats({ userIds, tz });
+    } catch (error) {
+      if (/time zone/i.test(error.message)) throw new AppError("Invalid tz", 400);
+      throw error;
+    }
+
+    const customers = Object.fromEntries(
+      userIds.map((id) => [id, { user_id: id, orders: 0, spent: 0, last_order_at: null, recent_orders: [] }])
+    );
+    raw.perUser.forEach((row) => {
+      Object.assign(customers[Number(row.user_id)], { orders: row.orders, spent: row.spent, last_order_at: row.last_order_at });
+    });
+    raw.recent.forEach((row) => {
+      customers[Number(row.user_id)].recent_orders.push({ id: Number(row.id), total: row.total, date: row.date });
+    });
+
+    return { customers: Object.values(customers), summary: raw.summary };
   }
 
   async getOrderDetails(orderId, user, options = {}) {
@@ -1059,7 +1167,8 @@ if(!userAddress.success){
 
         await OrderRepository.updateOrder(freshOrder.id, {
           status: ORDER_STATUS.PENDING_PAYMENT,
-          payment_status: PAYMENT_STATUS.PENDING
+          payment_status: PAYMENT_STATUS.PENDING,
+          ...(data.warehouse_id ? { warehouse_id: Number(data.warehouse_id) } : {}) // retry re-reserves stock here
         }, { transaction });
 
         await OrderStatusHistoryRepository.createStatusHistory({

@@ -2,10 +2,9 @@ import { Edit2, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import { useState } from "react";
 
-const ProductTypeTable = ({ productTypes = [], onEdit, onDelete ,isLoading}) => {
+const ProductTypeTable = ({ productTypes = [], onEdit, onDelete, isLoading, productCountByType = {}, selectedId }) => {
   const [isOpen,setIsOpen]=useState(false);
   const [deleteProductType,setDeleteProductType]=useState(null)
-  console.log("productType ---------", productTypes);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
@@ -14,13 +13,15 @@ const ProductTypeTable = ({ productTypes = [], onEdit, onDelete ,isLoading}) => 
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
-                Name
-              </th>
-              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
                 Code
               </th>
+              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
+                Name
+              </th>
 
-           
+              <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">
+                Products
+              </th>
 
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
                 Status
@@ -36,24 +37,32 @@ const ProductTypeTable = ({ productTypes = [], onEdit, onDelete ,isLoading}) => 
             {productTypes.map((productType) => (
               <tr
                 key={productType.id}
-                className="border-b border-border transition-colors last:border-0 hover:bg-muted"
+                className={`border-b border-border transition-colors last:border-0 hover:bg-muted ${
+                  selectedId === productType.id ? "bg-secondary" : ""
+                }`}
               >
+                <td className="px-5 py-4 sm:px-6">
+                  <span className="inline-flex rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-medium text-foreground">
+                    {productType.code}
+                  </span>
+                </td>
                 <td className="px-5 py-4 font-medium text-foreground sm:px-6">
                   {productType.name}
                 </td>
-                <td className="px-5 py-4 font-medium text-foreground sm:px-6">
-                  {productType.code}
+
+                <td className="px-5 py-4 text-right text-muted-foreground sm:px-6">
+                  {productCountByType[productType.id] || 0}
                 </td>
 
-                
                 <td className="px-5 py-4 sm:px-6">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       productType.is_active
                         ? "bg-success/10 text-success"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
+                    <span className={`h-1.5 w-1.5 rounded-full ${productType.is_active ? "bg-success" : "bg-muted-foreground"}`} />
                     {productType.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>

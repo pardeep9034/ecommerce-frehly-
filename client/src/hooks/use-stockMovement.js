@@ -3,11 +3,11 @@ import  stockMovementApi  from "@/apis/stockMovementApi";
 import { notify } from "@/lib/notify";
 
 
-const useStockMovement = (page = 1, limit = 10, searchTerm = "") => {
+const useStockMovement = (page = 1, limit = 10, filters = {}) => {
   const queryClient = useQueryClient();
   const {data: stockMovements, isLoading, error} = useQuery({
-    queryKey: ["stockMovements", page, limit, searchTerm],
-    queryFn: () => stockMovementApi.getAllStockMovements(page, limit),
+    queryKey: ["stockMovements", page, limit, filters],
+    queryFn: () => stockMovementApi.getAllStockMovements(page, limit, filters),
   });
 
   //crete stock movement

@@ -50,8 +50,8 @@ const EMPTY_PRODUCT = {
 const ProductModal = ({ open, onClose, product, onSave }) => {
   const isEditMode = Boolean(product);
   const { categories: categoriesData } = useCategory();
-  const { data } = useProductType();
-  const { brandsData } = useBrand();
+  const { data } = useProductType(1, 100);
+  const { brandsData } = useBrand(1, 100);
 
   const categoriesList = categoriesData?.data?.categories;
   const productTypesList = data?.data?.productTypes;
@@ -64,7 +64,7 @@ const ProductModal = ({ open, onClose, product, onSave }) => {
 
   useEffect(() => {
     form.reset(product || EMPTY_PRODUCT);
-  }, [product, open]);
+  }, [product, open, form]);
 
   if (!open) {
     return null;

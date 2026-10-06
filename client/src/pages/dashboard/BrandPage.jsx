@@ -10,6 +10,7 @@ const BrandPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingBrand, setEditingBrand] = useState(null);
+  const [showPanel, setShowPanel] = useState(false);
   const { brandsData, isLoading, createMutation, updateMutation, deleteMutation } = useBrand(currentPage, 10);
 
   const pagination = brandsData?.data?.pagination ?? {};
@@ -25,35 +26,37 @@ const BrandPage = () => {
       createMutation.mutate(payload);
     }
     setEditingBrand(null);
+    setShowPanel(false);
+  };
+
+  const closePanel = () => {
+    setEditingBrand(null);
+    setShowPanel(false);
+  };
+
+  const editBrand = (brand) => {
+    setEditingBrand(brand);
+    setShowPanel(true);
   };
 
   const handleDelete = (brandId) => {
     deleteMutation.mutate(brandId);
-    if (editingBrand?.id === brandId) setEditingBrand(null);
+    if (editingBrand?.id === brandId) closePanel();
   };
 
   return (
     <div className="space-y-6 lg:space-y-7">
       <PageHeader
-        title="Brands"
-        description="Manage the brands available to your catalog."
+     
+      
         backTo="/dashboard/products"
         backLabel="Back to Products"
-        action={
-          <button
-            type="button"
-            onClick={() => setEditingBrand(null)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add brand
-          </button>
-        }
+        
       />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
+          <div className="rounded-xl flex justify-between border border-border bg-white p-4 shadow-card sm:p-6">
             <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
@@ -63,15 +66,28 @@ const BrandPage = () => {
                 placeholder="Search brands..."
                 className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
+              
             </div>
+            <button
+            type="button"
+            onClick={() => {
+              setEditingBrand(null);
+              setShowPanel(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            Add brand
+          </button>
+            
           </div>
 
           <BrandTable
             brands={filteredBrands}
             onDelete={handleDelete}
             isLoading={isLoading}
-            onEdit={setEditingBrand}
-            selectedId={editingBrand?.id}
+            onEdit={editBrand}
+            selectedId={showPanel ? editingBrand?.id : undefined}
           />
 
           <Pagination
@@ -82,7 +98,7 @@ const BrandPage = () => {
           />
         </div>
 
-        <BrandPanel brand={editingBrand} onCancel={() => setEditingBrand(null)} onSave={saveBrand} />
+        {showPanel && <BrandPanel brand={editingBrand} onCancel={closePanel} onSave={saveBrand} />}
       </div>
     </div>
   );

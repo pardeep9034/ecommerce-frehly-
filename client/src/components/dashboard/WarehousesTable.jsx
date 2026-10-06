@@ -1,6 +1,7 @@
 import { Edit2, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal"
 import { useState } from "react";
+import { getWarehouseStatus } from "@/lib/warehouseStatus";
 
 
 const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
@@ -42,6 +43,9 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
               </th>
               <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
                 status
+              </th>
+              <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
+                operational status
               </th>
 
               <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">
@@ -88,6 +92,14 @@ const WarehousesTable = ({ warehouses = [], onEdit, onDelete,isLoading }) => {
                     }`}
                   >
                     {warehouse.is_active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+
+                <td className="px-5 py-4 sm:px-6">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getWarehouseStatus(warehouse.operational_status).style}`}
+                  >
+                    {getWarehouseStatus(warehouse.operational_status).label}
                   </span>
                 </td>
 

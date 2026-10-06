@@ -11,6 +11,11 @@ class StockReservationController {
       const result = await StockReservationServices.getAllStockReservations(
         limit,
         offset,
+        {
+          status: req.query.status,
+          warehouse_id: req.query.warehouse_id,
+          search: req.query.search,
+        },
       );
 
       return ResponseUtil.success(

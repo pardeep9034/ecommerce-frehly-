@@ -1,5 +1,5 @@
 import BaseRepository from "./BaseRepository.js";
-import { Op } from "sequelize";
+import { Op, Sequelize } from "sequelize";
 
 class UserRepository extends BaseRepository {
   constructor() {
@@ -55,6 +55,52 @@ class UserRepository extends BaseRepository {
 
   async lockAccount(userId, lockUntil, options = {}) {
     return await this.updateById(userId, { account_locked_until: lockUntil }, options);
+  }
+
+  // Admin customer list. Only safe columns are selected (never password_hash / tokens).
+  // Addresses load in a second query (`separate`) so limit/offset stay on the users.
+  async findCustomers({ id, search, isActive, joinedSince, limit, offset }) {
+    const Model = await this.getModel();
+    const where = { role: "CUSTOMER", deleted_at: null };
+    if (id) where.id = id;
+    if (typeof isActive === "boolean") where.is_active = isActive;
+    if (joinedSince) where.created_at = { [Op.gte]: joinedSince };
+    if (search) {
+      const pattern = `%${search}%`;
+      where[Op.or] = [
+        Sequelize.where(Sequelize.fn("concat_ws", " ", Sequelize.col("first_name"), Sequelize.col("last_name")), { [Op.iLike]: pattern }),
+        { phone: { [Op.iLike]: pattern } },
+        { email: { [Op.iLike]: pattern } }
+      ];
+    }
+
+    return await Model.findAndCountAll({
+      where,
+      attributes: ["id", "first_name", "last_name", "email", "phone", "is_active", "created_at", "last_login_at"],
+      include: [{
+        association: "addresses",
+        separate: true,
+        required: false,
+        where: { is_active: true },
+        attributes: ["id", "user_id", "address_line_1", "address_line_2", "city"],
+        order: [["is_default", "DESC"], ["id", "ASC"]]
+      }],
+      order: [["created_at", "DESC"], ["id", "DESC"]],
+      limit,
+      offset
+    });
+  }
+
+  // Numbers for the Customers stat cards (all customers, not just the page).
+  async getCustomerCounts(newSince) {
+    const Model = await this.getModel();
+    const base = { role: "CUSTOMER", deleted_at: null };
+    const [total, newThisWeek, blocked] = await Promise.all([
+      Model.count({ where: base }),
+      Model.count({ where: { ...base, created_at: { [Op.gte]: newSince } } }),
+      Model.count({ where: { ...base, is_active: false } })
+    ]);
+    return { total, newThisWeek, blocked };
   }
 }
 

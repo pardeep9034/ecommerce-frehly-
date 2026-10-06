@@ -71,8 +71,13 @@ const OrderApi = {
     const response=await api.get(`/orders/${id}`)
     return response.data;
   },
-  async fetchAllOrders(page = 1, limit = 10, status, search) {
-    const response = await api.get("/orders/admin/all", { params: { page, limit, status, search } });
+  // `userId` limits to one customer; then `warehouseId` is optional (their orders may span warehouses).
+  async fetchAllOrders(page = 1, limit = 10, status, search, warehouseId, userId) {
+    const response = await api.get("/orders/admin/all", { params: { page, limit, status, search, warehouse_id: warehouseId, user_id: userId } });
+    return response.data;
+  },
+  async fetchOrderStats(warehouseId, days = 7) {
+    const response = await api.get("/orders/admin/stats", { params: { warehouse_id: warehouseId, days } });
     return response.data;
   },
   async placeOrder(data){

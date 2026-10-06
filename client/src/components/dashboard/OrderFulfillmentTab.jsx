@@ -11,6 +11,12 @@ const STATUS_BADGE = {
   PENDING: "bg-muted text-muted-foreground",
 };
 
+export const ItemStatusBadge = ({ status }) => (
+  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[status] || STATUS_BADGE.PENDING}`}>
+    {String(status || "").replaceAll("_", " ").toLowerCase()}
+  </span>
+);
+
 const ItemRow = ({ item, editable, onSetStatus, saving }) => {
   const [remarks, setRemarks] = useState(item.admin_remarks || "");
 
@@ -21,6 +27,7 @@ const ItemRow = ({ item, editable, onSetStatus, saving }) => {
         <p className="text-xs text-muted-foreground">{item.variant_name}</p>
       </td>
       <td className="px-5 py-4 text-right text-foreground sm:px-6">{Number(item.quantity)}</td>
+      <td className="px-5 py-4 text-right text-foreground sm:px-6">₹{Number(item.selling_price).toFixed(2)}</td>
       <td className="px-5 py-4 text-right font-medium text-foreground sm:px-6">₹{Number(item.line_total).toFixed(2)}</td>
       <td className="px-5 py-4 sm:px-6">
         {editable ? (
@@ -67,9 +74,7 @@ const ItemRow = ({ item, editable, onSetStatus, saving }) => {
           </div>
         ) : (
           <div className="flex justify-end">
-            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[item.status] || STATUS_BADGE.PENDING}`}>
-              {item.status.replaceAll("_", " ").toLowerCase()}
-            </span>
+            <ItemStatusBadge status={item.status} />
           </div>
         )}
       </td>
@@ -142,6 +147,7 @@ const OrderFulfillmentTab = ({ order }) => {
               <tr className="border-b border-border bg-muted">
                 <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Item</th>
                 <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Qty</th>
+                <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Price</th>
                 <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Total</th>
                 <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">Remarks</th>
                 <th className="px-5 py-3.5 text-right font-medium text-muted-foreground sm:px-6">Status</th>
@@ -154,7 +160,7 @@ const OrderFulfillmentTab = ({ order }) => {
 
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                     No items in this order.
                   </td>
                 </tr>

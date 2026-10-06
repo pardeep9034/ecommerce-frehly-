@@ -8,6 +8,8 @@ import SearchableSelector from "@/components/common/SearchableSelector";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { WAREHOUSE_STATUSES, getWarehouseStatus } from "@/lib/warehouseStatus";
 import { Button } from "@/components/ui/button";
 
 const warehouseSchema = z.object({
@@ -23,6 +25,7 @@ const warehouseSchema = z.object({
   contact_person: z.string().min(1, "Enter a contact person"),
   contact_phone: z.string().min(1, "Enter a contact phone"),
   is_active: z.boolean().default(true),
+  operational_status: z.enum(["OPEN", "PAUSED", "MAINTENANCE", "SETTING_UP"]).default("OPEN"),
 });
 
 const EMPTY_WAREHOUSE = {
@@ -38,6 +41,7 @@ const EMPTY_WAREHOUSE = {
   contact_person: "",
   contact_phone: "",
   is_active: true,
+  operational_status: "OPEN",
 };
 
 const WarehouseModal = ({ open, onClose, warehouse, onSave }) => {
@@ -65,11 +69,12 @@ const WarehouseModal = ({ open, onClose, warehouse, onSave }) => {
         contact_person: warehouse.contact_person || "",
         contact_phone: warehouse.contact_phone || "",
         is_active: Boolean(warehouse.is_active),
+        operational_status: warehouse.operational_status || "OPEN",
       });
       return;
     }
     form.reset(EMPTY_WAREHOUSE);
-  }, [warehouse, open]);
+  }, [warehouse, open, form]);
 
   if (!open) {
     return null;
@@ -273,6 +278,31 @@ const WarehouseModal = ({ open, onClose, warehouse, onSave }) => {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="operational_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Operational status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue>{getWarehouseStatus(field.value).label}</SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {WAREHOUSE_STATUSES.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Active Toggle */}
             <FormField

@@ -1,41 +1,55 @@
 import { Search, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import UnitsTable from "@/components/dashboard/UnitsTable";
 import useUnits from "@/hooks/use-units";
 import UnitsModal from "@/components/dashboard/UnitsModal";
-import ConfirmationModal from "@/components/common/ConfirmationModal";
 import Pagination from "@/components/common/Pagination";
 import PageHeader from "@/components/dashboard/PageHeader";
+
+const EMPTY = [];
+
+const PAGE_SIZE = 10;
+const CATEGORY_FILTERS = ["All", "WEIGHT", "VOLUME", "COUNT", "PACKAGING"];
+
 const UnitsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-    const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+    const [showPanel, setShowPanel] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
       const [currentPage, setCurrentPage] = useState(1);
+      const [categoryFilter, setCategoryFilter] = useState("All");
 
-  const { unitsData,createMutation,updateMutation,deleteMutation,isLoading } = useUnits(currentPage,1);
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchTerm.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  console.log("units page", unitsData);
-    const units = unitsData?.data?.units ?? [];
-  const pagination=unitsData?.data?.pagination??[];
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, categoryFilter]);
 
-  const filteredUnits=useMemo(()=>{
-    return units.filter((item)=>{
-      const searchMatch=item.code.toString().includes(searchTerm.toLowerCase())
+  const { unitsData,createMutation,updateMutation,deleteMutation,isLoading } = useUnits(currentPage,PAGE_SIZE,{
+    search,
+    category: categoryFilter === "All" ? undefined : categoryFilter,
+  });
 
-      return searchMatch;
-    })
-
-  },[unitsData,searchTerm])
+  const units = unitsData?.data?.units ?? EMPTY;
+  const pagination=unitsData?.data?.pagination??{};
 
 
-    const openAddModal = () => {
+  const closePanel = () => {
     setEditingUnit(null);
-    setIsModalOpen(true);
+    setShowPanel(false);
   };
 
-  const openEditModal = (unit) => {
+  const openAddPanel = () => {
+    setEditingUnit(null);
+    setShowPanel(true);
+  };
+
+  const openEditPanel = (unit) => {
     setEditingUnit(unit);
-    setIsModalOpen(true);
+    setShowPanel(true);
   };
   const saveUnit = (payload) => {
     if (editingUnit) {
@@ -43,11 +57,11 @@ const UnitsPage = () => {
     } else {
       createMutation.mutate(payload);
     }
-    setIsModalOpen(false);
-    setEditingUnit(null);
+    closePanel();
   };
     const handleDelete = (unitId) => {
     deleteMutation.mutate(unitId);
+    if (editingUnit?.id === unitId) closePanel();
   };
 
   return (
@@ -59,7 +73,7 @@ const UnitsPage = () => {
         backLabel="Back to Products"
         action={
           <button
-            onClick={openAddModal}
+            onClick={openAddPanel}
             type="button"
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
           >
@@ -68,43 +82,61 @@ const UnitsPage = () => {
           </button>
         }
       />
-      <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
-        <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
-          <Search className="h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="rounded-xl border border-border bg-white p-4 shadow-card sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5">
+                <Search className="h-4 w-4 text-muted-foreground" />
 
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-            }}
-            placeholder="Search units..."
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                  }}
+                  placeholder="Search units..."
+                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {CATEGORY_FILTERS.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={categoryFilter === category}
+                    onClick={() => setCategoryFilter(category)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      categoryFilter === category
+                        ? "bg-primary text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {category === "All" ? "All" : category.toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <UnitsTable
+            units={units}
+            onEdit={openEditPanel}
+            onDelete={handleDelete}
+            isLoading={isLoading}
+            selectedId={showPanel ? editingUnit?.id : undefined}
+          />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination?.totalPages ?? 0}
+            totalItems={pagination?.totalItems ?? 0}
+            onPageChange={setCurrentPage}
           />
         </div>
-      </div>
 
-      <UnitsTable units={filteredUnits}
-         onEdit={openEditModal} 
-           onDelete={handleDelete} 
-           isLoading={isLoading} />
-      <UnitsModal
- open={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingUnit(null);
-        }}
-        unit={editingUnit}
-        onSave={saveUnit}
-      />
-      <Pagination
-  currentPage={currentPage}
-  totalPages={pagination?.totalPages ?? 0}
-  totalItems={pagination?.totalItems ?? 0}
-  onPageChange={setCurrentPage}
-/>
-    
-    
+        {showPanel && <UnitsModal unit={editingUnit} onCancel={closePanel} onSave={saveUnit} />}
+      </div>
     </div>
   );
 };

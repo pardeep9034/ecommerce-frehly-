@@ -107,5 +107,9 @@ export default [
     route: "/users",
     target: process.env.USER_SERVICE_URL || "http://user-service:3000"
   },
+  {
+    route: "/config",
+    target: process.env.CONFIG_SERVICE_URL || "http://config-service:3007"
+  },
  
 ]

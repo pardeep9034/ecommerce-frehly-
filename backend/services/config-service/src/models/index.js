@@ -1,7 +1,24 @@
-// Placeholder for database initialization
-import logger from "../utils/Logger.js";
+import database from "../config/database.js";
+import SettingModel from "./Setting.model.js";
 
-export const initializeModels = async () => {
-    logger.info("Config Service Models: Mock initialization");
-    return {};
-};
+let dbPromise = null;
+
+async function initializeModels() {
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const sequelize = await database.connect();
+
+      const db = {
+        sequelize,
+        Sequelize: database.Sequelize,
+        Setting: SettingModel(sequelize)
+      };
+
+      return db;
+    })();
+  }
+
+  return dbPromise;
+}
+
+export default initializeModels;
