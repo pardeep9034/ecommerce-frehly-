@@ -35,6 +35,16 @@ class DeliveryPartnerController {
       next(error)}
   }
 
+  async listPartners(req, res, next) {
+    try {
+      const result = await DeliveryPartnerService.listPartners(req.query);
+
+      return ResponseUtil.success(res, result, "Delivery partners fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getDeliveryPartnerById(req, res, next) {
     try {
       const result = await DeliveryPartnerService.getDeliveryPartnerById(req.params.id);

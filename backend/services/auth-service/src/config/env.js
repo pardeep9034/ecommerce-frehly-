@@ -46,7 +46,17 @@ const envSchema = Joi.object({
     .default(900000), // 15 minutes in ms
   RABBITMQ_URL: Joi.string()
     .uri()
-    .required()
+    .required(),
+
+  // Shared secret for service-to-service calls to /internal/*. Unset = those routes answer 503.
+  INTERNAL_API_KEY: Joi.string()
+    .min(32)
+    .optional(),
+
+  // ponytail: add "messagecentral" here with its provider at launch.
+  SMS_PROVIDER: Joi.string()
+    .valid("console")
+    .default("console")
 })
   .unknown(); // Allow other environment variables
 
@@ -60,6 +70,12 @@ if (error) {
   error.details.forEach((detail) => {
     console.error(`- ${detail.message}`);
   });
+  process.exit(1);
+}
+
+// An OTP must never reach a production log.
+if (env.NODE_ENV === "production" && env.SMS_PROVIDER === "console") {
+  console.error("❌ SMS_PROVIDER=console is not allowed when NODE_ENV=production");
   process.exit(1);
 }
 

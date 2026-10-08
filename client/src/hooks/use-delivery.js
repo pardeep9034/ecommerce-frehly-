@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DeliveryApi from "../apis/deliveryApi";
 
 export const useAvailablePartners = (enabled) => {
@@ -9,6 +9,16 @@ export const useAvailablePartners = (enabled) => {
   });
 
   return { partners: data?.data || [], isLoading };
+};
+
+export const usePartners = (params) => {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["delivery-partners", params],
+    queryFn: () => DeliveryApi.fetchPartners(params),
+    placeholderData: keepPreviousData,
+  });
+
+  return { partners: data?.data?.partners ?? [], pagination: data?.data?.pagination, isLoading, isError };
 };
 
 export const useDeliverySlots = (enabled) => {

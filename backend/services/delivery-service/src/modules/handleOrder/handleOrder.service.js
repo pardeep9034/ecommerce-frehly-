@@ -29,7 +29,7 @@ const TERMINAL_HISTORY_ACTION = {
 class HandleOrderService {
   async assignOrder(data, user, authorization) {
     const [orderResponse, warehouseResponse, slot] = await Promise.all([
-      fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}`),
+      fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}`, { headers: { Authorization: authorization } }),
       fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}/${data.warehouse_id}`),
       DeliverySlotRepository.getDeliverySlotById(data.delivery_slot_id),
     ]);
@@ -77,6 +77,7 @@ class HandleOrderService {
             delivery_partner_id: data.delivery_partner_id,
             delivery_slot_id: data.delivery_slot_id,
             warehouse_id: data.warehouse_id,
+            zone_id: warehouse.data.zone_id,
             pickup_name: warehouse.data.name,
             pickup_address: warehouse.data.address,
             pickup_latitude: warehouse.data.latitude,
@@ -249,7 +250,7 @@ class HandleOrderService {
       throw new AppError("Assignment not found", 404);
     }
 
-    const orderResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}`);
+    const orderResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}`, { headers: { Authorization: authorizationHeader } });
     if (!orderResponse.ok) {
       throw new AppError("order not found", 404);
     }
@@ -421,6 +422,7 @@ throw new AppError("order is not found",404)
     }
     const orderResponse = await fetch(
       `${env.ORDER_SERVICE_URL}/${assignment.order_id}`,
+      { headers: { Authorization: authorizationHeader } },
     );
     if (!orderResponse.ok) {
       throw new AppError("order is not found");

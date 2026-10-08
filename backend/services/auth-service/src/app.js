@@ -10,6 +10,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import optRoutes from "./modules/otp/otp.routes.js";
 import userAddressRoutes from "./modules/userAddress/userAddress.routes.js";
 import adminUserRoutes from "./modules/adminUser/adminUser.routes.js";
+import internalRoutes from "./modules/internal/internal.routes.js";
 import ResponseUtil from './utils/response.js';
 import AppError from './utils/AppError.js';
 import logger from './utils/Logger.js';
@@ -49,6 +50,8 @@ app.use('/auth/admin/users', adminUserRoutes);
 app.use('/auth', authRoutes);
 app.use("/otp",optRoutes)
 app.use("/user-addresses", userAddressRoutes);
+// Service-to-service only: not in the gateway's services.config.js, so it is unreachable from outside.
+app.use("/internal", internalRoutes);
 
 // Root health check
 app.get('/health', (req, res) => {

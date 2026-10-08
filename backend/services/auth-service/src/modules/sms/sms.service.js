@@ -1,20 +1,11 @@
-
-import { GetProvider } from "../../providers/provider.factory.js";
+import { send } from "../../utils/sms/index.js";
 import logger from "../../utils/Logger.js";
 
-export const sendOtp=async(data)=>{
+// A failed text must never fail the request that asked for it, so log and return.
+export const sendOtp = async ({ phone, otp }) => {
     try {
-        const { phone, otp, channel = "SMS" } = data;
-
-        const provider = GetProvider(channel);
-
-        await provider.sendOtp({
-          to: phone,
-          code: otp,
-        });
-
-        logger.info(`✅ OTP sent: ${phone}`);
-      } catch (error) {
+        await send({ to: phone, kind: "OTP", text: `Your Freshly code is ${otp}` });
+    } catch (error) {
         logger.error(`❌ Failed to send OTP: ${error.message}`);
-      }
+    }
 }

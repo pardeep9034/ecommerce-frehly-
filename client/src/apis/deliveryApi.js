@@ -5,6 +5,11 @@ const DeliveryApi = {
     const response = await api.get("/delivery-partners");
     return response.data;
   },
+  // Dashboard list: params are search, zone_id, status, online, page, limit.
+  async fetchPartners(params) {
+    const response = await api.get("/delivery-partners/list", { params });
+    return response.data;
+  },
   async fetchDeliverySlots() {
     const response = await api.get("/delivery-slots");
     return response.data;

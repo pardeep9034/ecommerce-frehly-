@@ -1,9 +1,10 @@
 import api from "./axiosInstance";
 
 const stockResrvationApi={
-    // `status` (ACTIVE | CONFIRMED | RELEASED | EXPIRED) is filtered server-side; omit for all.
-    async getAllReservation(page,limit,status){
-        const response= await api.get("/stock-reservations",{params:{page,limit,status}})
+    // All filters run server-side and are optional: `status` (ACTIVE | CONFIRMED | RELEASED | EXPIRED),
+    // `warehouseId`, and `search` (order id or product name).
+    async getAllReservation(page,limit,{status,warehouseId,search}={}){
+        const response= await api.get("/stock-reservations",{params:{page,limit,status,warehouse_id:warehouseId,search}})
         return response.data;
 
     },

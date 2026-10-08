@@ -3,6 +3,7 @@ import RefreshTokenRepository from "../repository/refreshToken.repository.js";
 import OtpRepository from "../repository/otp.repository.js";
 import AuditRepository from "../repository/audit.repository.js";
 import OtpService from "../otp/otp.service.js";
+import { sendOtp } from "../sms/sms.service.js";
 import TokenService from "../token/token.service.js";
 import initializeModels from "../../models/index.js";
 import logger from "../../utils/Logger.js";
@@ -16,13 +17,20 @@ import { v4 as uuidv4 } from "uuid";
 import refreshTokenRepository from "../repository/refreshToken.repository.js";
 import {publisher} from "../../messaging/index.js";
 import userEvent from "../../messaging/events/user.events.js";
+import { accountState, NEXT_ACTION } from "./accountState.js";
+import { DEFAULT_SIGNUP_ROLE } from "../../constants/roles.js";
+
+const LOGIN_MESSAGE = {
+  SIGNUP: "Please sign up to continue.", // no account, OTP never verified, or profile never finished
+  LOGIN: "Profile completed.",
+};
 
 class AuthService {
 
   /* ================= SIGNUP ================= */
 
   async signup(data) {
-    const { phone } = data;
+    const { phone, role = DEFAULT_SIGNUP_ROLE } = data;
 
     if (!phone) {
       throw new AppError("Phone number is required", 400);
@@ -32,7 +40,16 @@ class AuthService {
     const otpPayload = OtpService.createOtp();
 
     if (existingUser) {
-      if (existingUser.phone_verified) {
+      // One role per user. A registered number is never reused under another role: a customer cannot
+      // become a delivery partner, nor the reverse. Checked before "already exists" so the message says why.
+      if (existingUser.role !== role) {
+        throw new AppError(
+          "This number is already registered for a different account type. Please use another number.",
+          409
+        );
+      }
+
+      if (accountState(existingUser) === "ACTIVE") {
         throw new AppError(
           "User already exists with this phone number",
           409
@@ -93,22 +110,7 @@ class AuthService {
         logger.error(error.message, { stack: error.stack });
       }
 
-      try {
-
-        await emitEvent(
-          TOPICS.OTP_REQUESTED,
-          {
-            userId: existingUser.id,
-            phone,
-            type: "SIGNUP",
-            otp: otpPayload.otp
-          },
-          existingUser.id.toString()
-        );
-
-      } catch (error) {
-        logger.error(error.message, { stack: error.stack });
-      }
+      await sendOtp({ phone, otp: otpPayload.otp });
 
       return {
         success: true,
@@ -128,7 +130,8 @@ class AuthService {
 
       const user = await UserRepository.create(
         {
-          phone
+          phone,
+          role
         },
         {
           transaction
@@ -151,21 +154,7 @@ class AuthService {
 
       await transaction.commit();
 
-      try {
-        await emitEvent(
-          TOPICS.OTP_REQUESTED,
-          {
-            userId: user.id,
-            phone,
-            type: "SIGNUP",
-            otp: otpPayload.otp
-          },
-          user.id.toString()
-        );
-
-      } catch (error) {
-        logger.error(error.message, { stack: error.stack });
-      }
+      await sendOtp({ phone, otp: otpPayload.otp });
 
       try {
         const redisClient = redisManager.getClient();
@@ -305,6 +294,9 @@ class AuthService {
           { expiresIn: "10m" }
         );
 
+        // Without this the transaction stayed open: a pool connection leaked and the OTP was never saved as used.
+        await transaction.commit();
+
       
        
 
@@ -316,8 +308,7 @@ class AuthService {
         };
       }
 
-      await transaction.rollback();
-      throw new AppError("Unsupported OTP type", 400);
+      throw new AppError("Unsupported OTP type", 400); // the catch below rolls back; a second rollback threw and hid this 400
 
     } catch (error) {
       await transaction.rollback();
@@ -329,109 +320,90 @@ class AuthService {
   /* ================= COMPLETE REGISTRATION ================= */
 
   async register(req,userData) {
-    const { phone, first_name, last_name, email, password } = userData;
-    if (!phone) throw new AppError("Phone number is required", 400);
+    const { first_name, last_name, email, password } = userData;
 
-    const existingUser = await UserRepository.findByPhone(phone);
-    if(existingUser.profile_complete){
-      throw new AppError("profile is completed",400);
-    }
+    // The account is the token's own. A phone sent in the body is ignored: trusting it let any
+    // logged-in user finish someone else's sign-up (set their password, take their session).
+    const existingUser = await UserRepository.findById(req.user.id);
     if (!existingUser) throw new AppError("User not found", 404);
+    const state = accountState(existingUser);
+    if (state === "UNVERIFIED") throw new AppError("Verify your phone number first", 403);
+    if (state === "ACTIVE") throw new AppError("profile is completed", 400);
     if (!first_name && !password) {
       throw new AppError("No data provided to update", 400);
     }
-
-
 
     if (first_name) existingUser.first_name = first_name;
     if (last_name) existingUser.last_name = last_name;
     if (email) existingUser.email = email;
     if (password) existingUser.password_hash = password;
     existingUser.profile_complete = true;
- 
-  const db=await initializeModels();
-  const transaction= await db.sequelize.transaction()
-   try{
-     const savedUser = await existingUser.save({ transaction });
 
-    
-        const accessToken = TokenService.generateAccessToken({
-          user_id: existingUser.id,
-          phone: existingUser.phone,
-          role: existingUser.role,
-        });
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+    try {
+      const savedUser = await existingUser.save({ transaction });
 
-        const rawRefresh = TokenService.generateRefreshToken();
-        const familyId = TokenService.generateFamilyId();
-        const userAgent=req.headers["user_agent"]
-        const ipAddress = req.ip ||req.socket.remoteAddress;
+      const accessToken = TokenService.generateAccessToken({
+        user_id: existingUser.id,
+        phone: existingUser.phone,
+        role: existingUser.role,
+      });
 
-        await RefreshTokenRepository.create({
-          user_id: existingUser.id,
-          user_agent:userAgent,
-          ip_address:ipAddress,
-          token_hash: TokenService.hashRefreshToken(rawRefresh),
-          expires_at: TokenService.getRefreshTokenExpiry(),
-           family_id: familyId,
-         }, { transaction });
+      const rawRefresh = TokenService.generateRefreshToken();
+      const familyId = TokenService.generateFamilyId();
+      const userAgent = req.headers["user-agent"];
+      const ipAddress = req.ip || req.socket.remoteAddress;
 
-         await transaction.commit();
-        
-        }
-    catch(err){
+      await RefreshTokenRepository.create({
+        user_id: existingUser.id,
+        user_agent: userAgent,
+        ip_address: ipAddress,
+        token_hash: TokenService.hashRefreshToken(rawRefresh),
+        expires_at: TokenService.getRefreshTokenExpiry(),
+        family_id: familyId,
+      }, { transaction });
+
+      await transaction.commit();
+
+      logger.info(`✅ User ${existingUser.id} profile completed`);
+
+      // Inside the try: savedUser, accessToken and rawRefresh are block-scoped to it.
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Profile completed successfully",
+        // Same fields as getProfile: the model instance would also send password_hash and lockout columns.
+        user: {
+          id: savedUser.id,
+          phone: savedUser.phone,
+          first_name: savedUser.first_name,
+          last_name: savedUser.last_name,
+          email: savedUser.email,
+          role: savedUser.role,
+          phone_verified: savedUser.phone_verified,
+          email_verified: savedUser.email_verified,
+        },
+        data: { accessToken, refreshToken: rawRefresh }
+      };
+    } catch (err) {
       await transaction.rollback();
-      throw new AppError("Failed to complete profile", 500);}
-         
-
-    logger.info(`✅ User ${existingUser.id} profile completed`);
-
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Profile completed successfully",
-      user: savedUser,
-      data:{accessToken,refreshToken:rawRefresh}
-    };
+      throw new AppError("Failed to complete profile", 500);
+    }
   }
 
   /* ================= LOGIN ================= */
   async login(phone){
-        if (!phone ) throw new AppError("Phone number required", 400);
-        const user = await UserRepository.findByPhone(phone);
-    if (!user) {
-      return{
-        success: true,
-        statusCode: 200,
-        message: "User Not Found.",
-        
-        data:{
-          action:"SIGNUP"
-        }
-      }
-    }
-    if(user.phone_verified && !user.profile_complete){
-      return{
-        success: true,
-        statusCode: 200,
-        message: "Phone verified. Please complete your profile.",
-        
-        data:{user_id: user.id,
-          action:"COMPLETE_REGISTRATION"
-        }
-      }
-    }
-    if(user.profile_complete){
-      return{
-        success: true,
-        statusCode: 200,
-        message: "Profile completed.",
-        
-        data:{user_id: user.id,
-          action:"LOGIN"
-        }
-      }
-    }
-    
+    if (!phone) throw new AppError("Phone number required", 400);
+    const user = await UserRepository.findByPhone(phone);
+    const action = NEXT_ACTION[accountState(user)];
+    return {
+      success: true,
+      statusCode: 200,
+      message: LOGIN_MESSAGE[action],
+      // SIGNUP covers "no account" and "OTP never verified": no user_id goes out for either.
+      data: action === "SIGNUP" ? { action } : { user_id: user.id, action },
+    };
   }
 
   async loginWithPassword(identifier, password, guest_cart = null, warehouseId, deviceId = null, userAgent = null, ) {
@@ -803,12 +775,7 @@ return {
       } catch (err) { logger.warn(`Redis SET error: ${err.message}`); }
 
 
-      emitEvent(TOPICS.OTP_REQUESTED, {
-        userId: user.id,
-        phone,
-        type: "FORGOT_PASSWORD",
-        otp: otpPayload.otp,
-      }, user.id.toString());
+      await sendOtp({ phone, otp: otpPayload.otp });
 
       await AuditRepository.logEvent({
         user_id: user.id,

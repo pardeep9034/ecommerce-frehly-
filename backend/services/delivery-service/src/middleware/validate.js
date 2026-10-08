@@ -3,24 +3,26 @@ import ResponseUtil from "../utils/response.js";
 
 const schema={
     createDeliverySchema:joi.object({
-        order_id:joi.string().uuid().optional(),
+        order_id:joi.number().integer().positive().optional(),
         delivery_partner_id:joi.string().uuid().optional(),
         delivery_slot_id:joi.string().uuid().optional(),
         assignment_source:joi.string().optional(),
-        assigned_by:joi.string().uuid().optional(),
+        assigned_by:joi.number().integer().positive().optional(),
         assigned_at:joi.date().optional(),
         status:joi.string().optional()
     }).min(1),
     updateDeliverySchema:joi.object({
-        order_id:joi.string().uuid().optional(),
+        order_id:joi.number().integer().positive().optional(),
         delivery_partner_id:joi.string().uuid().optional(),
         delivery_slot_id:joi.string().uuid().optional(),
         assignment_source:joi.string().optional(),
-        assigned_by:joi.string().uuid().optional(),
+        assigned_by:joi.number().integer().positive().optional(),
         assigned_at:joi.date().optional(),
         status:joi.string().optional()
     }).min(1),
     createDeliveryPartnerSchema:joi.object({
+        name:joi.string().trim().max(150).optional(),
+        phone:joi.string().trim().max(20).optional(),
         vehicle_type:joi.string().required(),
         vehicle_number:joi.string().required(),
         max_active_orders:joi.number().integer().min(1).required(),
@@ -28,6 +30,8 @@ const schema={
         current_longitude:joi.number().optional()
     }).and("current_latitude", "current_longitude"),
     updateDeliveryPartnerSchema:joi.object({
+        name:joi.string().trim().max(150).optional(),
+        phone:joi.string().trim().max(20).optional(),
         vehicle_type:joi.string().optional(),
         vehicle_number:joi.string().optional(),
         max_active_orders:joi.number().integer().min(1).optional(),
@@ -78,7 +82,7 @@ const schema={
         is_primary:joi.boolean().optional()
     }).min(1),
     assignOrderSchema:joi.object({
-        order_id:joi.string().uuid().required(),
+        order_id:joi.number().integer().positive().required(),
         delivery_partner_id:joi.string().uuid().required(),
         delivery_slot_id:joi.string().uuid().required(),
         assignment_source:joi.string().optional()

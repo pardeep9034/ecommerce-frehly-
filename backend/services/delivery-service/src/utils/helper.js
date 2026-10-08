@@ -15,6 +15,13 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// "9876543210" -> "•••••••210": only the last three digits stay visible.
+export function maskPhone(phone) {
+    const digits = String(phone ?? "").replace(/\D/g, "");
+    if (!digits) return null;
+    return "•".repeat(Math.max(digits.length - 3, 0)) + digits.slice(-3);
+}
+
 function toRadians(degree) {
     return degree * (Math.PI / 180);
 }

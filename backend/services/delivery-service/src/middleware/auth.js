@@ -20,17 +20,11 @@ const authenticateToken = async (req, res, next) => {
 
                 /* ================= TOKEN VERIFICATION ================= */
                 const decoded = verifyToken(token);
+                // Front door: any valid token with a role gets in. Which role may use a route is the
+                // second door, requireRole(), on that route. A route with only this one is open to every role.
                 if(decoded.role){
-                    if(["ADMIN", "SUPER_ADMIN", "OPS_STAFF"].includes(decoded.role)){
-                        req.user=decoded.user;
-                        next();
-                    }
-                    else{
-                        return ResponseUtil.unauthorized(
-                            res,
-                            "Unauthorized"
-                        );
-                    }
+                    req.user=decoded;
+                    next();
                 }
                 else{
                     return ResponseUtil.unauthorized(

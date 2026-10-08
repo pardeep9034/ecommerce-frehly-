@@ -1,5 +1,5 @@
 import { Search, Plus, TimerReset } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
 import ReservationTable from "@/components/dashboard/ReservationTable";
@@ -17,14 +17,27 @@ const STATUS_LABELS = { All: "All", ACTIVE: "Active", CONFIRMED: "Confirmed", RE
 
 const StockReservationPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState(""); // searchTerm after a short pause in typing
   const [statusFilter, setStatusFilter] = useState("All");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchTerm.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, warehouseFilter]);
+
   const { data, statsData, createMutation, isLoading, releaseMutation, confirmMutation } = useStockResvation({
     page: currentPage,
     limit: 10,
     status: statusFilter === "All" ? undefined : statusFilter,
+    warehouseId: warehouseFilter || undefined,
+    search: search || undefined,
   });
   const queryClient = useQueryClient();
 
@@ -50,19 +63,8 @@ const StockReservationPage = () => {
     return Object.fromEntries(list.map((v) => [v.id, [v.product_name, v.variant_name].filter(Boolean).join(" · ")]));
   }, [variantInfoResponse]);
 
-  const statusCounts = data?.data?.statusCounts ?? {}; // whole-table counts; a status with no rows is absent, so read with ?? 0
-
-  // Status is filtered by the server; warehouse and search still narrow only the loaded page.
-  const filteredReservations = useMemo(() => {
-    return reservations.filter((r) => {
-      const matchesWarehouse = !warehouseFilter || String(r.warehouse_id) === String(warehouseFilter);
-      const matchesSearch =
-        !searchTerm ||
-        String(r.order_id).includes(searchTerm) ||
-        (variantNames[r.variant_id] || "").toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesWarehouse && matchesSearch;
-    });
-  }, [reservations, warehouseFilter, searchTerm, variantNames]);
+  // Per status, within the chosen warehouse/search; a status with no rows is absent, so read with ?? 0.
+  const statusCounts = data?.data?.statusCounts ?? {};
 
   const openAddModal = () => setIsModalOpen(true);
 
@@ -183,7 +185,7 @@ const StockReservationPage = () => {
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by order or variant..."
+              placeholder="Search by order or product name..."
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -191,20 +193,13 @@ const StockReservationPage = () => {
       </div>
 
       <ReservationTable
-        reservations={filteredReservations}
+        reservations={reservations}
         variantNames={variantNames}
         warehouseNames={warehouseNames}
         onConfirm={handleConfirm}
         onRelease={handleRelease}
         isLoading={isLoading}
       />
-
-      {(warehouseFilter || searchTerm) && (
-        <p className="px-1 text-xs text-muted-foreground">
-          Warehouse and search narrow only the reservations loaded on this page, not the full result set (the
-          reservations API has no warehouse/search params yet — see BACKEND_REQUIREMENTS.md).
-        </p>
-      )}
 
       <ReservationModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={saveReservtion} />
 

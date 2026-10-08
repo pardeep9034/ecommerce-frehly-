@@ -1,2 +1,6 @@
 .claude/settings.local.json
 .playwright-mcp
+.env
+backend/node_modules/.package-lock.json
+.agents/
+.claude/skills/

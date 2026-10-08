@@ -2,13 +2,15 @@
 import Joi from 'joi';
 
 import ResponseUtil from '../utils/response.js';
+import { SIGNUP_ROLES } from '../constants/roles.js';
 
 
 const schemas = {
   signUp: Joi.object({
   phone: Joi.string()
     .pattern(/^[0-9]{10}$/)
-    .required()
+    .required(),
+  role: Joi.string().valid(...SIGNUP_ROLES)
 }),
 
   register: Joi.object({
@@ -38,7 +40,14 @@ const schemas = {
   resetPassword: Joi.object({
     resetToken: Joi.string().required(),
     newPassword: Joi.string().min(6).max(100).required(),
-    
+
+  }),
+
+  internalPartner: Joi.object({
+    phone: Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .required(),
+    name: Joi.string().trim().min(2).max(50).required(),
   })
 };
 

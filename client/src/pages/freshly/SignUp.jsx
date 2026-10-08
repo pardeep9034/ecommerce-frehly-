@@ -113,6 +113,7 @@ const navigate = useNavigate();
       >
         <OtpPage
           phone={phoneNumber}
+          type="SIGNUP"
           onSuccess={() => {
             setShowOtpModal(false);
             setShowRegisterModal(true);

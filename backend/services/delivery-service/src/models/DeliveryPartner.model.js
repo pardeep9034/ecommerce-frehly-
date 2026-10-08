@@ -10,12 +10,18 @@ export default (sequelize) => {
         defaultValue: DataTypes.UUIDV4
       },
       user_id: {
-        type: DataTypes.UUID,
+        type: DataTypes.BIGINT,
         allowNull: false,
         unique: true
       },
       zone_id: {
         type: DataTypes.INTEGER
+      },
+      name: {
+        type: DataTypes.STRING(150)
+      },
+      phone: {
+        type: DataTypes.STRING(20)
       },
       vehicle_type: {
         type: DataTypes.STRING
@@ -43,6 +49,14 @@ export default (sequelize) => {
       last_location_update_at: {
         type: DataTypes.DATE
       },
+      is_online: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      online_since: {
+        type: DataTypes.DATE
+      },
       joined_at: {
         type: DataTypes.DATE
       }
@@ -51,7 +65,10 @@ export default (sequelize) => {
       tableName: "delivery_partners",
       timestamps: true,
       createdAt: "created_at",
-      updatedAt: "updated_at"
+      updatedAt: "updated_at",
+      // name/phone are personal data; several partner routes have no auth, so they
+      // are only read through unscoped() in the staff-only list.
+      defaultScope: { attributes: { exclude: ["name", "phone"] } }
     }
   );
 

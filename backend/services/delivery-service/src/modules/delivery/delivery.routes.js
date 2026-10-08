@@ -1,14 +1,16 @@
 import express from "express";
 import DeliveryController from "./delivery.controller.js";
-import { authenticateToken } from "../../middleware/auth.js";
+import { authenticateToken, requireRole } from "../../middleware/auth.js";
+import { STAFF_ROLES } from "../../constants/roles.js";
 import validate from "../../middleware/validate.js";
 
 const router = express.Router();
+const staffOnly = requireRole(STAFF_ROLES);
 
 router.get("/", DeliveryController.getAllDeliveries);
 router.get("/:id", DeliveryController.getDeliveryById);
-router.post("/", authenticateToken, validate("createDeliverySchema"), DeliveryController.createDelivery);
-router.put("/:id", authenticateToken, validate("updateDeliverySchema"), DeliveryController.updateDelivery);
-router.delete("/:id", authenticateToken, DeliveryController.deleteDelivery);
+router.post("/", authenticateToken, staffOnly, validate("createDeliverySchema"), DeliveryController.createDelivery);
+router.put("/:id", authenticateToken, staffOnly, validate("updateDeliverySchema"), DeliveryController.updateDelivery);
+router.delete("/:id", authenticateToken, staffOnly, DeliveryController.deleteDelivery);
 
 export default router;

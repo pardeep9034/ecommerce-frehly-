@@ -10,7 +10,7 @@ export default (sequelize) => {
         defaultValue: DataTypes.UUIDV4
       },
       order_id: {
-        type: DataTypes.UUID
+        type: DataTypes.BIGINT
       },
       delivery_partner_id: {
         type: DataTypes.UUID

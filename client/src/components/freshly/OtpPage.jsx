@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import "../../styles/otpPage.css";
 import { verifyOtp, resendOtp } from "@/apis/authApi";
+import { setToken } from "@/lib/tokenStorage";
 
 const OtpPage = ({ phone, onSuccess, onBack,type }) => {
 
@@ -95,9 +96,13 @@ const OtpPage = ({ phone, onSuccess, onBack,type }) => {
     const response = await verifyOtp({phone, otp:otpString,type}).catch((err) => err);
 
     if (response?.data) {
+      // SIGNUP returns an onboarding token (it authorises /auth/register); FORGOT_PASSWORD returns a reset
+      // token. Store only what came back: writing the missing one saved the string "undefined" over a
+      // logged-in user's token.
+      const { onBoardToken, resetToken } = response.data;
+      if (onBoardToken) setToken(onBoardToken);
+      if (resetToken) localStorage.setItem("resetToken", resetToken);
       onSuccess(response.data);
-      localStorage.setItem("token", response.data.accessToken);
-      localStorage.setItem("resetToken", response.data.resetToken);
     } else {
       setIsValid(false);
       setOtp(["", "", "", "", "", ""]);
