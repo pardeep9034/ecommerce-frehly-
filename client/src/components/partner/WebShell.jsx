@@ -1,7 +1,8 @@
-import { ArrowLeftRight, Bell, History, LayoutDashboard, Package, Search, UserRound } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { ArrowLeftRight, Bell, History, LayoutDashboard, LogOut, Package, Search, UserRound } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { notify } from "@/lib/notify";
 import { ME } from "@/lib/partnerDemoData";
+import { signOutPartner } from "@/lib/partnerSession";
 import { Avatar, StatusPill } from "./PartnerBits";
 
 const NAV = [
@@ -13,6 +14,20 @@ const NAV = [
 ];
 
 const itemClass = "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors";
+
+const LogOutButton = () => {
+  const navigate = useNavigate();
+  const signOut = async () => {
+    await signOutPartner();
+    navigate("/partner/web/login", { replace: true });
+  };
+  return (
+    <button type="button" onClick={signOut} className={`${itemClass} mt-3 w-full text-destructive hover:bg-muted`}>
+      <LogOut className="h-4 w-4" />
+      Log out
+    </button>
+  );
+};
 
 // Desktop partner workspace: sidebar + header. Pass `search`/`onSearch` to show the search box.
 const WebShell = ({ title, subtitle, search, onSearch, children }) => (
@@ -59,6 +74,7 @@ const WebShell = ({ title, subtitle, search, onSearch, children }) => (
         </div>
         <StatusPill status="Online" />
       </div>
+      <LogOutButton />
     </aside>
 
     <div className="min-w-0 flex-1">

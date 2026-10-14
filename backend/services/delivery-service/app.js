@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import ResponseUtil from "./src/utils/response.js";
 import deliveryRoutes from "./src/modules/delivery/delivery.routes.js";
 import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner.routes.js";
+import partnerApplicationRoutes from "./src/modules/partnerApplication/partnerApplication.routes.js";
 import deliveryZoneRoutes from "./src/modules/deliveryZone/deliveryZone.routes.js";
 import deliveryPartnerZoneRoutes from "./src/modules/deliveryPartnerZone/deliveryPartnerZone.routes.js";
 import handleOrderRoutes from "./src/modules/handleOrder/handleOrder.routes.js";
@@ -41,8 +42,11 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* ================= REQUEST LOGGING ================= */
+// The signed file URL carries its token in the path; never write it to a log.
+const loggable = (url) => url.replace(/(\/files\/)[^/?]+/, "$1[token]");
+
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`);
+  logger.info(`${req.method} ${loggable(req.path)}`);
   next();
 });
 
@@ -57,6 +61,8 @@ app.get("/", (req, res) => {
 
 /* ================= ROUTES ================= */
 app.use("/deliveries", deliveryRoutes);
+// Before /delivery-partners, so "applications" is never read as that router's /:id.
+app.use("/delivery-partners/applications", partnerApplicationRoutes);
 app.use("/delivery-partners", deliveryPartnerRoutes);
 app.use("/delivery-zones", deliveryZoneRoutes);
 app.use("/delivery-partner-zones", deliveryPartnerZoneRoutes);
@@ -70,7 +76,7 @@ app.use((req, res) => {
 
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((error, req, res, next) => {
-  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${req.originalUrl}`);
+  logger.error(`${error.statusCode || 500} | ${error.message} | ${req.method} ${loggable(req.originalUrl)}`);
 
   if (error.name === "SequelizeValidationError") {
     const errors = error.errors.map((err) => ({
@@ -86,7 +92,7 @@ app.use((error, req, res, next) => {
   }
 
   if (error.isOperational || error.statusCode) {
-    return ResponseUtil.error(res, error.message, error.statusCode || 500);
+    return ResponseUtil.error(res, error.message, error.statusCode || 500, error.errors ?? null);
   }
 
   ResponseUtil.error(

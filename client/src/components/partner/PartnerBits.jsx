@@ -48,8 +48,8 @@ export const Stepper = ({ step }) => (
 // Vertical event log. Dot is filled by default; `current` = accent, `pending` = hollow and muted.
 export const Timeline = ({ items }) => (
   <ol className="space-y-3">
-    {items.map((it) => (
-      <li key={it.title} className="flex gap-3">
+    {items.map((it, i) => (
+      <li key={`${i}-${it.title}`} className="flex gap-3">
         <span
           className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 ${
             it.pending ? "border-border bg-white" : it.current ? "border-accent bg-accent" : "border-primary bg-primary"

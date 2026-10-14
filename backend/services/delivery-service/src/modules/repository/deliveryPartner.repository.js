@@ -22,6 +22,23 @@ class DeliveryPartnerRepository extends BaseRepository {
     return await this.findOne({ vehicle_number: vehicleNumber }, options);
   }
 
+  // Waits for any other approval of the same plate to commit (A3). Released at commit or rollback. `plate` is normalized.
+  // ponytail: the direct POST /delivery-partners does not take this lock; the unique index on vehicle_number is its backstop.
+  async lockPlate(plate, options = {}) {
+    const Model = await this.getModel();
+    await Model.sequelize.query("SELECT pg_advisory_xact_lock(hashtext(:key))", { replacements: { key: `partner-plate:${plate}` }, ...options });
+  }
+
+  // Is this plate on a partner already, ignoring spaces, hyphens and case (E4)? Keep in step with normalizePlate().
+  async plateExists(plate, options = {}) {
+    const Model = await this.getModel();
+    const [rows] = await Model.sequelize.query(
+      "SELECT 1 FROM delivery_partners WHERE REGEXP_REPLACE(UPPER(vehicle_number), '[\\s-]', '', 'g') = :plate LIMIT 1",
+      { replacements: { plate }, ...options }
+    );
+    return rows.length > 0;
+  }
+
   async getAllDeliveryPartners(limit = 10, offset = 0) {
     return await this.findAndCountAll({}, {
       limit,

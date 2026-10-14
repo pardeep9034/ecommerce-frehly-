@@ -34,6 +34,9 @@ const protectedRoutes = mounts.flatMap(([prefix, router]) =>
 );
 assert(protectedRoutes.length > 0, "found no protected routes");
 
+// Routes narrower than STAFF_ROLES. Direct partner creation bypasses review, so only SUPER_ADMIN may use it (P0.5).
+const SUPER_ADMIN_ONLY = new Set(["POST /delivery-partners/"]);
+
 const sign = (payload) => jwt.sign(payload, env.JWT_SECRET, { expiresIn: "5m" });
 const status = async ({ method, url }, token) =>
   (await fetch(url, {
@@ -52,7 +55,11 @@ for (const route of protectedRoutes) {
   }
   for (const role of STAFF_ROLES) {
     const s = await status(route, sign({ user_id: 1, role }));
-    assert(![401, 403].includes(s), `${at}: ${role} must pass auth, got ${s}`);
+    if (SUPER_ADMIN_ONLY.has(`${route.method} ${new URL(route.url).pathname}`) && role !== ROLES.SUPER_ADMIN) {
+      assert.equal(s, 403, `${at}: ${role} must be blocked (SUPER_ADMIN only)`);
+    } else {
+      assert(![401, 403].includes(s), `${at}: ${role} must pass auth, got ${s}`);
+    }
   }
 }
 

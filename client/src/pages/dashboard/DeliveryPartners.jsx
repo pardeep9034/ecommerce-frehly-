@@ -6,9 +6,9 @@ import Pagination from "@/components/common/Pagination";
 import { Avatar, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import { usePartners } from "@/hooks/use-delivery";
-import {
-  APPLICATIONS, APPLICATION_STATUSES, PARTNER_SUMMARY, ZONES,
-} from "@/lib/partnerDemoData";
+import { usePartnerQueue } from "@/hooks/use-partnerReview";
+import { PARTNER_SUMMARY } from "@/lib/partnerDemoData";
+import { APPLICATION_STATUS, SOURCE_LABEL, VEHICLE_LABEL, whenIST } from "@/lib/partnerReview";
 
 const TH = "px-5 py-3.5 font-medium text-muted-foreground";
 const TD = "px-5 py-4";
@@ -36,11 +36,10 @@ const Person = ({ initials, name, sub }) => (
 const DeliveryPartners = () => {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "partners" ? "partners" : "applications";
-  // Applications tab (demo data): zone is a name, status a label.
-  const [zone, setZone] = useState("");
+  // Both tabs come from the server: zone is an id, status an enum, search is sent after a pause in typing.
+  // Zone and search are shared; the status lists differ, so each tab keeps its own.
+  const [zoneId, setZoneId] = useState("");
   const [status, setStatus] = useState("");
-  // Partners tab (server): zone is an id, status an enum, search is sent after a pause in typing.
-  const [partnerZone, setPartnerZone] = useState("");
   const [partnerStatus, setPartnerStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [search, setSearch] = useState("");
@@ -53,27 +52,21 @@ const DeliveryPartners = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [search, partnerZone, partnerStatus]);
+  }, [search, zoneId, status, partnerStatus]);
 
-  const { partners, pagination, isLoading, isError } = usePartners({
-    page,
-    limit: 10,
-    search: search || undefined,
-    zone_id: partnerZone || undefined,
-    status: partnerStatus || undefined,
-  });
+  const filters = { page, limit: 10, search: search || undefined, zone_id: zoneId || undefined };
+  const { partners, pagination, isLoading, isError } = usePartners({ ...filters, status: partnerStatus || undefined });
+  const queue = usePartnerQueue({ ...filters, status: status || undefined });
   const { deliveryZonesData } = useDeliveryZone(1, 100);
   const zones = deliveryZonesData?.data?.deliveryZones ?? [];
 
   const switchTab = (next) => {
     setParams(next === "partners" ? { tab: next } : {}, { replace: true });
-    setStatus("");
+    setPage(1);
   };
-  const matches = (row) => (!zone || row.zone === zone) && (!status || row.status === status);
-  const applications = APPLICATIONS.filter(matches);
 
   const tabs = [
-    { key: "applications", label: "Applications", count: PARTNER_SUMMARY[0].value },
+    { key: "applications", label: "Applications", count: queue.pagination?.totalItems ?? "–" },
     { key: "partners", label: "Partners", count: pagination?.totalItems ?? "–" },
   ];
 
@@ -120,37 +113,31 @@ const DeliveryPartners = () => {
             </button>
           ))}
         </div>
-        {tab === "partners" ? (
-          <div className="ml-auto flex flex-wrap gap-2 pb-2">
-            <input
-              type="search"
-              aria-label="Search partners"
-              placeholder="Name, phone or vehicle"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`${SELECT} w-52`}
-            />
-            <select aria-label="Zone" value={partnerZone} onChange={(e) => setPartnerZone(e.target.value)} className={SELECT}>
-              <option value="">All zones</option>
-              {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-            </select>
+        <div className="ml-auto flex flex-wrap gap-2 pb-2">
+          <input
+            type="search"
+            aria-label={tab === "partners" ? "Search partners" : "Search applications"}
+            placeholder={tab === "partners" ? "Name, phone or vehicle" : "Name, phone or reference"}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`${SELECT} w-52`}
+          />
+          <select aria-label="Zone" value={zoneId} onChange={(e) => setZoneId(e.target.value)} className={SELECT}>
+            <option value="">All zones</option>
+            {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+          </select>
+          {tab === "partners" ? (
             <select aria-label="Status" value={partnerStatus} onChange={(e) => setPartnerStatus(e.target.value)} className={SELECT}>
               <option value="">All statuses</option>
               {Object.entries(PARTNER_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-          </div>
-        ) : (
-          <div className="ml-auto flex gap-2 pb-2">
-            <select aria-label="Zone" value={zone} onChange={(e) => setZone(e.target.value)} className={SELECT}>
-              <option value="">All zones</option>
-              {ZONES.map((z) => <option key={z}>{z}</option>)}
-            </select>
+          ) : (
             <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className={SELECT}>
-              <option value="">All statuses</option>
-              {APPLICATION_STATUSES.map((s) => <option key={s}>{s}</option>)}
+              <option value="">Waiting for a decision</option>
+              {Object.entries(APPLICATION_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
@@ -163,16 +150,18 @@ const DeliveryPartners = () => {
                 </tr>
               </thead>
               <tbody>
-                {applications.length === 0 && <Empty>No applications match these filters.</Empty>}
-                {applications.map((a) => (
+                {queue.isLoading && <Empty>Loading applications…</Empty>}
+                {queue.isError && <Empty>Could not load applications. Try again in a moment.</Empty>}
+                {!queue.isLoading && !queue.isError && queue.applications.length === 0 && <Empty>No applications match these filters.</Empty>}
+                {queue.applications.map((a) => (
                   <tr key={a.id} className="border-b border-border last:border-0 hover:bg-muted">
-                    <td className={TD}><Person initials={a.initials} name={a.name} sub={a.phone} /></td>
-                    <td className={`${TD} text-muted-foreground`}>{a.zone}</td>
-                    <td className={`${TD} text-muted-foreground`}>{a.vehicle}</td>
-                    <td className={`${TD} text-muted-foreground`}>{a.source}</td>
-                    <td className={`${TD} text-muted-foreground`}>{a.submitted}</td>
-                    <td className={`${TD} ${a.docs[0] < a.docs[1] ? "font-semibold text-amber" : "text-foreground"}`}>{a.docs[0]} / {a.docs[1]}</td>
-                    <td className={TD}><StatusPill status={a.status} /></td>
+                    <td className={TD}><Person initials={initialsOf(a.name)} name={a.name || "Unnamed applicant"} sub={`${a.ref} · ${a.phone}`} /></td>
+                    <td className={`${TD} text-muted-foreground`}>{a.preferred_zone?.name ?? "—"}</td>
+                    <td className={`${TD} text-muted-foreground`}>{[VEHICLE_LABEL[a.vehicle_type], a.vehicle_number].filter(Boolean).join(" · ") || "—"}</td>
+                    <td className={`${TD} text-muted-foreground`}>{SOURCE_LABEL[a.source]}</td>
+                    <td className={`${TD} text-muted-foreground`}>{whenIST(a.submitted_at)}</td>
+                    <td className={`${TD} ${a.documents.verified < a.documents.required ? "font-semibold text-amber" : "text-foreground"}`}>{a.documents.verified} / {a.documents.required}</td>
+                    <td className={TD}><StatusPill status={APPLICATION_STATUS[a.status]} /></td>
                     <td className={`${TD} text-right`}>
                       <Link to={`/dashboard/delivery-partners/applications/${a.id}`} className="text-sm font-semibold text-primary hover:underline">Review</Link>
                     </td>
@@ -210,18 +199,16 @@ const DeliveryPartners = () => {
           )}
         </div>
       </div>
-      {tab === "partners" && (
-        <Pagination
-          currentPage={page}
-          totalPages={pagination?.totalPages ?? 0}
-          totalItems={pagination?.totalItems ?? 0}
-          onPageChange={setPage}
-        />
-      )}
+      <Pagination
+        currentPage={page}
+        totalPages={(tab === "partners" ? pagination : queue.pagination)?.totalPages ?? 0}
+        totalItems={(tab === "partners" ? pagination : queue.pagination)?.totalItems ?? 0}
+        onPageChange={setPage}
+      />
       <DemoNote>
         {tab === "partners"
           ? "The partner list is live. The four counts above and the partner profile page are still demo data; every partner shows Offline until partner sign-in exists."
-          : "Counts and applications above are demo data — the backend has no application queue yet."}
+          : "The applications list is live. The four counts above are still demo data until the summary endpoint exists."}
       </DemoNote>
     </div>
   );

@@ -77,6 +77,11 @@ export const forgotPassword = async (phone) => {
     throw error;
   }
 };
+// Revokes the refresh session behind the cookie. Callers clear the local token themselves.
+export const logout = async () => {
+  const response = await api.post("/auth/logout");
+  return response.data;
+};
 export const resetPassword= async (resetData) => {
   try {
     const response = await api.post("/auth/reset-password", resetData);

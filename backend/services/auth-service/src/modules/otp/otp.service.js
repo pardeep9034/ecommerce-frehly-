@@ -13,7 +13,16 @@ import { sendOtp } from "../sms/sms.service.js";
 env
 const RESEND_LIMIT = 5;
 const RESEND_WINDOW = 15 * 60 * 1000;
+const COOLDOWN_MS = 30 * 1000; // same gap signup() enforces
 class OtpService {
+    MAX_ATTEMPTS = 5; // wrong guesses allowed per code
+
+    // True when this code went out less than 30 s ago. Callers answer with their generic "if the number exists"
+    // reply instead of an error, or a second request inside the gap would show that the number is registered.
+    tooSoon(otpRecord) {
+        return !!otpRecord && Date.now() - new Date(otpRecord.created_at).getTime() < COOLDOWN_MS;
+    }
+
     createOtp() {
 
     const otp = generateOtp();
@@ -51,6 +60,14 @@ async resendOtp(phone,type) {
          /* ================= GENERATE OTP ================= */
         const { otp, hash, expiry } = this.createOtp();
         const otpRecord= await OtpRepository.findLatestOtp(user.id,type);
+
+        if (this.tooSoon(otpRecord)) {
+          return {
+            success: true,
+            statusCode: 200,
+            message: "If an OTP request exists, a new OTP has been sent",
+          };
+        }
 
       /* ================= OTP TYPE CHECK ================= */
 //       if (user.otp_type) {

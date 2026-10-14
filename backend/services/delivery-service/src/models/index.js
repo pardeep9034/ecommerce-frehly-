@@ -8,6 +8,10 @@ import DeliveryAttemptModel from "./DeliveryAttempt.model.js";
 import DeliveryHandoverModel from "./DeliveryHandover.model.js";
 import DeliveryZoneModel from "./DeliveryZone.model.js";
 import DeliveryPartnerZoneModel from "./DeliveryPartnerZone.model.js";
+import PartnerApplicationModel from "./PartnerApplication.model.js";
+import PartnerDocumentModel from "./PartnerDocument.model.js";
+import PartnerApplicationCheckModel from "./PartnerApplicationCheck.model.js";
+import PartnerApplicationEventModel from "./PartnerApplicationEvent.model.js";
 import logger from "../utils/Logger.js";
 
 let sequelize;
@@ -29,7 +33,11 @@ async function initializeModels() {
         DeliveryAttempt: DeliveryAttemptModel(sequelize),
         DeliveryHandover: DeliveryHandoverModel(sequelize),
         DeliveryZone: DeliveryZoneModel(sequelize),
-        DeliveryPartnerZone: DeliveryPartnerZoneModel(sequelize)
+        DeliveryPartnerZone: DeliveryPartnerZoneModel(sequelize),
+        PartnerApplication: PartnerApplicationModel(sequelize),
+        PartnerDocument: PartnerDocumentModel(sequelize),
+        PartnerApplicationCheck: PartnerApplicationCheckModel(sequelize),
+        PartnerApplicationEvent: PartnerApplicationEventModel(sequelize)
       };
 
       Object.keys(db).forEach((modelName) => {

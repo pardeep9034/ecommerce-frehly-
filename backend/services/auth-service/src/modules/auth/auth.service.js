@@ -220,6 +220,11 @@ class AuthService {
       throw new AppError("OTP has expired", 400);
     }
 
+    // The counter, not `status`, is what stops the guessing: this method never reads `status`.
+    if (otpRecord.attempt_count >= OtpService.MAX_ATTEMPTS) {
+      throw new AppError("Too many wrong attempts. Request a new code.", 429);
+    }
+
     const isValid = OtpService.compareOtp(otp, otpRecord.code_hash);
 
     // try {
@@ -748,9 +753,14 @@ return {
 
     const user = await UserRepository.findByPhone(phone);
 
-    if (user) {
+    // Only a finished account gets a code (an invited or half-signed-up number has no password to reset), and
+    // not twice inside the gap. Every other case gets the same generic reply below, so none of them can be told apart.
+    const canSend = accountState(user) === "ACTIVE" &&
+      !OtpService.tooSoon(await OtpRepository.findLatestOtp(user.id, "FORGOT_PASSWORD"));
+
+    if (canSend) {
       const otpPayload = OtpService.createOtp();
-   
+
 
 
       await OtpRepository.create({
@@ -827,11 +837,12 @@ return {
     const transaction = await db.sequelize.transaction();
 
     try {
-      user.set({ password_hash: newPassword });
+      // A reset also lifts the 5-wrong-passwords lock, or the next sign-in would still say "temporarily locked".
+      user.set({ password_hash: newPassword, failed_login_attempts: 0, account_locked_until: null });
       await user.save({ transaction });
 
       // Revoke all refresh tokens
-      await RefreshTokenRepository.revokeByUserId(user.id, { transaction });
+      await RefreshTokenRepository.revokeByUserId(user.id, "PASSWORD_RESET", { transaction });
 
       await transaction.commit();
 
@@ -851,12 +862,6 @@ return {
       } catch (auditErr) {
         logger.warn(`⚠️ Audit log failed: ${auditErr.message}`);
       }
-
-      kafkaManager.sendEvent("auth.events", {
-        type: "PASSWORD_RESET",
-        userId: user.id,
-        timestamp: new Date().toISOString(),
-      }).catch(err => logger.error(`Kafka error: ${err.message}`));
 
       logger.info(`✅ Password reset for user ${user.id}`);
 

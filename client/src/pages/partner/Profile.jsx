@@ -1,10 +1,11 @@
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
 import { Avatar, Card, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
 import { notify } from "@/lib/notify";
 import { ME } from "@/lib/partnerDemoData";
+import { signOutPartner } from "@/lib/partnerSession";
 
 const Row = ({ label, value }) => (
   <div className="flex justify-between text-sm">
@@ -14,7 +15,13 @@ const Row = ({ label, value }) => (
 );
 
 const Profile = () => {
+  const navigate = useNavigate();
   const [sharing, setSharing] = useState(true);
+
+  const signOut = async () => {
+    await signOutPartner();
+    navigate("/partner/login", { replace: true });
+  };
 
   const header = (
     <header className="flex items-center gap-3 bg-primary px-4 py-5 text-white">
@@ -65,9 +72,9 @@ const Profile = () => {
         </button>
       </Card>
 
-      <Link to="/partner/login" className="flex h-12 items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">
+      <button type="button" onClick={signOut} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">
         <LogOut className="h-4 w-4" /> Log out
-      </Link>
+      </button>
       <DemoNote />
     </MobileShell>
   );

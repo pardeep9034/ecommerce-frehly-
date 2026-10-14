@@ -1,25 +1,31 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { CodeInput, DemoNote } from "@/components/partner/PartnerBits";
-
-const RESEND_SECONDS = 30;
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { notify } from "@/lib/notify";
+import { signInPartner } from "@/lib/partnerSession";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [left, setLeft] = useState(RESEND_SECONDS);
-
-  useEffect(() => {
-    if (left <= 0) return;
-    const timer = setTimeout(() => setLeft((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [left]);
+  const { state } = useLocation(); // from forgot-password: { phone, reset: true } after a successful reset
+  const [phone, setPhone] = useState(state?.phone ?? "");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const validPhone = /^[6-9]\d{9}$/.test(phone);
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
-    if (validPhone && otp.length === 6) navigate("/partner/home");
+    if (!validPhone) return notify.error("Enter a 10-digit mobile number");
+    if (!password) return notify.error("Enter your password");
+
+    setBusy(true);
+    try {
+      const to = await signInPartner({ phone, password, home: "/partner/home" });
+      if (!to) return notify.error("This number isn't registered as a delivery partner");
+      navigate(to, { replace: true });
+    } catch (error) {
+      notify.apiError(error, "Could not sign in");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -34,7 +40,12 @@ const Login = () => {
           <br />
           <span className="text-accent">Right on time.</span>
         </h1>
-        <p className="mt-3 text-sm text-white/80">Sign in with the mobile number registered with your store.</p>
+        <p className="mt-3 text-sm text-white/80">Sign in with your mobile number and password.</p>
+        {state?.reset && (
+          <p role="status" className="mt-4 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold">
+            Password changed. Sign in with your new password.
+          </p>
+        )}
 
         <form onSubmit={submit} className="mt-8 space-y-5 rounded-2xl bg-white p-5 text-foreground">
           <label className="block text-sm font-semibold">
@@ -54,29 +65,27 @@ const Login = () => {
             </div>
           </label>
 
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-sm font-semibold">
-              <span>Enter OTP</span>
-              <button
-                type="button"
-                disabled={left > 0 || !validPhone}
-                onClick={() => setLeft(RESEND_SECONDS)}
-                className="text-xs font-medium text-muted-foreground enabled:text-primary"
-              >
-                {left > 0 ? `Resend in 00:${String(left).padStart(2, "0")}` : "Resend OTP"}
-              </button>
-            </div>
-            <CodeInput length={6} value={otp} onChange={setOtp} label="OTP" />
-          </div>
+          <label className="block text-sm font-semibold">
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1.5 h-12 w-full rounded-lg border border-border bg-transparent px-3 text-base font-normal outline-none focus:border-primary"
+            />
+          </label>
+          <Link to="/partner/forgot-password" state={{ phone }} className="-mt-2 block text-right text-xs font-semibold text-primary">
+            Forgot password?
+          </Link>
 
           <button
             type="submit"
-            disabled={!validPhone || otp.length !== 6}
-            className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-border disabled:text-muted-foreground"
+            disabled={busy}
+            className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60"
           >
-            Verify &amp; continue
+            {busy ? "Please wait…" : "Sign in"}
           </button>
-          <DemoNote>Demo sign-in — any 6 digits work. Partner OTP login isn't built yet.</DemoNote>
         </form>
 
         <p className="mt-auto pt-8 text-center text-sm text-white/80">

@@ -1,6 +1,6 @@
 // Fabricated / demo values only — copied from the "Freshly Delivery Partner UI" design canvas.
-// The backend has no partner list, application, document, OTP-login or partner-scoped order
-// endpoints yet — see the "Delivery partners" section of BACKEND_REQUIREMENTS.md.
+// What is left here has no backend yet (partner profile, partner-scoped orders, summary counts) — see the
+// "Delivery partners" section of BACKEND_REQUIREMENTS.md. The application queue and review screens are live (lib/partnerReview.js).
 
 export const ME = {
   name: "Ravi Kumar",
@@ -21,15 +21,6 @@ export const ME = {
 
 export const STATS_7D = { delivered: 74, onTime: "96%", failed: 3, handovers: "2 given · 1 received" };
 
-// Application list (admin → Applications tab)
-export const APPLICATIONS = [
-  { id: "a1", name: "Gurpreet Singh", initials: "GS", phone: "+91 98•••• 2231", zone: "Mohali · Sec 70", vehicle: "Bike · PB 65 BK 7781", source: "Self", submitted: "24 Sep, 10:12", docs: [4, 5], status: "New" },
-  { id: "a2", name: "Rahul Mehta", initials: "RM", phone: "+91 97•••• 0098", zone: "Zirakpur", vehicle: "Scooter · PB 70 C 1203", source: "Admin · Priya S.", submitted: "23 Sep, 17:40", docs: [5, 5], status: "Under review" },
-  { id: "a3", name: "Sandeep Kaur", initials: "SK", phone: "+91 99•••• 7710", zone: "Kharar", vehicle: "EV scooter · PB 91 E 5520", source: "Self", submitted: "23 Sep, 11:05", docs: [5, 5], status: "Changes requested" },
-  { id: "a4", name: "Imran Khan", initials: "IK", phone: "+91 98•••• 3345", zone: "Panchkula · Sec 20", vehicle: "Bike · HR 03 T 8812", source: "Self", submitted: "22 Sep, 19:22", docs: [3, 5], status: "Under review" },
-  { id: "a5", name: "Vijay Thakur", initials: "VT", phone: "+91 70•••• 6621", zone: "Chandigarh · Sec 35", vehicle: "Cycle", source: "Self", submitted: "22 Sep, 09:48", docs: [3, 3], status: "New" },
-];
-
 // Partner list (admin → Partners tab)
 export const PARTNERS = [
   { id: "p1", name: "Ravi Kumar", initials: "RK", zone: "Mohali · Sec 70", vehicle: "Bike", online: true, active: 2, max: 4, deliveredToday: 11, status: "Active" },
@@ -46,27 +37,8 @@ export const PARTNER_SUMMARY = [
   { label: "Suspended", value: 3, hint: "1 this week" },
 ];
 
-export const APPLICATION_STATUSES = ["New", "Under review", "Changes requested"];
 export const PARTNER_STATUSES = ["Active", "Suspended"];
 export const ZONES = ["Mohali · Sec 70", "Mohali · Sec 71", "Mohali · Sec 69", "Zirakpur", "Kharar", "Panchkula · Sec 20", "Chandigarh · Sec 35"];
-
-// Admin review screen (Gurpreet Singh)
-export const REVIEW_DOCS = [
-  { key: "photo", label: "Profile photo", status: "Verified" },
-  { key: "aadhaar", label: "Aadhaar card", status: "Verified" },
-  { key: "dl", label: "Driving licence", status: "Not uploaded" },
-  { key: "rc", label: "Vehicle RC", status: "To check" },
-  { key: "pan", label: "PAN card", status: "Not uploaded" },
-];
-
-export const REVIEW_CHECKS = [
-  { key: "phone", label: "Phone verified by OTP", sub: "Done automatically at sign-up", done: true },
-  { key: "id", label: "Name and photo match Aadhaar", sub: "Compare profile photo with ID" },
-  { key: "dl", label: "Driving licence valid for two-wheeler", sub: "Check expiry and vehicle class" },
-  { key: "rc", label: "RC matches vehicle number", sub: "PB 65 BK 7781" },
-  { key: "bg", label: "Background check cleared", sub: "Police or third-party verification" },
-  { key: "brief", label: "Safety and app briefing done", sub: "In person or on call" },
-];
 
 export const PARTNER_DOCS = [
   { label: "Aadhaar card", number: "•••• •••• 4412", date: "Verified 12 Mar 2026", status: "Verified" },
@@ -183,7 +155,7 @@ export const STATUS_STYLE = {
   New: "bg-info/10 text-info", Assigned: "bg-info/10 text-info",
   "Under review": AMBER, "Out for delivery": AMBER, "To check": AMBER,
   "Changes requested": VIOLET, Handover: VIOLET, Transferred: VIOLET,
-  Active: GREEN, Online: GREEN, Delivered: GREEN, Verified: GREEN,
+  Active: GREEN, Online: GREEN, Delivered: GREEN, Verified: GREEN, Approved: GREEN,
   Offline: GREY, Cancelled: GREY,
-  Suspended: RED, Failed: RED, "Not uploaded": RED,
+  Suspended: RED, Failed: RED, "Not uploaded": RED, Rejected: RED, "Sent back": RED,
 };

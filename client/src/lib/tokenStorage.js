@@ -19,3 +19,14 @@ export const clearToken = () => {
   localStorage.removeItem(KEY);
   sessionStorage.removeItem(KEY);
 };
+
+// The role claim of a JWT, or null. Reads the payload only; the services are what verify the signature.
+export const getTokenRole = (token) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role || null;
+  } catch {
+    return null;
+  }
+};

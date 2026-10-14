@@ -27,7 +27,9 @@ export default (sequelize) => {
         type: DataTypes.STRING
       },
       vehicle_number: {
-        type: DataTypes.STRING
+        type: DataTypes.STRING,
+        // NULL repeats freely (a cycle has no plate); a real plate belongs to one partner.
+        unique: true
       },
       max_active_orders: {
         type: DataTypes.INTEGER
@@ -59,6 +61,10 @@ export default (sequelize) => {
       },
       joined_at: {
         type: DataTypes.DATE
+      },
+      // The onboarding application this partner came from; null for partners an admin created directly.
+      application_id: {
+        type: DataTypes.UUID
       }
     },
     {

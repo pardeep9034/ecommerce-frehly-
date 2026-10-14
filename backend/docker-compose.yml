@@ -114,6 +114,9 @@ services:
         condition: service_healthy
     env_file:
       - ./services/delivery-service/.env
+    # Applicant documents (encrypted files). The path is STORAGE_DIR, which defaults to data/partner-docs under /app.
+    volumes:
+      - partner_docs:/app/data/partner-docs
     restart: always
 
   # user-service:
@@ -162,3 +165,4 @@ services:
 volumes:
   rabbitmq_data:
   postgres_data:
+  partner_docs:

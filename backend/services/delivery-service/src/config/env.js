@@ -35,6 +35,15 @@ const envSchema = Joi.object({
   INVENTORY_SERVICE_WAREHOUSE_URL:Joi.string().uri(),
   DELIVERY_SERVICE_URL:Joi.string().uri(),
 
+  // Partner documents live encrypted on disk (AES-256-GCM). STORAGE_KEY is 32 bytes as 64 hex characters.
+  STORAGE_DIR: Joi.string().default("data/partner-docs"),
+  STORAGE_KEY: Joi.string().hex().length(64).required(),
+  // Keyed hash of Aadhaar / licence / PAN numbers, used only to spot a number reused on another application.
+  DOC_HASH_KEY: Joi.string().min(32).required(),
+
+  // ponytail: add "messagecentral" here with its provider at launch (DELIVERY_PARTNER_ONBOARDING_DESIGN.md §6.8).
+  SMS_PROVIDER: Joi.string().valid("console").default("console"),
+
   // How long after a delivery partner is assigned each stage of the
   // simulated delivery timeline takes (see scheduleAutoProgression).
   AUTO_PROGRESS_PICKUP_MS: Joi.number().default(2 * 60 * 1000),
@@ -47,6 +56,12 @@ const { error, value } = envSchema.validate(process.env);
 if (error) {
   console.error("Invalid environment variables");
   console.error(error.details.map((e) => e.message).join("\n"));
+  process.exit(1);
+}
+
+// A text can carry an applicant's details; the console provider must never run in production.
+if (value.NODE_ENV === "production" && value.SMS_PROVIDER === "console") {
+  console.error("SMS_PROVIDER=console is not allowed when NODE_ENV=production");
   process.exit(1);
 }
 
