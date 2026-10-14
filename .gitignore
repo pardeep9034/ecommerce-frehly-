@@ -1,2 +1,4 @@
 .claude/settings.local.json
 .playwright-mcp
+.agents/
+.claude/skills/
