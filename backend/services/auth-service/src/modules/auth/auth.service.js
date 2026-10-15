@@ -419,6 +419,10 @@ class AuthService {
      throw new AppError("User Not Found.", 404);
     }
 
+    // Added by staff or half signed up: no password yet, and bcrypt.compare(x, null) would throw a 500.
+    if (!user.password_hash) {
+      throw new AppError("Finish sign-up first: use Sign up with this number.", 401);
+    }
 
     // Check account lock
     const lockField = user.account_locked_until;

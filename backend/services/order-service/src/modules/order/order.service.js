@@ -51,7 +51,8 @@ const ALLOWED_TRANSITIONS = {
   [ORDER_STATUS.ASSIGNED]: [ORDER_STATUS.PICKED_UP, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.PICKED_UP]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.HANDOVER_IN_PROGRESS, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.HANDOVER_IN_PROGRESS]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED],
+  // A partner on the way can still fail the drop (customer unreachable); the failed-delivery screen starts here.
+  [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED, ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.PAYMENT_FAILED]: [ORDER_STATUS.PENDING_PAYMENT],
   [ORDER_STATUS.PAYMENT_EXPIRED]: [ORDER_STATUS.PENDING_PAYMENT]
 };
@@ -616,7 +617,8 @@ if(!userAddress.success){
   validateOrderAccess(order, user) {
     const userId = getUserId(user);
     const role = user?.role || user?.user_role;
-    const isAdmin = ["ADMIN", "SUPER_ADMIN", "SUPPORT"].includes(String(role || "").toUpperCase());
+    // SYSTEM is the short-lived internal token other services mint (delivery-service reads items and moves the status with it).
+    const isAdmin = ["ADMIN", "SUPER_ADMIN", "SUPPORT", "SYSTEM"].includes(String(role || "").toUpperCase());
 
     if (!isAdmin && userId && Number(order.user_id) !== Number(userId)) {
       throw new AppError("You do not have access to this order", 403);
@@ -641,11 +643,13 @@ if(!userAddress.success){
         placed_at: data.status === ORDER_STATUS.PLACED ? new Date() : order.placed_at
       }, { transaction });
 
+      // changed_by is a BIGINT: a SYSTEM caller's user_id is the text "system", so it is recorded as no one.
+      const actorId = Number(getUserId(user));
       await OrderStatusHistoryRepository.createStatusHistory({
         order_id: order.id,
         old_status: oldStatus,
         new_status: data.status,
-        changed_by: data.changed_by || getUserId(user),
+        changed_by: data.changed_by || (Number.isInteger(actorId) ? actorId : null),
         remarks: data.remarks || null
       }, { transaction });
 

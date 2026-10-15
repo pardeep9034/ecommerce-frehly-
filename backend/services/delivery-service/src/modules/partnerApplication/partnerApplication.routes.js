@@ -23,8 +23,13 @@ router.post("/me/resubmit", authenticateToken, applicantOnly, PartnerApplication
 // Staff routes. Order matters: /me* first so "me" is never read as an id, then the file link, the queue, then /:id*.
 // Role before id, so a caller without the role learns nothing about which ids exist.
 router.get("/files/:token", PartnerReviewController.streamFile); // signed token only, no bearer
+router.get("/summary", authenticateToken, staffOnly, PartnerReviewController.summary); // above /:id, or uuidParam turns "summary" into a 404
+router.get("/events", authenticateToken, deciderOnly, validate("partnerActivityQuerySchema", "query"), PartnerReviewController.activity); // Activity log: admins only, above /:id
 router.get("/", authenticateToken, staffOnly, validate("partnerQueueQuerySchema", "query"), PartnerReviewController.list);
+router.post("/on-behalf", authenticateToken, staffOnly, validate("createOnBehalfSchema"), PartnerReviewController.createOnBehalf);
 router.get("/:id", authenticateToken, staffOnly, uuidParam(), PartnerReviewController.getDetail);
+router.put("/:id/documents/:type", authenticateToken, staffOnly, uuidParam(), uploadDocument, validate("partnerDocumentSchema"), PartnerReviewController.uploadForDraft);
+router.post("/:id/submit", authenticateToken, staffOnly, uuidParam(), validate("submitOnBehalfSchema"), PartnerReviewController.submitForDraft);
 router.post("/:id/start-review", authenticateToken, staffOnly, uuidParam(), PartnerReviewController.startReview);
 router.get("/:id/documents/:type/url", authenticateToken, staffOnly, uuidParam(), PartnerReviewController.documentUrl);
 router.post("/:id/documents/:type/verify", authenticateToken, staffOnly, uuidParam(), validate("verifyPartnerDocumentSchema"), PartnerReviewController.verifyDocument);

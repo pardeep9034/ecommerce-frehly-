@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import DeliveryAssignmentRepository from "../repository/deliveryAssignment.repository.js";
 import DeliveryAssignmentHistoryRepository from "../repository/deliveryAssignmentHistory.repository.js";
+import DeliveryStatusHistoryRepository from "../repository/deliveryStatusHistory.repository.js";
+import DeliveryAttemptRepository from "../repository/deliveryAttempt.repository.js";
 import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.js";
 import DeliverySlotRepository from "../repository/deliverySlot.repository.js";
 import DeliveryHandoverRepository from "../repository/deliveryHandover.repository.js";
@@ -59,6 +61,7 @@ class HandleOrderService {
     const deliveryPartner =await DeliveryPartnerRepository.findOne({
       id: data.delivery_partner_id,
       status: "ACTIVE",
+      is_online: true,
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders"),
       },
@@ -105,6 +108,11 @@ class HandleOrderService {
         },
         { transaction },
       );
+      // The delivery timeline starts here; the partner app reads an assignment's current step from its latest row.
+      await DeliveryStatusHistoryRepository.createStatusHistory(
+        { order_id: data.order_id, delivery_partner_id: data.delivery_partner_id, status: "ASSIGNED" },
+        { transaction },
+      );
 
       const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}/status`, {
         method: "PATCH",
@@ -139,6 +147,10 @@ class HandleOrderService {
   // mid-chain would freeze if this service redeploys. Acceptable for this
   // stage; a periodic sweep over stale assignments is the upgrade path if
   // that starts to matter.
+  // Pending timers per assignment. A real status update (a partner's or staff's) cancels the rest, so a stale timer can
+  // never overwrite it with a simulated step; updateStatus does that for every caller that passes a user.
+  autoProgressionTimers = new Map();
+
   scheduleAutoProgression(assignmentId) {
     const steps = [
       { status: "PICKED_UP", delay: env.AUTO_PROGRESS_PICKUP_MS },
@@ -147,18 +159,26 @@ class HandleOrderService {
     ];
 
     let cumulativeDelay = 0;
+    const timers = [];
+    this.autoProgressionTimers.set(assignmentId, timers);
 
     for (const step of steps) {
       cumulativeDelay += step.delay;
 
-      setTimeout(async () => {
+      timers.push(setTimeout(async () => {
         try {
           await this.updateStatus(assignmentId, { status: step.status }, null, this.buildSystemAuthorization());
         } catch (error) {
           logger.error(`Auto-progression to ${step.status} failed for assignment ${assignmentId}: ${error.message}`);
         }
-      }, cumulativeDelay);
+        if (step.status === "DELIVERED") this.autoProgressionTimers.delete(assignmentId);
+      }, cumulativeDelay));
     }
+  }
+
+  cancelAutoProgression(assignmentId) {
+    for (const timer of this.autoProgressionTimers.get(assignmentId) ?? []) clearTimeout(timer);
+    this.autoProgressionTimers.delete(assignmentId);
   }
 
   // A timer callback has no caller's JWT to forward — mint a short-lived
@@ -193,6 +213,7 @@ class HandleOrderService {
     const deliveryPartner = await DeliveryPartnerRepository.findOne({
       id: data.new_delivery_partner_id,
       status: "ACTIVE",
+      is_online: true,
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders"),
       },
@@ -264,6 +285,7 @@ throw new AppError("order is not found",404)
     const deliveryPartner = await  DeliveryPartnerRepository.findOne({
       id: data.new_delivery_partner_id,
       status: "ACTIVE",
+      is_online: true,
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders"),
       },
@@ -414,7 +436,11 @@ throw new AppError("order is not found",404)
       throw new AppError(error.message, 500);
     }
   }
-  async updateStatus(assignmentId, data, user, authorizationHeader) {
+  // `user` is the caller; the auto-progression timers pass null, so only real updates cancel the timers.
+  // `data.reason` is the failure reason on DELIVERY_FAILED. `actorId` is who to record on the order for a caller whose
+  // own token is not forwarded (the partner app's updates go to the order service as SYSTEM).
+  async updateStatus(assignmentId, data, user, authorizationHeader, actorId) {
+    if (user) this.cancelAutoProgression(assignmentId);
     //check assignmet exist or not
     const assignment = await DeliveryAssignmentRepository.findById(assignmentId);
     if (!assignment) {
@@ -456,6 +482,24 @@ throw new AppError("order is not found",404)
           old_delivery_partner_id: assignment.delivery_partner_id,
         }, { transaction });
       }
+
+      await DeliveryStatusHistoryRepository.createStatusHistory({
+        order_id: assignment.order_id,
+        delivery_partner_id: assignment.delivery_partner_id,
+        status: data.status,
+        remarks: data.reason ?? null,
+      }, { transaction });
+
+      if (data.status === "DELIVERY_FAILED") {
+        const earlier = await DeliveryAttemptRepository.getAttemptsByOrderId(assignment.order_id, { transaction });
+        await DeliveryAttemptRepository.createDeliveryAttempt({
+          order_id: assignment.order_id,
+          delivery_partner_id: assignment.delivery_partner_id,
+          attempt_number: earlier.length + 1,
+          failure_reason: data.reason ?? null,
+          attempted_at: new Date(),
+        }, { transaction });
+      }
       // inform order or update order
       const updatedOrder = await fetch(
         `${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`,
@@ -465,7 +509,7 @@ throw new AppError("order is not found",404)
             Authorization: authorizationHeader,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ status: data.status }),
+          body: JSON.stringify({ status: data.status, remarks: data.reason, changed_by: actorId }),
         },
       );
       if (!updatedOrder.ok) {

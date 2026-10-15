@@ -16,6 +16,52 @@ class PartnerReviewController {
     }
   }
 
+  async summary(req, res, next) {
+    try {
+      return ResponseUtil.success(res, await PartnerReviewService.summary(), "Summary fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async activity(req, res, next) {
+    try {
+      return ResponseUtil.success(res, await PartnerReviewService.activity(req.filters), "Activity fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createOnBehalf(req, res, next) {
+    try {
+      const result = await PartnerReviewService.createOnBehalf(req.user, req.body);
+
+      return ResponseUtil.success(res, result, "Application created", 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadForDraft(req, res, next) {
+    try {
+      const result = await PartnerReviewService.uploadForDraft(req.params.id, req.params.type, req.file, req.body, req.user);
+
+      return ResponseUtil.success(res, result, "Document uploaded");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async submitForDraft(req, res, next) {
+    try {
+      const result = await PartnerReviewService.submitForDraft(req.params.id, req.user);
+
+      return ResponseUtil.success(res, result, "Application submitted");
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getDetail(req, res, next) {
     try {
       const result = await PartnerReviewService.getDetail(req.params.id, req.user);

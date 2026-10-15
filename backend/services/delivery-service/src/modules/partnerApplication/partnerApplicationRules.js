@@ -11,6 +11,16 @@ export const EVENT_TYPES = [
   "CHECK_UNDONE", "REVIEW_STARTED", "NOTE", "CHANGES_REQUESTED", "RESUBMITTED", "APPROVED", "REJECTED",
 ];
 
+// The Activity log's Onboarding tab filters by these. Every event type is in exactly one group (partnerApplicationRules.check.js).
+export const ACTIVITY_GROUPS = {
+  flow: ["CREATED", "SUBMITTED", "RESUBMITTED"],
+  docs: ["DOC_UPLOADED", "DOC_VIEWED", "DOC_VERIFIED", "DOC_REJECTED"],
+  checks: ["CHECK_DONE", "CHECK_UNDONE"],
+  decisions: ["REVIEW_STARTED", "NOTE", "CHANGES_REQUESTED", "APPROVED", "REJECTED"],
+};
+// Time windows the page offers: last hour, day, week, month.
+export const ACTIVITY_HOURS = [1, 24, 168, 720];
+
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const REAPPLY_COOLDOWN_DAYS = 30;
 
@@ -100,7 +110,8 @@ export const checkLabel = (key) => CHECK_LABEL[key] ?? key;
 
 const DECIDERS = [ROLES.ADMIN, ROLES.SUPER_ADMIN]; // approve and reject (D4)
 const MOVES = {
-  DRAFT: { NEW: [ROLES.DELIVERY_PARTNER] },
+  // Staff may submit too, but only an application they created (source ADMIN, checked by the caller, P3-4).
+  DRAFT: { NEW: [ROLES.DELIVERY_PARTNER, ...STAFF_ROLES] },
   NEW: { UNDER_REVIEW: STAFF_ROLES, CHANGES_REQUESTED: STAFF_ROLES, REJECTED: DECIDERS },
   UNDER_REVIEW: { CHANGES_REQUESTED: STAFF_ROLES, APPROVED: DECIDERS, REJECTED: DECIDERS },
   // A silent applicant must be closable (P2-3), otherwise the one-open-application index locks their number for good.
@@ -122,8 +133,22 @@ export const moveBlocker = (from, to) => (MOVES[from]?.[to] ? null : reviewBlock
 
 // What the staff queue shows by default: submitted and not yet decided. A DRAFT is still the applicant's own.
 export const QUEUE_STATUSES = ["NEW", "UNDER_REVIEW", "CHANGES_REQUESTED"];
-// Statuses a staff member may ask the queue for.
-export const LISTED_STATUSES = [...QUEUE_STATUSES, "APPROVED", "REJECTED"];
+// Statuses a staff member may ask the queue for. DRAFT only on request (P3-10): never in the default list or the badge.
+export const LISTED_STATUSES = ["DRAFT", ...QUEUE_STATUSES, "APPROVED", "REJECTED"];
+// The staff's turn (P3-5): what the "Waiting for review" count and the sidebar badge show. CHANGES_REQUESTED is the applicant's turn.
+export const WAITING_STATUSES = ["NEW", "UNDER_REVIEW"];
+
+// What the stat card, the sidebar badge and the overview tile show. `rows` are countByStatus(): { status, count, oldest_submitted_at }.
+// Every status is present (zero when none), and `oldest_submitted_at` is the oldest of the waiting ones, or null.
+export const summarize = (rows) => {
+  const by_status = Object.fromEntries(STATUSES.map((status) => [status, rows.find((r) => r.status === status)?.count ?? 0]));
+  const dates = rows.filter((r) => WAITING_STATUSES.includes(r.status) && r.oldest_submitted_at).map((r) => new Date(r.oldest_submitted_at));
+  return {
+    waiting: WAITING_STATUSES.reduce((total, status) => total + by_status[status], 0),
+    oldest_submitted_at: dates.length ? new Date(Math.min(...dates)) : null,
+    by_status,
+  };
+};
 
 // ---- document state machine ----
 
@@ -234,6 +259,21 @@ export const approvalWarnings = ({ app, docs, today }) => {
   const days = licence?.expiry_date ? daysUntil(licence.expiry_date, today) : null;
   return days !== null && days >= 0 && days <= DL_WARN_DAYS ? [{ code: "LICENCE_EXPIRES_SOON", days }] : [];
 };
+
+// ---- duplicate documents (P3-8): the same number on another person's application warns every reviewer and never blocks ----
+
+export const DUPLICATE_CAP = 5;
+// `matches` are other people's documents with the same type and number hash, each with the application it sits on:
+// { type, uploaded_at, application_id, ref_no, status, name }. The newest DUPLICATE_CAP per document type are kept.
+export const duplicateWarnings = (matches) =>
+  DOC_TYPES.flatMap((type) =>
+    matches
+      .filter((match) => match.type === type)
+      .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at))
+      .slice(0, DUPLICATE_CAP)
+      .map(({ application_id, ref_no, status, name }) => ({
+        code: "DUPLICATE_DOCUMENT", type, other: { application_id, ref_no, status, name },
+      })));
 
 // ---- plates (E4): "pb65 ax4412", "PB 65 AX 4412" and "PB-65-AX-4412" are one vehicle. Null for a cycle. ----
 // The SQL side compares with REGEXP_REPLACE(UPPER(vehicle_number), '[\s-]', '', 'g'); keep the two in step.

@@ -3,6 +3,8 @@ import ResponseUtil from "../utils/response.js";
 
 import verifyToken from "../utils/verifyToken.js";
 import logger from "../utils/Logger.js";
+import { ROLES } from "../constants/roles.js";
+import DeliveryPartnerRepository from "../modules/repository/deliveryPartner.repository.js";
 
 const authenticateToken = async (req, res, next) => {
 
@@ -111,4 +113,18 @@ const requireRole = (roles) => {
 
 };
 
-export { authenticateToken, requireRole };
+// Partner-app routes, after authenticateToken: the caller is a DELIVERY_PARTNER with an ACTIVE partner row. req.partner is
+// that row, found from the token, so a "me" route never takes a partner id from the client.
+const requireActivePartner = async (req, res, next) => {
+    if (req.user?.role !== ROLES.DELIVERY_PARTNER) {
+        return ResponseUtil.forbidden(res, "Insufficient permissions");
+    }
+    const partner = await DeliveryPartnerRepository.findByUserIdWithContact(req.user.user_id);
+    if (!partner || partner.status !== "ACTIVE") {
+        return ResponseUtil.forbidden(res, "No active delivery partner account");
+    }
+    req.partner = partner;
+    return next();
+};
+
+export { authenticateToken, requireRole, requireActivePartner };

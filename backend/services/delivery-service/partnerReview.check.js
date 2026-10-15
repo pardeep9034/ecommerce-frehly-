@@ -180,11 +180,16 @@ try {
   assert.deepEqual(pages[2].body.data.pagination, { totalItems: 5, totalPages: 3, currentPage: 3, limit: 2, hasNextPage: false, hasPrevPage: true });
   assert.deepEqual(names(await queue({ limit: 2, page: 9 })), [], "past the end is an empty page, not an error");
 
-  for (const bad of [{ limit: 0 }, { limit: 101 }, { page: 0 }, { limit: "x" }, { status: "DRAFT" }, { status: "nope" }, { zone_id: "abc" }, { source: "x" }, { search: "x".repeat(101) }, { foo: 1 }]) {
+  for (const bad of [{ limit: 0 }, { limit: 101 }, { page: 0 }, { limit: "x" }, { status: "nope" }, { zone_id: "abc" }, { source: "x" }, { search: "x".repeat(101) }, { foo: 1 }]) {
     const res = await queue(bad);
     assert.equal(res.status, 400, `bad filter ${JSON.stringify(bad)}`);
     assert.ok(Array.isArray(res.body.errors) && res.body.errors.length, "the error names the field");
   }
+
+  // P3-10: drafts are a filter on request, never part of the default queue
+  const drafts = await queue({ status: "DRAFT" });
+  assert.equal(drafts.status, 200, "the Draft filter is accepted");
+  assert.ok(drafts.body.data.applications.every((a) => !all.body.data.applications.some((q) => q.id === a.id)), "no draft is in the default queue");
 
   // ---- detail ----
   const detail = (await call("GET", `/${ids[1]}`, ADMIN)).body.data;

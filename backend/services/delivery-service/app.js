@@ -8,6 +8,7 @@ import ResponseUtil from "./src/utils/response.js";
 import deliveryRoutes from "./src/modules/delivery/delivery.routes.js";
 import deliveryPartnerRoutes from "./src/modules/deliveryPartner/deliveryPartner.routes.js";
 import partnerApplicationRoutes from "./src/modules/partnerApplication/partnerApplication.routes.js";
+import partnerMeRoutes from "./src/modules/partnerMe/partnerMe.routes.js";
 import deliveryZoneRoutes from "./src/modules/deliveryZone/deliveryZone.routes.js";
 import deliveryPartnerZoneRoutes from "./src/modules/deliveryPartnerZone/deliveryPartnerZone.routes.js";
 import handleOrderRoutes from "./src/modules/handleOrder/handleOrder.routes.js";
@@ -63,6 +64,7 @@ app.get("/", (req, res) => {
 app.use("/deliveries", deliveryRoutes);
 // Before /delivery-partners, so "applications" is never read as that router's /:id.
 app.use("/delivery-partners/applications", partnerApplicationRoutes);
+app.use("/delivery-partners/me", partnerMeRoutes);
 app.use("/delivery-partners", deliveryPartnerRoutes);
 app.use("/delivery-zones", deliveryZoneRoutes);
 app.use("/delivery-partner-zones", deliveryPartnerZoneRoutes);

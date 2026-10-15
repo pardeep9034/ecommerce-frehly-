@@ -14,11 +14,12 @@ import * as storage from "../../utils/storage.js";
 import { sms } from "../../utils/notify.js";
 import { maskPhone } from "../../utils/helper.js";
 import { env } from "../../config/env.js";
-import { untickChecks } from "./partnerApplication.service.js";
+import { findOrCreatePartnerUser } from "../../utils/authClient.js";
+import PartnerApplicationService, { assertZone, untickChecks, vehicleNumberFor } from "./partnerApplication.service.js";
 import {
-  CHECK_KEYS, DOC_TYPES, QUEUE_STATUSES, SIGNED_URL_TTL, approvalGaps, approvalWarnings, canTransition, docLabel, formatDate,
-  isCycle, licenceExpiryError, moveBlocker, normalizePlate, placementGaps, reapplyDate, requiredDocs, reuploadBlocker,
-  reviewBlocker, safeName, tickBlocker, todayIST, verifyBlocker,
+  ACTIVITY_GROUPS, CHECK_KEYS, DOC_TYPES, QUEUE_STATUSES, SIGNED_URL_TTL, approvalGaps, approvalWarnings, canTransition, docLabel, duplicateWarnings, formatDate,
+  isCycle, licenceExpiryError, missingDocs, moveBlocker, normalizePlate, optionalDocs, placementGaps, reapplyDate, requiredDocs, reuploadBlocker,
+  reviewBlocker, safeName, summarize, tickBlocker, todayIST, verifyBlocker,
 } from "./partnerApplicationRules.js";
 
 // File links are a different kind of token from a login: this audience, a `doc` claim and no role, so one cannot stand in
@@ -46,6 +47,15 @@ const withApplication = async (id, work) => {
     if (!application) throw new AppError("Not found", 404);
     return await work(application, transaction);
   });
+};
+
+// The draft a staff member may fill in: one staff created (P3-4) that is still a draft. A self-applicant's files are theirs alone.
+const staffDraft = async (id, what) => {
+  const application = await PartnerApplicationRepository.findById(id);
+  if (!application) throw new AppError("Not found", 404);
+  if (application.source !== "ADMIN") throw new AppError(`Only the applicant can ${what} their own application`, 409);
+  if (application.status !== "DRAFT") throw new AppError("This application is no longer a draft", 409);
+  return application;
 };
 
 // Why this check cannot be changed by hand now, or null. Unticking only needs the application to be under review;
@@ -84,6 +94,9 @@ export const detailView = (app, user) => {
 
   const gaps = approvalGaps({ app, docs, checks, today });
   const decided = ["APPROVED", "REJECTED"].includes(app.status);
+  // Staff upload and submit only for a draft they created (P3-4).
+  const fillable = app.source === "ADMIN" && app.status === "DRAFT";
+  const missing = missingDocs(app.vehicle_type, docs.map((d) => d.type));
 
   return {
     id: app.id,
@@ -101,6 +114,11 @@ export const detailView = (app, user) => {
     submitted_at: app.submitted_at,
     reviewer_id: num(app.reviewer_id),
     review_started_at: app.review_started_at,
+    required_docs: requiredDocs(app.vehicle_type),
+    optional_docs: optionalDocs(),
+    can_upload: fillable,
+    can_submit: fillable && missing.length === 0,
+    submit_blocked_by: fillable && missing.length ? `Upload these documents first: ${missing.join(", ")}` : null,
     documents: docs.map((d) => {
       const viewed = viewedAt(d.type);
       const verifyBlocked = verifyBlocker(app.status, d, viewed);
@@ -189,10 +207,128 @@ class PartnerReviewService {
     };
   }
 
+  async summary() {
+    return summarize(await PartnerApplicationRepository.countByStatus());
+  }
+
+  // The event stream across all applications for the Activity log (admins only): newest first, document opens included.
+  async activity(filters) {
+    const [{ rows, count }, meta] = await Promise.all([
+      PartnerApplicationEventRepository.findActivity({
+        types: ACTIVITY_GROUPS[filters.group],
+        since: new Date(Date.now() - filters.hours * 3_600_000),
+        search: filters.search,
+        limit: filters.limit,
+        offset: (filters.page - 1) * filters.limit,
+      }),
+      PartnerApplicationEventRepository.stats(),
+    ]);
+
+    const totalPages = Math.ceil(count / filters.limit);
+    return {
+      events: rows.map((e) => ({
+        id: e.id,
+        created_at: e.created_at,
+        type: e.type,
+        actor_id: num(e.actor_id),
+        actor_role: e.actor_role,
+        payload: e.payload,
+        application: {
+          id: e.application.id,
+          ref: `FR-P-${e.application.ref_no}`,
+          name: e.application.name,
+          vehicle_type: e.application.vehicle_type,
+          status: e.application.status,
+          source: e.application.source,
+        },
+      })),
+      pagination: {
+        totalItems: count,
+        totalPages,
+        currentPage: filters.page,
+        limit: filters.limit,
+        hasNextPage: filters.page < totalPages,
+        hasPrevPage: filters.page > 1,
+      },
+      meta,
+    };
+  }
+
+  // Staff add an applicant (P3). Order (P3-11): the form is judged first so a bad one never creates an account, then the
+  // account call, then the checks that need the user id. The account may stay unverified if a later check fails; the call is
+  // idempotent by phone, so the next try reuses it.
+  async createOnBehalf(staff, data) {
+    const vehicleNumber = vehicleNumberFor(data.vehicle_type, data.vehicle_number);
+    await assertZone(data.preferred_zone_id);
+
+    const { userId, registered } = await findOrCreatePartnerUser({ phone: data.phone, name: data.name });
+
+    if (await DeliveryPartnerRepository.getDeliveryPartnerByUserId(userId)) {
+      throw new AppError("This number already belongs to a delivery partner", 409);
+    }
+    if (await PartnerApplicationRepository.findOpenByUser(userId)) {
+      throw new AppError("This number already has an open application", 409);
+    }
+    const rejected = await PartnerApplicationRepository.findLatestRejected(userId);
+    if (rejected) {
+      const until = reapplyDate(rejected.decided_at);
+      if (until > new Date()) throw new AppError(`This number can apply again after ${todayIST(until)}`, 403);
+    }
+
+    const db = await initializeModels();
+    let application;
+    try {
+      application = await db.sequelize.transaction(async (transaction) => {
+        const created = await PartnerApplicationRepository.create({
+          user_id: userId,
+          phone: data.phone,
+          name: data.name,
+          email: data.email || null,
+          preferred_zone_id: data.preferred_zone_id ?? null,
+          vehicle_type: data.vehicle_type,
+          vehicle_number: vehicleNumber,
+          source: "ADMIN",
+          created_by: staff.user_id,
+        }, { transaction });
+        await PartnerApplicationEventRepository.log(
+          { applicationId: created.id, type: "CREATED", actor: staff, payload: { on_behalf: true } }, { transaction }
+        );
+        return created;
+      });
+    } catch (error) {
+      // The one-open-application index settled two staff adding the same number at once.
+      if (error.name === "SequelizeUniqueConstraintError") throw new AppError("This number already has an open application", 409);
+      throw error;
+    }
+
+    // P3-7: someone with a working account does not need a sign-up link; the screen tells staff to ask them to log in.
+    if (!registered) {
+      await sms(data.phone, "invite", { link: `${env.PARTNER_APP_URL}/partner/apply?phone=${data.phone}` });
+    }
+    return { ...(await this.getDetail(application.id, staff)), invite_sent: !registered };
+  }
+
+  // Staff fill in a draft they created: the applicant has not signed up yet, so staff upload and submit for them (P3-1, P3-4).
+  async uploadForDraft(id, rawType, file, body, user) {
+    const type = parseDocType(rawType);
+    const application = await staffDraft(id, "add documents to");
+    await PartnerApplicationService.storeDocument(application, type, file, body, user, true);
+    return this.getDetail(id, user);
+  }
+
+  async submitForDraft(id, user) {
+    const application = await staffDraft(id, "submit");
+    await PartnerApplicationService.submitDraft(application, user, true);
+    return this.getDetail(id, user);
+  }
+
   async getDetail(id, user) {
     const application = await PartnerApplicationRepository.findDetail(id);
     if (!application) throw new AppError("Not found", 404);
-    return detailView(application, user);
+    const view = detailView(application, user);
+    // The one async entry every staff screen ends in, so a duplicate shows after every action too (P3-8). Warns, never blocks.
+    const duplicates = duplicateWarnings(await PartnerDocumentRepository.findDuplicates(id, application.user_id));
+    return { ...view, warnings: [...view.warnings, ...duplicates] };
   }
 
   // The claim is advisory (B6): it says who is looking, it does not stop another staff member from acting.

@@ -12,7 +12,7 @@ import * as storage from "../../utils/storage.js";
 import { sms } from "../../utils/notify.js";
 import { env } from "../../config/env.js";
 import {
-  CHECK_KEYS, DOC_TYPES, EDITABLE, EXTENSION, NUMBER_DOCS, allowedDocs, applicableChecks, checksToUntick, isCycle, maskNumber,
+  CHECK_KEYS, DOC_TYPES, EDITABLE, EXTENSION, FINAL, NUMBER_DOCS, allowedDocs, applicableChecks, checksToUntick, isCycle, maskNumber,
   missingDocs, normalizeNumber, normalizePlate, numberHint, optionalDocs, reapplyDate, requiredDocs, todayIST,
 } from "./partnerApplicationRules.js";
 
@@ -56,13 +56,13 @@ const applicationView = (a) => ({
 });
 
 // A cycle has no plate; every other vehicle must have one.
-const vehicleNumberFor = (vehicleType, number) => {
+export const vehicleNumberFor = (vehicleType, number) => {
   if (isCycle(vehicleType)) return null;
   if (!number) throw new AppError("Vehicle number is required", 400);
   return number.trim().toUpperCase();
 };
 
-const assertZone = async (zoneId) => {
+export const assertZone = async (zoneId) => {
   if (zoneId === undefined || zoneId === null) return;
   const zone = await DeliveryZoneRepository.getDeliveryZoneById(zoneId);
   if (!zone || !zone.is_active) throw new AppError("Choose an active delivery zone", 400);
@@ -151,9 +151,35 @@ class PartnerApplicationService {
   }
 
   async getMine(user) {
-    const application = await PartnerApplicationRepository.findLatestWithDetails(user.user_id);
+    let application = await PartnerApplicationRepository.findLatestWithDetails(user.user_id);
     if (!application) throw new AppError("No application yet", 404);
+    if (await this.proveInviteePhone(application, user)) {
+      application = await PartnerApplicationRepository.findLatestWithDetails(user.user_id);
+    }
     return applicationView(application);
+  }
+
+  // P3-6: staff submitted this application before the applicant had signed up, so PHONE_OTP was left undone. The applicant's
+  // token only exists after the phone passed its OTP and carries this phone (the same proof submit uses), so their first look
+  // here ticks it. Returns whether it did.
+  async proveInviteePhone(application, user) {
+    if (FINAL.includes(application.status) || user.phone !== application.phone) return false;
+    if (!application.checks?.some((c) => c.check_key === "PHONE_OTP" && !c.done)) return false;
+
+    const db = await initializeModels();
+    return await db.sequelize.transaction(async (transaction) => {
+      const locked = await PartnerApplicationRepository.findByIdForUpdate(application.id, transaction);
+      const check = await PartnerApplicationCheckRepository.findOne({ application_id: application.id, check_key: "PHONE_OTP" }, { transaction });
+      if (FINAL.includes(locked.status) || !check || check.done) return false;
+
+      await check.update({ done: true, done_by: user.user_id, done_at: new Date() }, { transaction });
+      // A reviewer who loaded the application before this holds a stale expected_version.
+      await locked.increment("version", { transaction });
+      await PartnerApplicationEventRepository.log(
+        { applicationId: application.id, type: "CHECK_DONE", actor: user, payload: { key: "PHONE_OTP", on_behalf: true } }, { transaction }
+      );
+      return true;
+    });
   }
 
   async updateMine(user, data) {
@@ -197,7 +223,12 @@ class PartnerApplicationService {
   async putDocument(user, rawType, file, body) {
     const type = parseType(rawType);
     const application = await openApplication(user);
-    
+    return await this.storeDocument(application, type, file, body, user);
+  }
+
+  // Shared by the applicant and by staff filling in a draft they created (P3). `application` is the row the caller found
+  // and is allowed to touch; `actor` is whoever is acting, and `onBehalf` marks staff in the event.
+  async storeDocument(application, type, file, body, actor, onBehalf = false) {
     assertAcceptsDocument(application, type);
 
     // Only what the caller sent is written, so replacing a file keeps the number typed earlier.
@@ -249,13 +280,13 @@ class PartnerApplicationService {
           await existing.update(values, { transaction });
           // What a reviewer verified is gone, and so is whatever they ticked because of it.
           if (wasVerified) {
-            await untickChecks(application.id, type, `${type} was replaced by the applicant`, user, transaction);
+            await untickChecks(application.id, type, `${type} was replaced by the applicant`, actor, transaction);
           }
         } else {
           await PartnerDocumentRepository.create({ application_id: application.id, type, ...values }, { transaction });
         }
         await PartnerApplicationEventRepository.log(
-          { applicationId: application.id, type: "DOC_UPLOADED", actor: user, payload: { type } },
+          { applicationId: application.id, type: "DOC_UPLOADED", actor, payload: onBehalf ? { type, on_behalf: true } : { type } },
           { transaction }
         );
       });
@@ -292,7 +323,14 @@ class PartnerApplicationService {
 
   async submit(user) {
     const application = await openApplication(user);
+    await this.submitDraft(application, user);
+    return this.getMine(user);
+  }
 
+  // Shared by the applicant and by staff submitting a draft they created (P3). `onBehalf` is set for staff: their token does
+  // not carry the applicant's phone, so PHONE_OTP stays unticked until the applicant signs in, and the event records that
+  // the staff member attested the applicant's consent (P3-1).
+  async submitDraft(application, actor, onBehalf = false) {
     const now = new Date();
     const db = await initializeModels();
     await db.sequelize.transaction(async (transaction) => {
@@ -311,22 +349,25 @@ class PartnerApplicationService {
       if (!moved) throw new AppError("This application was already submitted", 409);
 
       // PHONE_OTP is proven by the token: it only exists after the phone passed its OTP, and it carries this phone.
-      const phoneProven = user.phone === locked.phone;
+      const phoneProven = !onBehalf && actor.phone === locked.phone;
       await PartnerApplicationCheckRepository.createMany(
         applicableChecks(locked.vehicle_type).map((checkKey) => {
           const done = checkKey === "PHONE_OTP" && phoneProven;
-          return { application_id: application.id, check_key: checkKey, done, done_by: done ? user.user_id : null, done_at: done ? now : null };
+          return { application_id: application.id, check_key: checkKey, done, done_by: done ? actor.user_id : null, done_at: done ? now : null };
         }),
         { transaction }
       );
       await PartnerApplicationEventRepository.log(
-        { applicationId: application.id, type: "SUBMITTED", actor: user, visible: true }, { transaction }
+        {
+          applicationId: application.id, type: "SUBMITTED", actor, visible: true,
+          payload: onBehalf ? { on_behalf: true, consent_attested: true } : null,
+        },
+        { transaction }
       );
     });
 
     // After the commit; a failed text is logged inside sms() and does not undo the submit.
     await sms(application.phone, "received", { ref: application.ref_no });
-    return this.getMine(user);
   }
 
   async resubmit(user) {

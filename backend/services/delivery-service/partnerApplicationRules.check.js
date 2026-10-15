@@ -4,7 +4,8 @@ import {
   requiredDocs, allowedDocs, missingDocs, applicableChecks, normalizeNumber, maskNumber, detectMime, reapplyDate,
   canTransition, moveBlocker, reviewBlocker, canMoveDoc, checksToUntick, tickBlocker, todayIST, daysUntil, formatDate,
   licenceExpiryError, approvalGaps, approvalWarnings, normalizePlate, safeName, STATUSES, REASON_CODES,
-  verifyBlocker, reuploadBlocker, QUEUE_STATUSES, LISTED_STATUSES, placementGaps,
+  verifyBlocker, reuploadBlocker, QUEUE_STATUSES, LISTED_STATUSES, placementGaps, WAITING_STATUSES, duplicateWarnings,
+  DUPLICATE_CAP, summarize, ACTIVITY_GROUPS, EVENT_TYPES,
 } from "./src/modules/partnerApplication/partnerApplicationRules.js";
 
 // required documents per vehicle
@@ -44,7 +45,7 @@ assert.equal(reapplyDate("2026-10-01T00:00:00Z").toISOString().slice(0, 10), "20
 // application transitions: every pair, every role. Allowed pairs are listed; everything else must be refused.
 const STAFF = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"], DECIDERS = ["ADMIN", "SUPER_ADMIN"], APPLICANT = ["DELIVERY_PARTNER"];
 const ALLOWED = [
-  ["DRAFT", "NEW", APPLICANT], ["NEW", "UNDER_REVIEW", STAFF], ["NEW", "CHANGES_REQUESTED", STAFF], ["NEW", "REJECTED", DECIDERS],
+  ["DRAFT", "NEW", [...APPLICANT, ...STAFF]], ["NEW", "UNDER_REVIEW", STAFF], ["NEW", "CHANGES_REQUESTED", STAFF], ["NEW", "REJECTED", DECIDERS],
   ["UNDER_REVIEW", "CHANGES_REQUESTED", STAFF], ["UNDER_REVIEW", "APPROVED", DECIDERS], ["UNDER_REVIEW", "REJECTED", DECIDERS],
   ["CHANGES_REQUESTED", "UNDER_REVIEW", APPLICANT], ["CHANGES_REQUESTED", "REJECTED", DECIDERS],
 ];
@@ -172,7 +173,8 @@ assert.deepEqual(REASON_CODES, ["INVALID_DOCUMENTS", "ID_MISMATCH", "LICENCE_INV
 
 // ---- queue statuses, and what stops verify / re-upload on one document (P2-6, P2-7) ----
 assert.deepEqual(QUEUE_STATUSES, ["NEW", "UNDER_REVIEW", "CHANGES_REQUESTED"]);
-assert.ok(!LISTED_STATUSES.includes("DRAFT") && LISTED_STATUSES.includes("APPROVED") && LISTED_STATUSES.includes("REJECTED"));
+assert.ok(LISTED_STATUSES.includes("APPROVED") && LISTED_STATUSES.includes("REJECTED"));
+assert.ok(LISTED_STATUSES.includes("DRAFT") && !QUEUE_STATUSES.includes("DRAFT"), "P3-10: a draft is asked for, never in the default queue");
 {
   const uploaded = new Date("2026-10-12T10:00:00Z");
   const doc = (over = {}) => ({ type: "DL", status: "UPLOADED", number_masked: "••••2345", uploaded_at: uploaded, ...over });
@@ -201,6 +203,67 @@ assert.ok(!LISTED_STATUSES.includes("DRAFT") && LISTED_STATUSES.includes("APPROV
   assert.equal(reuploadBlocker("UNDER_REVIEW", doc({ status: "REJECTED" }), after), "Waiting for a new file");
   assert.equal(reuploadBlocker("UNDER_REVIEW", doc(), null), "Open the file first");
   assert.equal(reuploadBlocker("NEW", doc(), after), "Start the review first");
+}
+
+// ---- Phase 3 ----
+
+// P3-5: waiting is the staff's turn only
+assert.deepEqual(WAITING_STATUSES, ["NEW", "UNDER_REVIEW"]);
+assert.ok(WAITING_STATUSES.every((s) => QUEUE_STATUSES.includes(s)) && !WAITING_STATUSES.includes("CHANGES_REQUESTED"));
+
+// summary: every status present, waiting = NEW + UNDER_REVIEW, oldest of those two only
+{
+  const at = (d) => new Date(`2026-10-${d}T10:00:00Z`);
+  const empty = summarize([]);
+  assert.deepEqual(empty.by_status, { DRAFT: 0, NEW: 0, UNDER_REVIEW: 0, CHANGES_REQUESTED: 0, APPROVED: 0, REJECTED: 0 });
+  assert.equal(empty.waiting, 0);
+  assert.equal(empty.oldest_submitted_at, null, "E1: nothing waiting, no date");
+
+  const rows = [
+    { status: "NEW", count: 4, oldest_submitted_at: at("09") },
+    { status: "UNDER_REVIEW", count: 3, oldest_submitted_at: at("07") },
+    { status: "CHANGES_REQUESTED", count: 1, oldest_submitted_at: at("01") }, // older, but the applicant's turn
+    { status: "DRAFT", count: 2, oldest_submitted_at: null },
+    { status: "APPROVED", count: 18, oldest_submitted_at: at("02") },
+  ];
+  const s = summarize(rows);
+  assert.equal(s.waiting, 7);
+  assert.deepEqual(s.oldest_submitted_at, at("07"), "the oldest of the waiting statuses only");
+  assert.deepEqual(s.by_status, { DRAFT: 2, NEW: 4, UNDER_REVIEW: 3, CHANGES_REQUESTED: 1, APPROVED: 18, REJECTED: 0 });
+  assert.equal(summarize([{ status: "DRAFT", count: 2, oldest_submitted_at: null }]).waiting, 0, "drafts alone: nothing waiting");
+}
+
+// P3-8: duplicate warnings. Rows are other people's documents with the same type and number hash.
+{
+  const row = (over = {}) => ({
+    type: "AADHAAR", uploaded_at: "2026-10-10T10:00:00Z", application_id: "a1", ref_no: 1001, status: "NEW", name: "Asha Rao", ...over,
+  });
+  assert.deepEqual(duplicateWarnings([]), []);
+  assert.deepEqual(
+    duplicateWarnings([row()]),
+    [{ code: "DUPLICATE_DOCUMENT", type: "AADHAAR", other: { application_id: "a1", ref_no: 1001, status: "NEW", name: "Asha Rao" } }],
+    "only the reviewer-facing fields of the other application",
+  );
+  const two = duplicateWarnings([row({ type: "DL", application_id: "d1" }), row({ application_id: "a2" })]);
+  assert.deepEqual(two.map((w) => w.type), ["AADHAAR", "DL"], "grouped by document type, in DOC_TYPES order");
+
+  // F6: more than the cap keeps the newest few, per document type
+  const many = Array.from({ length: 8 }, (_, i) => row({ application_id: `a${i}`, uploaded_at: `2026-10-0${i + 1}T10:00:00Z` }));
+  const capped = duplicateWarnings([...many, row({ type: "PAN", application_id: "p1" })]);
+  const aadhaar = capped.filter((w) => w.type === "AADHAAR");
+  assert.equal(aadhaar.length, DUPLICATE_CAP);
+  assert.deepEqual(aadhaar.map((w) => w.other.application_id), ["a7", "a6", "a5", "a4", "a3"], "newest first");
+  assert.equal(capped.filter((w) => w.type === "PAN").length, 1, "the cap is per type, not overall");
+  const input = [row({ application_id: "x", uploaded_at: "2026-10-01T00:00:00Z" }), row({ application_id: "y", uploaded_at: "2026-10-02T00:00:00Z" })];
+  duplicateWarnings(input);
+  assert.deepEqual(input.map((r) => r.application_id), ["x", "y"], "the caller's array is not reordered");
+}
+
+// Activity log groups: every event type sits in exactly one, so a new type cannot go missing from the filters.
+{
+  const grouped = Object.values(ACTIVITY_GROUPS).flat();
+  assert.deepEqual([...grouped].sort(), [...EVENT_TYPES].sort());
+  assert.equal(new Set(grouped).size, grouped.length, "no event type in two groups");
 }
 
 console.log("partnerApplicationRules.check.js: ok");

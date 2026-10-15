@@ -1,7 +1,7 @@
 import joi from "joi";
 import ResponseUtil from "../utils/response.js";
 import {
-    DOC_TYPES, FIELD_ITEMS, LISTED_STATUSES, MAX_ORDERS, REASON_CODES, VEHICLE_TYPES,
+    ACTIVITY_GROUPS, ACTIVITY_HOURS, DOC_TYPES, FIELD_ITEMS, LISTED_STATUSES, MAX_ORDERS, REASON_CODES, VEHICLE_TYPES,
 } from "../modules/partnerApplication/partnerApplicationRules.js";
 
 // A real calendar day as "YYYY-MM-DD". joi.date().iso() also lets 2026-02-31 and full timestamps through, and a DATEONLY
@@ -100,6 +100,23 @@ const schema={
         delivery_slot_id:joi.string().uuid().required(),
         assignment_source:joi.string().optional()
     }),
+    // Partner app ("me" routes). Query of the assignment list: ACTIVE is open work, HISTORY is anything finished.
+    partnerAssignmentsQuerySchema:joi.object({
+        status:joi.string().valid("ACTIVE","HISTORY","COMPLETED","FAILED","TRANSFERRED","CANCELLED").default("ACTIVE"),
+        date:joi.string().valid("today").optional(),
+        page:joi.number().integer().min(1).default(1),
+        limit:joi.number().integer().min(1).max(50).default(20)
+    }),
+    // The only moves a partner makes themselves; a failed drop needs its reason, nothing else takes one.
+    partnerAssignmentStatusSchema:joi.object({
+        status:joi.string().valid("PICKED_UP","OUT_FOR_DELIVERY","DELIVERED","DELIVERY_FAILED").required(),
+        reason:joi.string().trim().min(3).max(255)
+            .when("status", { is:"DELIVERY_FAILED", then:joi.required(), otherwise:joi.forbidden() })
+    }),
+    // An explicit state, never a flip, so a retry or a double tap lands in the same place. strict: a real boolean, not "true".
+    partnerOnlineSchema:joi.object({
+        online:joi.boolean().strict().required()
+    }),
     // Partner onboarding. phone, user_id, status, source never come from the body, so unknown keys are refused.
     createPartnerApplicationSchema:joi.object({
         name:joi.string().trim().min(2).max(150).required(),
@@ -107,6 +124,15 @@ const schema={
         preferred_zone_id:joi.number().integer().positive().optional(),
         vehicle_type:joi.string().valid(...VEHICLE_TYPES).required(),
         // Required unless the vehicle is a cycle; the service enforces that with the merged state.
+        vehicle_number:joi.string().trim().min(4).max(20).allow(null,"").optional()
+    }),
+    // Staff add someone: the phone comes in the body (nobody has verified it yet). The name limit matches auth-service's.
+    createOnBehalfSchema:joi.object({
+        phone:joi.string().pattern(/^[6-9]\d{9}$/).required().messages({ "string.pattern.base": "Enter a 10-digit mobile number" }),
+        name:joi.string().trim().min(2).max(50).required(),
+        email:joi.string().trim().email().max(150).allow(null,"").optional(),
+        preferred_zone_id:joi.number().integer().positive().optional(),
+        vehicle_type:joi.string().valid(...VEHICLE_TYPES).required(),
         vehicle_number:joi.string().trim().min(4).max(20).allow(null,"").optional()
     }),
     updatePartnerApplicationSchema:joi.object({
@@ -124,12 +150,24 @@ const schema={
     submitPartnerApplicationSchema:joi.object({
         consent:joi.valid(true).required()
     }),
+    // Staff submitting a draft they created say the applicant agreed (P3-1); it is kept on the SUBMITTED event.
+    submitOnBehalfSchema:joi.object({
+        consent_attested:joi.valid(true).required()
+    }),
     // Review path (staff). Unknown keys are refused, as above.
     // Query string of the staff queue (validate(name, "query")). No status means the three open ones.
     partnerQueueQuerySchema:joi.object({
         status:joi.string().valid(...LISTED_STATUSES).optional(),
         zone_id:joi.number().integer().positive().optional(),
         source:joi.string().valid("SELF","ADMIN").optional(),
+        search:joi.string().trim().max(100).allow("").optional(),
+        page:joi.number().integer().min(1).default(1),
+        limit:joi.number().integer().min(1).max(100).default(20)
+    }),
+    // Query string of the Activity log's Onboarding tab (admins only).
+    partnerActivityQuerySchema:joi.object({
+        group:joi.string().valid(...Object.keys(ACTIVITY_GROUPS)).optional(),
+        hours:joi.number().valid(...ACTIVITY_HOURS).default(24),
         search:joi.string().trim().max(100).allow("").optional(),
         page:joi.number().integer().min(1).default(1),
         limit:joi.number().integer().min(1).max(100).default(20)

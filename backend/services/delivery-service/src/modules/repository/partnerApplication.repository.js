@@ -1,4 +1,4 @@
-import { Op } from "sequelize";
+import { col, fn, Op } from "sequelize";
 import BaseRepository from "./baseRepository.js";
 import { FINAL } from "../partnerApplication/partnerApplicationRules.js";
 
@@ -63,6 +63,17 @@ class PartnerApplicationRepository extends BaseRepository {
       ],
       ...options,
     });
+  }
+
+  // One row per status that has applications: how many, and the oldest first submission among them (null for drafts).
+  async countByStatus() {
+    const Model = await this.getModel();
+    const rows = await Model.findAll({
+      attributes: ["status", [fn("COUNT", col("id")), "count"], [fn("MIN", col("submitted_at")), "oldest_submitted_at"]],
+      group: ["status"],
+      raw: true,
+    });
+    return rows.map((row) => ({ status: row.status, count: Number(row.count), oldest_submitted_at: row.oldest_submitted_at }));
   }
 
   // Re-reads the row with SELECT ... FOR UPDATE inside `transaction`. A second transaction that locks or updates this

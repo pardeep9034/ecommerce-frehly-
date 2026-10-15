@@ -66,6 +66,28 @@ class DeliveryAssignmentRepository extends BaseRepository {
     return Object.fromEntries(rows.map((row) => [row.delivery_partner_id, Number(row.count)]));
   }
 
+  // One partner's assignments, newest first (the partner app's lists). `statuses` are assignment status values and `since`
+  // keeps rows changed on or after it, which for a finished assignment is when it finished (see countCompletedSince).
+  async findForPartner(partnerId, { statuses, since, limit, offset }) {
+    const where = { delivery_partner_id: partnerId, status: statuses };
+    if (since) where.updated_at = { [Op.gte]: since };
+    // Open work newest-assigned first; finished work most-recently-finished first (the History screen groups by that day).
+    const sortBy = statuses.includes("ACTIVE") ? "created_at" : "updated_at";
+    return await this.findAndCountAll(where, { limit, offset, order: [[sortBy, "DESC"], ["id", "DESC"]] });
+  }
+
+  // { COMPLETED: n, FAILED: n, ... } for one partner's assignments that changed on or after `since`.
+  async countByStatusSince(partnerId, since) {
+    const Model = await this.getModel();
+    const rows = await Model.findAll({
+      attributes: ["status", [Sequelize.fn("COUNT", Sequelize.col("id")), "count"]],
+      where: { delivery_partner_id: partnerId, updated_at: { [Op.gte]: since } },
+      group: ["status"],
+      raw: true
+    });
+    return Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+  }
+
   async updateDeliveryAssignment(id, data, options = {}) {
     return await this.updateById(id, data, options);
   }

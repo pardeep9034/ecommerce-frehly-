@@ -1,10 +1,12 @@
 import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.js";
 import DeliveryPartnerZoneRepository from "../repository/deliveryPartnerZone.repository.js";
+import PartnerApplicationRepository from "../repository/partnerApplication.repository.js";
 import DeliveryAssignmentRepository from "../repository/deliveryAssignment.repository.js";
 import { Op, Sequelize } from "sequelize";
 import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
 import { calculateDistance, maskPhone } from "../../utils/helper.js";
+import { literal } from "sequelize";
 
 const PARTNER_STATUSES = ["ACTIVE", "SUSPENDED", "INACTIVE"];
 
@@ -44,6 +46,7 @@ class DeliveryPartnerService {
   async getAllDeliveryPartnersByZoneId(zone_id) {
     return await DeliveryPartnerRepository.findAll({
       status: "ACTIVE",
+      is_online: true,
       zone_id,
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders")
@@ -138,6 +141,54 @@ class DeliveryPartnerService {
       }
     };
   }
+
+  // How this partner came on, for the staff partner page (P3). A partner an admin created directly has no application and
+  // gets empty lists. Documents are masked only; the files and the hash columns never leave the review path.
+  async getOnboarding(id) {
+    const partner = await DeliveryPartnerRepository.findWithZone(id);
+    if (!partner) throw new AppError("Delivery partner not found", 404);
+
+    const view = {
+      partner: {
+        id: partner.id,
+        name: partner.name,
+        phone: maskPhone(partner.phone),
+        vehicle_type: partner.vehicle_type,
+        vehicle_number: partner.vehicle_number,
+        zone: partner.zone ? { id: Number(partner.zone.id), name: partner.zone.name } : null,
+        status: partner.status,
+        max_active_orders: partner.max_active_orders,
+        joined_at: partner.joined_at,
+      },
+      application: null,
+      documents: [],
+      events: [],
+    };
+    const application = partner.application_id ? await PartnerApplicationRepository.findDetail(partner.application_id) : null;
+    if (!application) return view;
+
+    const byTime = (x, y) => new Date(x.created_at) - new Date(y.created_at);
+    return {
+      ...view,
+      application: {
+        id: application.id,
+        ref: `FR-P-${application.ref_no}`,
+        source: application.source,
+        status: application.status,
+        created_by: application.created_by === null ? null : Number(application.created_by),
+        submitted_at: application.submitted_at,
+        decided_at: application.decided_at,
+      },
+      documents: application.documents.map((d) => ({
+        type: d.type, status: d.status, number_masked: d.number_masked, expiry_date: d.expiry_date, uploaded_at: d.uploaded_at, verified_at: d.verified_at,
+      })),
+      // Opening a file is for the audit trail; it would only bury the story here (as on the review screen).
+      events: [...application.events].filter((e) => e.type !== "DOC_VIEWED").sort(byTime).map((e) => ({
+        type: e.type, actor_id: e.actor_id === null ? null : Number(e.actor_id), actor_role: e.actor_role, payload: e.payload, created_at: e.created_at,
+      })),
+    };
+  }
+
 
   async getDeliveryPartnerById(id) {
     const partner = await DeliveryPartnerRepository.getDeliveryPartnerById(id);

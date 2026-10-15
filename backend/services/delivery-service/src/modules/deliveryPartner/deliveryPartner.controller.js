@@ -45,6 +45,17 @@ class DeliveryPartnerController {
     }
   }
 
+
+  async getOnboarding(req, res, next) {
+    try {
+      const result = await DeliveryPartnerService.getOnboarding(req.params.id);
+
+      return ResponseUtil.success(res, result, "Onboarding record fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getDeliveryPartnerById(req, res, next) {
     try {
       const result = await DeliveryPartnerService.getDeliveryPartnerById(req.params.id);

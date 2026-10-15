@@ -26,8 +26,15 @@ const envSchema = Joi.object({
     .uri()
     .default("http://localhost:3001"),
 
-  AUTH_CREATE_USER_PATH: Joi.string()
-    .default("/auth/register"),
+  // Shared with auth-service: the key delivery-service sends in x-internal-key when it calls /internal/*.
+  INTERNAL_API_KEY: Joi.string()
+    .min(32)
+    .required(),
+
+  // Where an invited partner opens the app (the link in the invite text). Docker and production must set it.
+  PARTNER_APP_URL: Joi.string()
+    .uri()
+    .when("NODE_ENV", { is: "production", then: Joi.required(), otherwise: Joi.any().default("http://localhost:5173") }),
 
   ORDER_SERVICE_URL: Joi.string()
     .uri()

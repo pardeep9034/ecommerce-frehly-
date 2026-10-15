@@ -18,6 +18,12 @@ class DeliveryPartnerRepository extends BaseRepository {
     return await this.findOne({ user_id: userId }, options);
   }
 
+  // The partner app's own row, with name and phone (hidden by the default scope). Only requireActivePartner calls this.
+  async findByUserIdWithContact(userId) {
+    const Model = (await this.getModel()).unscoped();
+    return await Model.findOne({ where: { user_id: userId } });
+  }
+
   async getDeliveryPartnerByVehicleNumber(vehicleNumber, options = {}) {
     return await this.findOne({ vehicle_number: vehicleNumber }, options);
   }
@@ -66,6 +72,12 @@ class DeliveryPartnerRepository extends BaseRepository {
       limit,
       offset
     });
+  }
+
+  // The staff partner page: name and phone are hidden by the default scope, so this reads unscoped (staff routes only).
+  async findWithZone(id) {
+    const Model = (await this.getModel()).unscoped();
+    return await Model.findByPk(id, { include: [{ association: "zone", attributes: ["id", "name"] }] });
   }
 
   async updateDeliveryPartner(id, data, options = {}) {

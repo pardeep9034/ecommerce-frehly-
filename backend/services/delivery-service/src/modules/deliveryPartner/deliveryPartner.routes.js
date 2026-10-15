@@ -2,7 +2,7 @@ import express from "express";
 import DeliveryPartnerController from "./deliveryPartner.controller.js";
 import { authenticateToken, requireRole } from "../../middleware/auth.js";
 import { STAFF_ROLES,ROLES } from "../../constants/roles.js";
-import validate from "../../middleware/validate.js";
+import validate, { uuidParam } from "../../middleware/validate.js";
 
 const router = express.Router();
 const staffOnly = requireRole(STAFF_ROLES);
@@ -12,6 +12,7 @@ router.get("/zone", DeliveryPartnerController.getAllDeliveryPartnersByZoneId);
 router.get("/", DeliveryPartnerController.getAvalableDeliveryPartners);
 // Dashboard staff only. Must stay above /:id.
 router.get("/list", authenticateToken, staffOnly, DeliveryPartnerController.listPartners);
+router.get("/:id/onboarding", authenticateToken, staffOnly, uuidParam(), DeliveryPartnerController.getOnboarding);
 router.get("/:id", DeliveryPartnerController.getDeliveryPartnerById);
 router.patch("/:id", authenticateToken, staffOnly, validate("updateDeliveryPartnerSchema"), DeliveryPartnerController.updateDeliveryPartner);
 router.patch("/:id/location", authenticateToken, staffOnly, validate("updateDeliveryPartnerLocationSchema"), DeliveryPartnerController.updateLocation);
