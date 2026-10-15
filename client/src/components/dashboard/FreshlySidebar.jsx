@@ -73,7 +73,7 @@ const navigationSections = [
       { title: "Warehouses", path: "/dashboard/warehouses", icon: Building2 },
       { title: "Delivery zones", path: "/dashboard/delivery-zones", icon: Map },
       { title: "Delivery partners", path: PARTNERS_PATH, icon: Bike },
-      { title: "Staff & admins", icon: UserCog, disabled: true },
+      { title: "Staff & admins", path: "/dashboard/staff", icon: UserCog },
     ],
   },
   {

@@ -9,5 +9,6 @@ export const notify = {
   // For buttons whose backend doesn't exist yet (see BACKEND_REQUIREMENTS.md).
   notWired: (what) => toast(`${what} isn't wired up yet`),
   apiError: (error, fallback = "Something went wrong") =>
-    toast.error(error?.response?.data?.message || fallback),
+    // inventory-service's Joi middleware answers { error: "..." } instead of { message }.
+    toast.error(error?.response?.data?.message || error?.response?.data?.error || fallback),
 };

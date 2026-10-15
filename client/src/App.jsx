@@ -6,6 +6,7 @@ import { loginSuccess, logout } from "./redux/authSlice";
 import { useDispatch } from "react-redux";
 import { getToken, getTokenRole } from "@/lib/tokenStorage";
 import usePartnerApplication from "@/hooks/use-partnerApplication";
+import { STORE_ROLES } from "./lib/storeRole";
 
 // Route-level code splitting: storefront and admin dashboard are separate bundles, so shoppers never download
 // admin code (and vice versa). Only the router shell and PublicLayout load up front.
@@ -39,6 +40,10 @@ const ProductTypePage = lazy(() => import("./pages/dashboard/ProductTypePage"));
 const ProductAttributePage = lazy(() => import("./pages/dashboard/ProductAttributePage"));
 const VariantPage = lazy(() => import("./pages/dashboard/VariantPage"));
 const WarehousePage = lazy(() => import("./pages/dashboard/WarehousePage"));
+const WarehouseDetailPage = lazy(() => import("./pages/dashboard/WarehouseDetailPage"));
+const WarehouseNewPage = lazy(() => import("./pages/dashboard/WarehouseNewPage"));
+const StaffPage = lazy(() => import("./pages/dashboard/StaffPage"));
+const StaffNewPage = lazy(() => import("./pages/dashboard/StaffNewPage"));
 const StockMovementPage = lazy(() => import("./pages/dashboard/StockMovementPage"));
 const StockReservationPage = lazy(() => import("./pages/dashboard/StockReservationPage"));
 const Zones = lazy(() => import("./pages/dashboard/Zones"));
@@ -51,6 +56,14 @@ const DeliveryPartnerDetail = lazy(() => import("./pages/dashboard/DeliveryPartn
 const AddDeliveryPartner = lazy(() => import("./pages/dashboard/AddDeliveryPartner"));
 const PartnerApplicationReview = lazy(() => import("./pages/dashboard/PartnerApplicationReview"));
 const ActivityLog = lazy(() => import("./pages/dashboard/ActivityLog"));
+// Store operations console, at /store/*. Guarded by hasStoreAccess.
+const StoreLayout = lazy(() => import("./components/store/StoreLayout"));
+const StoreLogin = lazy(() => import("./pages/store/StoreLogin"));
+const StoreBoard = lazy(() => import("./pages/store/StoreBoard"));
+const StoreOrderDetail = lazy(() => import("./pages/store/StoreOrderDetail"));
+const StoreHandover = lazy(() => import("./pages/store/StoreHandover"));
+const StoreStock = lazy(() => import("./pages/store/StoreStock"));
+const StoreSettings = lazy(() => import("./pages/store/StoreSettings"));
 // Delivery-partner app: phone screens only, at /partner/*. Guarded by RequirePartner; Home and the delivery screens still run on demo data.
 const PartnerLogin = lazy(() => import("./pages/partner/Login"));
 const PartnerForgotPassword = lazy(() => import("./pages/partner/ForgotPassword"));
@@ -73,6 +86,7 @@ const PageLoader = () => (
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
 
 const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(getToken()));
+const hasStoreAccess = () => STORE_ROLES.includes(getTokenRole(getToken()));
 
 // Partner screens need a DELIVERY_PARTNER token. The 10-minute sign-up token counts, so an applicant can reach
 // Documents and Status; /partner/login, /partner/forgot-password and /partner/apply stay public. useLocation re-runs the check on every
@@ -113,6 +127,7 @@ function App() {
       <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/store/login" element={<StoreLogin />} />
 
         {/* PUBLIC ROUTES */}
         <Route element={<PublicLayout />}>
@@ -143,6 +158,10 @@ function App() {
           <Route path="categories" element={<Categories />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="warehouses" element={<WarehousePage />} />
+          <Route path="warehouses/new" element={<WarehouseNewPage />} />
+          <Route path="warehouses/:warehouseId" element={<WarehouseDetailPage />} />
+          <Route path="staff" element={<StaffPage />} />
+          <Route path="staff/new" element={<StaffNewPage />} />
           <Route path="stock-movement" element={<StockMovementPage />} />
           <Route path="stock-reservation" element={<StockReservationPage />} />
           <Route path="delivery-zones" element={<Zones />} />
@@ -165,6 +184,18 @@ function App() {
           <Route path="product-attribute"element={<ProductAttributePage/>}/>
           <Route path="variants"element={<VariantPage/>}/>
 
+        </Route>
+
+        {/* STORE OPERATIONS ROUTES */}
+        <Route
+          path="/store"
+          element={hasStoreAccess() ? <StoreLayout /> : <Navigate to="/store/login" replace />}
+        >
+          <Route index element={<StoreBoard />} />
+          <Route path="orders/:orderId" element={<StoreOrderDetail />} />
+          <Route path="handover" element={<StoreHandover />} />
+          <Route path="stock" element={<StoreStock />} />
+          <Route path="settings" element={<StoreSettings />} />
         </Route>
 
         {/* DELIVERY PARTNER APP */}

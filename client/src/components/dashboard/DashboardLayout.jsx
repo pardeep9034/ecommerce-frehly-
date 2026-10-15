@@ -12,6 +12,10 @@ const pageTitles = {
   "/dashboard/products/brands":"Brands",
   "/dashboard/categories": "Categories",
   "/dashboard/inventory": "Inventory",
+  "/dashboard/warehouses": "Warehouses",
+  "/dashboard/warehouses/new": "Add warehouse",
+  "/dashboard/staff": "Staff & admins",
+  "/dashboard/staff/new": "Add user",
   "/dashboard/orders": "Orders",
   "/dashboard/customers": "Customers",
   "/dashboard/delivery-partners": "Delivery partners",
@@ -30,7 +34,11 @@ const DashboardLayout = () => {
   // profile directly instead (same call Settings.jsx already makes).
   const { data: profile } = useQuery({ queryKey: ["auth-profile"], queryFn: getProfile });
   const user = profile || reduxUser;
-  const title = pageTitles[location.pathname] || "Freshly";
+  // Detail pages (/dashboard/warehouses/12) take their section title.
+  const titlePath = Object.keys(pageTitles)
+    .filter((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  const title = pageTitles[titlePath] || "Freshly";
 
   useEffect(() => {
     setMobileOpen(false);
