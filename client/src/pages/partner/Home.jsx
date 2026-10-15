@@ -1,10 +1,10 @@
 import { Bell, ChevronRight, MapPin } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
-import { Avatar, Card, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
+import { Avatar, Card, StatusPill } from "@/components/partner/PartnerBits";
+import { usePartnerAssignments, usePartnerMe, useSetOnline } from "@/hooks/use-partner";
+import { STEP_LABEL, initialsOf, timeOf } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
-import { INCOMING_HANDOVER, ME, ORDERS } from "@/lib/partnerDemoData";
 
 const Stat = ({ label, value, suffix }) => (
   <div className="flex-1 rounded-xl border border-border bg-white p-3 text-center shadow-card">
@@ -24,19 +24,24 @@ const Row = ({ label, value }) => (
 );
 
 const Home = () => {
-  const [online, setOnline] = useState(true);
-  // Handover orders live under the incoming-handover card, not the "Your orders" list.
-  const orders = ORDERS.filter((o) => o.status !== "Handover");
+  const { partner } = usePartnerMe();
+  const { assignments, isLoading, error } = usePartnerAssignments("ACTIVE");
+  const { total: deliveredToday } = usePartnerAssignments("COMPLETED", { date: "today", limit: 1 });
+  const setOnline = useSetOnline();
+  const online = partner?.is_online ?? false;
+  const zone = partner?.zones.find((z) => z.is_primary) ?? partner?.zones[0];
 
   const header = (
     <header className="space-y-3 bg-primary px-4 pb-5 pt-4 text-white">
       <div className="flex items-center gap-3">
-        <Avatar initials={ME.initials} className="h-10 w-10 bg-white/20 text-sm text-white" />
+        <Avatar initials={initialsOf(partner?.name)} className="h-10 w-10 bg-white/20 text-sm text-white" />
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-lg font-semibold leading-tight">Hi, {ME.name.split(" ")[0]}</h1>
-          <p className="flex items-center gap-1 text-xs text-white/80">
-            <MapPin className="h-3 w-3" /> {ME.zone} zone
-          </p>
+          <h1 className="font-display text-lg font-semibold leading-tight">Hi, {partner?.name.split(" ")[0]}</h1>
+          {zone && (
+            <p className="flex items-center gap-1 text-xs text-white/80">
+              <MapPin className="h-3 w-3" /> {zone.name}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -47,17 +52,19 @@ const Home = () => {
           <Bell className="h-4 w-4" />
         </button>
       </div>
+      {/* Offline partners are not offered to staff and are refused by assignment, hand-over and re-assign; orders already held stay. */}
       <button
         type="button"
-        onClick={() => setOnline((v) => !v)}
+        disabled={!partner || setOnline.isPending}
+        onClick={() => setOnline.mutate(!online, { onError: (e) => notify.apiError(e) })}
         aria-pressed={online}
-        className="flex w-full items-center gap-3 rounded-xl bg-white/15 p-3 text-left"
+        className="flex w-full items-center gap-3 rounded-xl bg-white/15 p-3 text-left disabled:opacity-70"
       >
         <span className={`h-3 w-3 rounded-full ${online ? "bg-accent" : "bg-white/40"}`} />
         <span className="flex-1">
           <span className="block text-sm font-semibold">{online ? "You're online" : "You're offline"}</span>
           <span className="block text-xs text-white/80">
-            {online ? "Receiving new orders in your zone" : "Tap to start receiving orders"}
+            {online ? "The store can assign you new orders" : "Go online to get new orders"}
           </span>
         </span>
         <span className={`relative h-6 w-11 rounded-full ${online ? "bg-accent" : "bg-white/30"}`}>
@@ -70,48 +77,41 @@ const Home = () => {
   return (
     <MobileShell header={header} nav>
       <div className="flex gap-2.5">
-        <Stat label="Active" value={ME.active} suffix={`/ ${ME.maxActive}`} />
-        <Stat label="Delivered today" value={ME.deliveredToday} />
-        <Stat label="Current slot" value={ME.slot} />
+        <Stat label="Active" value={partner?.current_active_orders ?? "–"} suffix={partner && `/ ${partner.max_active_orders}`} />
+        <Stat label="Delivered today" value={deliveredToday} />
+        <Stat label="Last 7 days" value={partner?.stats.delivered_7d ?? "–"} />
       </div>
-
-      <Link to="/partner/handover" className="flex items-center gap-3 rounded-xl border border-violet/30 bg-violet/10 p-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-violet">Handover request</p>
-          <p className="text-xs text-foreground">
-            {INCOMING_HANDOVER.fromShort} wants to pass you order #{INCOMING_HANDOVER.order}
-          </p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-violet" />
-      </Link>
 
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-base font-semibold text-foreground">Your orders</h2>
-        <span className="text-xs text-muted-foreground">{orders.length} active</span>
+        <span className="text-xs text-muted-foreground">{assignments.length} active</span>
       </div>
 
-      {orders.map((o) => (
-        <Card key={o.id} className="space-y-3">
+      {isLoading && <p className="text-sm text-muted-foreground">Loading your orders…</p>}
+      {error && <p className="text-sm text-destructive">Couldn’t load your orders. Reload the page to try again.</p>}
+      {!isLoading && !error && assignments.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No orders right now. New ones show up here as soon as the store assigns them.
+        </p>
+      )}
+
+      {assignments.map((a) => (
+        <Card key={a.id} className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="font-display font-semibold text-foreground">Order #{o.id}</p>
-            <StatusPill status={o.status} />
+            <p className="font-display font-semibold text-foreground">Order #{a.order_id}</p>
+            <StatusPill status={STEP_LABEL[a.status]} />
           </div>
-          <Row label="Pickup" value={o.store.name} />
-          <Row label="Drop" value={`${o.short}, Mohali`} />
-          <div className="flex gap-3 text-xs text-muted-foreground">
-            <span>{o.count} items</span>
-            <span>{o.distance}</span>
-            <span className="ml-auto font-semibold text-foreground">Due {o.due}</span>
-          </div>
+          <Row label="Pickup" value={a.pickup_name} />
+          <Row label="Drop" value={`${a.customer_name}, ${a.delivery_address}`} />
+          <p className="text-xs text-muted-foreground">Assigned {timeOf(a.assigned_at)}</p>
           <Link
-            to={o.step === 0 ? `/partner/orders/${o.id}/pickup` : `/partner/orders/${o.id}/deliver`}
+            to={a.status === "ASSIGNED" ? `/partner/orders/${a.id}/pickup` : `/partner/orders/${a.id}/deliver`}
             className="flex h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-bold text-white"
           >
-            {o.step === 0 ? "Start pickup" : "Continue delivery"} <ChevronRight className="h-4 w-4" />
+            {a.status === "ASSIGNED" ? "Start pickup" : "Continue delivery"} <ChevronRight className="h-4 w-4" />
           </Link>
         </Card>
       ))}
-      <DemoNote />
     </MobileShell>
   );
 };

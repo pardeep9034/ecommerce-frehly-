@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/dashboard/OrderTable";
 import { toast } from "@/components/ui/sonner";
 import { useAdminOrders, useOrderStats, useOrderStatusCounts } from "@/hooks/use-order";
 import useWarehouse from "@/hooks/use-warehouse";
+import { usePartnerSummary } from "@/hooks/use-partnerReview";
 import { NEEDS_ATTENTION_DEMO } from "@/lib/overviewDemoData";
 import { getWarehouseStatus } from "@/lib/warehouseStatus";
 
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const { stats } = useOrderStats(warehouseId, Number(chartRange));
   const { orders: latestOrders, isLoading: ordersLoading } = useAdminOrders({ statuses: null, page: 1, limit: 5, warehouseId });
   const { warehouses, isLoading: warehousesLoading } = useWarehouse(1, 5);
+  const { summary } = usePartnerSummary();
 
   const statusPills = [
     {
@@ -173,7 +175,7 @@ const Dashboard = () => {
             <Link to="/dashboard/delivery-partners" className="flex items-center gap-2.5 rounded-lg bg-violet/10 px-3 py-2.5 text-violet">
               <Users className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-sm text-foreground">Partner applications to review</span>
-              <strong className="text-sm">{NEEDS_ATTENTION_DEMO.partnerApplications}</strong>
+              <strong className="text-sm">{summary ? summary.waiting : "…"}</strong>
             </Link>
             <Link to="/dashboard/inventory" className="flex items-center gap-2.5 rounded-lg bg-amber/10 px-3 py-2.5 text-amber">
               <Package className="h-4 w-4 shrink-0" />

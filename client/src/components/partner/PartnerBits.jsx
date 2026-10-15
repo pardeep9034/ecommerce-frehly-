@@ -19,6 +19,29 @@ export const Avatar = ({ initials, className = "h-9 w-9 text-xs" }) => (
   </span>
 );
 
+// Round icon that opens a link: tel: to call, or a maps URL in a new tab.
+export const RoundLink = ({ href, label, icon }) => {
+  const Icon = icon;
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      target={href.startsWith("http") ? "_blank" : undefined}
+      rel="noreferrer"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+    >
+      <Icon className="h-4 w-4" />
+    </a>
+  );
+};
+
+// Shown until a screen's data has loaded (or when it can't: someone else's assignment and a missing one both answer 404).
+export const LoadNote = ({ error, what = "this order" }) => (
+  <p className={`text-sm ${error ? "text-destructive" : "text-muted-foreground"}`}>
+    {error ? `Couldn’t load ${what}. Go back and try again.` : "Loading…"}
+  </p>
+);
+
 export const DemoNote = ({ children = "Partner screens run on demo data — the backend doesn't serve them yet." }) => (
   <p className="text-[11px] text-muted-foreground">{children}</p>
 );

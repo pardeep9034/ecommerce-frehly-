@@ -1,74 +1,77 @@
 import { ArrowLeftRight, Check, MapPin, Navigation, Phone, XCircle } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
-import { Card, DemoNote, Stepper, StatusPill } from "@/components/partner/PartnerBits";
+import { Avatar, Card, LoadNote, RoundLink, Stepper, StatusPill } from "@/components/partner/PartnerBits";
+import { usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
+import { NEXT_LABEL, NEXT_STATUS, STEP_INDEX, STEP_LABEL, initialsOf, mapsUrl, timeOf } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
-import { findOrder } from "@/lib/partnerDemoData";
 
 const Deliver = () => {
-  const order = findOrder(useParams().orderId);
-  const initials = order.customer.split(" ").map((w) => w[0]).join("");
+  const { assignmentId } = useParams();
+  const { assignment: a, error } = usePartnerAssignment(assignmentId);
+  const update = useUpdateAssignmentStatus();
+
+  if (!a) {
+    return (
+      <MobileShell back="/partner/home" title="Delivery">
+        <LoadNote error={error} />
+      </MobileShell>
+    );
+  }
+  // A stale link (back button, old tab): send the partner to where this job is now.
+  if (a.assignment_status !== "ACTIVE") return <Navigate to="/partner/home" replace />;
+  if (a.status === "ASSIGNED") return <Navigate to={`/partner/orders/${a.id}/pickup`} replace />;
+
+  // PICKED_UP -> OUT_FOR_DELIVERY is one tap here; OUT_FOR_DELIVERY -> DELIVERED goes through the code screen.
+  const startDelivery = () =>
+    update.mutate({ assignmentId: a.id, status: NEXT_STATUS[a.status] }, { onError: (e) => notify.apiError(e) });
 
   return (
     <MobileShell
       back="/partner/home"
-      title={`Order #${order.id}`}
-      subtitle={`Deliver by ${order.due} · Slot ${order.slot}`}
-      right={<StatusPill status="Out for delivery" />}
+      title={`Order #${a.order_id}`}
+      subtitle={`Assigned ${timeOf(a.assigned_at)}`}
+      right={<StatusPill status={STEP_LABEL[a.status]} />}
     >
-      <div className="flex items-center gap-3 rounded-xl bg-primary p-4 text-white">
-        <div className="flex-1">
-          <p className="font-display text-2xl font-bold">{order.eta}</p>
-          <p className="text-xs text-white/80">{order.distance} · via Airport Road</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => notify.notWired("Turn-by-turn navigation")}
-          className="flex h-10 items-center gap-2 rounded-lg bg-white/15 px-3 text-sm font-semibold"
-        >
-          <Navigation className="h-4 w-4" /> Navigate
-        </button>
-      </div>
-      <Stepper step={2} />
+      <Stepper step={STEP_INDEX[a.status]} />
 
       <Card className="space-y-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/20 text-sm font-bold text-accent-foreground">{initials}</span>
+          <Avatar initials={initialsOf(a.customer_name)} className="h-10 w-10 text-sm" />
           <div className="min-w-0 flex-1">
-            <p className="font-display font-semibold text-foreground">{order.customer}</p>
-            <p className="text-xs text-muted-foreground">{order.phone}</p>
+            <p className="font-display font-semibold text-foreground">{a.customer_name}</p>
+            {a.customer_phone && <p className="text-xs text-muted-foreground">{a.customer_phone}</p>}
           </div>
-          <button
-            type="button"
-            aria-label="Call customer"
-            onClick={() => notify.notWired("Calling the customer")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"
-          >
-            <Phone className="h-4 w-4" />
-          </button>
+          {a.customer_phone && <RoundLink href={`tel:${a.customer_phone}`} label="Call customer" icon={Phone} />}
         </div>
-        <p className="flex items-start gap-2 text-sm text-foreground">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          {order.address}
-        </p>
+        <div className="flex items-start gap-3">
+          <p className="flex min-w-0 flex-1 items-start gap-2 text-sm text-foreground">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            {a.delivery_address}
+          </p>
+          <RoundLink href={mapsUrl(a.delivery_latitude, a.delivery_longitude, a.delivery_address)} label="Navigate to customer" icon={Navigation} />
+        </div>
       </Card>
 
-      <Card className="space-y-1">
-        <div className="flex items-baseline justify-between text-sm">
-          <span className="text-muted-foreground">{order.count} items · Order total</span>
-          <span className="font-display text-lg font-bold text-foreground">₹{order.total}</span>
-        </div>
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-success">
-          <Check className="h-3.5 w-3.5" /> Paid online · no cash to collect
-        </p>
-      </Card>
+      {a.order_items && <Card className="text-sm text-foreground">{a.order_items.length} items in this order</Card>}
 
       <div className="space-y-2.5">
-        <Link to={`/partner/orders/${order.id}/confirm`} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white">
-          <Check className="h-4 w-4" /> Mark as delivered
-        </Link>
+        {a.status === "OUT_FOR_DELIVERY" ? (
+          <Link to={`/partner/orders/${a.id}/confirm`} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white">
+            <Check className="h-4 w-4" /> {NEXT_LABEL[a.status]}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled={update.isPending}
+            onClick={startDelivery}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60"
+          >
+            <Navigation className="h-4 w-4" /> {NEXT_LABEL[a.status]}
+          </button>
+        )}
         <div className="grid grid-cols-2 gap-2.5">
-          <Link to={`/partner/orders/${order.id}/failed`} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">
+          <Link to={`/partner/orders/${a.id}/failed`} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">
             <XCircle className="h-4 w-4" /> Couldn’t deliver
           </Link>
           <Link to="/partner/handover?tab=out" className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-foreground">
@@ -76,7 +79,6 @@ const Deliver = () => {
           </Link>
         </div>
       </div>
-      <DemoNote />
     </MobileShell>
   );
 };

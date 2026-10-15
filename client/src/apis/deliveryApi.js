@@ -10,6 +10,11 @@ const DeliveryApi = {
     const response = await api.get("/delivery-partners/list", { params });
     return response.data;
   },
+  // How a partner came on (staff only): { partner, application | null, documents, events }.
+  async fetchOnboarding(partnerId) {
+    const response = await api.get(`/delivery-partners/${partnerId}/onboarding`);
+    return response.data.data;
+  },
   async fetchDeliverySlots() {
     const response = await api.get("/delivery-slots");
     return response.data;

@@ -30,7 +30,6 @@ export const ORDERS_PER_DAY_30 = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 export const NEEDS_ATTENTION_DEMO = {
-  partnerApplications: 7,
   lowStockItems: 18,
   lockedStaffAccounts: 1,
 };

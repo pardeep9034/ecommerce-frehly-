@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { notify } from "@/lib/notify";
-import { signInPartner } from "@/lib/partnerSession";
+import { needsSignup, signInPartner } from "@/lib/partnerSession";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ const Login = () => {
   const [phone, setPhone] = useState(state?.phone ?? "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [unfinished, setUnfinished] = useState(false);
 
   const validPhone = /^[6-9]\d{9}$/.test(phone);
   const submit = async (event) => {
@@ -17,12 +18,14 @@ const Login = () => {
     if (!password) return notify.error("Enter your password");
 
     setBusy(true);
+    setUnfinished(false);
     try {
-      const to = await signInPartner({ phone, password, home: "/partner/home" });
+      const to = await signInPartner({ phone, password });
       if (!to) return notify.error("This number isn't registered as a delivery partner");
       navigate(to, { replace: true });
     } catch (error) {
-      notify.apiError(error, "Could not sign in");
+      if (needsSignup(error)) setUnfinished(true);
+      else notify.apiError(error, "Could not sign in");
     } finally {
       setBusy(false);
     }
@@ -48,6 +51,12 @@ const Login = () => {
         )}
 
         <form onSubmit={submit} className="mt-8 space-y-5 rounded-2xl bg-white p-5 text-foreground">
+          {unfinished && (
+            <p role="alert" className="rounded-lg border border-amber/40 bg-amber/5 px-3 py-2 text-sm">
+              This number has not finished sign-up yet.{" "}
+              <Link to={`/partner/apply?phone=${phone}`} className="font-semibold text-primary underline-offset-4 hover:underline">Finish sign-up</Link>
+            </p>
+          )}
           <label className="block text-sm font-semibold">
             Mobile number
             <div className="mt-1.5 flex h-12 items-center rounded-lg border border-border focus-within:border-primary">

@@ -50,7 +50,8 @@ const DeliveryPartners = lazy(() => import("./pages/dashboard/DeliveryPartners")
 const DeliveryPartnerDetail = lazy(() => import("./pages/dashboard/DeliveryPartnerDetail"));
 const AddDeliveryPartner = lazy(() => import("./pages/dashboard/AddDeliveryPartner"));
 const PartnerApplicationReview = lazy(() => import("./pages/dashboard/PartnerApplicationReview"));
-// Delivery-partner app: phone screens at /partner/*, desktop workspace at /partner/web/*. Guarded by RequirePartner; Home and the delivery screens still run on demo data.
+const ActivityLog = lazy(() => import("./pages/dashboard/ActivityLog"));
+// Delivery-partner app: phone screens only, at /partner/*. Guarded by RequirePartner; Home and the delivery screens still run on demo data.
 const PartnerLogin = lazy(() => import("./pages/partner/Login"));
 const PartnerForgotPassword = lazy(() => import("./pages/partner/ForgotPassword"));
 const PartnerHome = lazy(() => import("./pages/partner/Home"));
@@ -61,11 +62,6 @@ const PartnerFailed = lazy(() => import("./pages/partner/Failed"));
 const PartnerHandover = lazy(() => import("./pages/partner/Handover"));
 const PartnerHistory = lazy(() => import("./pages/partner/History"));
 const PartnerProfile = lazy(() => import("./pages/partner/Profile"));
-const PartnerWebLogin = lazy(() => import("./pages/partner/web/Login"));
-const PartnerWebToday = lazy(() => import("./pages/partner/web/Today"));
-const PartnerWebOrders = lazy(() => import("./pages/partner/web/Orders"));
-const PartnerWebHistory = lazy(() => import("./pages/partner/web/History"));
-const PartnerWebProfile = lazy(() => import("./pages/partner/web/Profile"));
 const PartnerApply = lazy(() => import("./pages/partner/apply/Apply"));
 const PartnerDocuments = lazy(() => import("./pages/partner/apply/Documents"));
 const PartnerStatus = lazy(() => import("./pages/partner/apply/Status"));
@@ -79,13 +75,11 @@ const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
 const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(getToken()));
 
 // Partner screens need a DELIVERY_PARTNER token. The 10-minute sign-up token counts, so an applicant can reach
-// Documents and Status; the two login pages, /partner/forgot-password and /partner/apply stay public. useLocation re-runs the check on every
-// navigation, and its path picks the login screen: the desktop workspace has its own.
+// Documents and Status; /partner/login, /partner/forgot-password and /partner/apply stay public. useLocation re-runs the check on every
+// navigation.
 const RequirePartner = () => {
   const { pathname } = useLocation();
-  if (getTokenRole(getToken()) !== "DELIVERY_PARTNER") {
-    return <Navigate to={pathname.startsWith("/partner/web") ? "/partner/web/login" : "/partner/login"} replace />;
-  }
+  if (getTokenRole(getToken()) !== "DELIVERY_PARTNER") return <Navigate to="/partner/login" replace />;
   if (pathname.startsWith("/partner/apply")) return <Outlet />;
   return <RequireApproved />;
 };
@@ -162,6 +156,7 @@ function App() {
           <Route path="promotions" element={<Promotions />} />
           <Route path="promotions/:promotionId/items" element={<PromotionItems />} />
           <Route path="assign-promotions" element={<AssignPromotions />} />
+          <Route path="activity-log" element={<ActivityLog />} />
           <Route path="settings" element={<Settings />} />
           <Route path="units"element={<UnitsPage/>}/>
           <Route path="brands"element={<BrandPage/>}/>
@@ -176,21 +171,16 @@ function App() {
         <Route path="/partner" element={<Navigate to="/partner/home" replace />} />
         <Route path="/partner/login" element={<PartnerLogin />} />
         <Route path="/partner/forgot-password" element={<PartnerForgotPassword />} />
-        <Route path="/partner/web/login" element={<PartnerWebLogin />} />
         <Route path="/partner/apply" element={<PartnerApply />} />
         <Route element={<RequirePartner />}>
           <Route path="/partner/home" element={<PartnerHome />} />
-          <Route path="/partner/orders/:orderId/pickup" element={<PartnerPickup />} />
-          <Route path="/partner/orders/:orderId/deliver" element={<PartnerDeliver />} />
-          <Route path="/partner/orders/:orderId/confirm" element={<PartnerConfirm />} />
-          <Route path="/partner/orders/:orderId/failed" element={<PartnerFailed />} />
+          <Route path="/partner/orders/:assignmentId/pickup" element={<PartnerPickup />} />
+          <Route path="/partner/orders/:assignmentId/deliver" element={<PartnerDeliver />} />
+          <Route path="/partner/orders/:assignmentId/confirm" element={<PartnerConfirm />} />
+          <Route path="/partner/orders/:assignmentId/failed" element={<PartnerFailed />} />
           <Route path="/partner/handover" element={<PartnerHandover />} />
           <Route path="/partner/history" element={<PartnerHistory />} />
           <Route path="/partner/profile" element={<PartnerProfile />} />
-          <Route path="/partner/web" element={<PartnerWebToday />} />
-          <Route path="/partner/web/orders" element={<PartnerWebOrders />} />
-          <Route path="/partner/web/history" element={<PartnerWebHistory />} />
-          <Route path="/partner/web/profile" element={<PartnerWebProfile />} />
           <Route path="/partner/apply/documents" element={<PartnerDocuments />} />
           <Route path="/partner/apply/status" element={<PartnerStatus />} />
         </Route>

@@ -1,17 +1,19 @@
-import { RotateCw } from "lucide-react";
+import { FileText, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { getProfile } from "@/apis/authApi";
 import partnerReviewApi from "@/apis/partnerReviewApi";
+import OnboardingTimeline from "@/components/dashboard/OnboardingTimeline";
 import PageHeader from "@/components/dashboard/PageHeader";
-import { Avatar, Card, StatusPill, Timeline } from "@/components/partner/PartnerBits";
+import { Avatar, Card, StatusPill } from "@/components/partner/PartnerBits";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import usePartnerReview from "@/hooks/use-partnerReview";
 import { notify } from "@/lib/notify";
 import {
-  APPLICATION_STATUS, DOC_LABEL, DOC_ORDER, DOC_STATUS, FIELD_LABEL, REASON_LABEL, SOURCE_LABEL, VEHICLE_LABEL, whenIST,
+  APPLICATION_STATUS, CHECK_INFO, DOC_INPUT, DOC_LABEL, DOC_ORDER, DOC_STATUS, FIELD_LABEL, REASON_LABEL, SOURCE_LABEL, VEHICLE_LABEL,
+  duplicateText, whenIST,
 } from "@/lib/partnerReview";
 
 const FIELD = "h-10 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary";
@@ -20,27 +22,30 @@ const GHOST = "h-9 rounded-lg border border-border px-4 text-sm font-semibold ho
 const SOLID = "h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-border disabled:text-muted-foreground";
 const DECIDERS = ["ADMIN", "SUPER_ADMIN"];
 
-const CHECK_INFO = {
-  PHONE_OTP: ["Phone verified by OTP", "Done automatically at sign-up"],
-  ID_MATCH: ["Name and photo match Aadhaar", "Compare profile photo with ID"],
-  DL_VALID: ["Driving licence valid for two-wheeler", "Check expiry and vehicle class"],
-  RC_MATCH: ["RC matches vehicle number", "Compare the plate on the RC with the one entered"],
-  BG_CHECK: ["Background check cleared", "Police or third-party verification"],
-  SAFETY_BRIEFING: ["Safety and app briefing done", "In person or on call"],
-};
-
-const EVENT_LABEL = {
-  CREATED: "Application created", SUBMITTED: "Submitted", DOC_UPLOADED: "Document uploaded", DOC_VERIFIED: "Document verified",
-  DOC_REJECTED: "Document sent back", CHECK_DONE: "Check done", CHECK_UNDONE: "Check undone", REVIEW_STARTED: "Review started",
-  NOTE: "Note", CHANGES_REQUESTED: "Changes requested", RESUBMITTED: "Resubmitted", APPROVED: "Approved", REJECTED: "Rejected",
-};
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 const initialsOf = (name) => (name || "?").split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-// No names in tokens yet (P2-4): "You" for the signed-in staff member, "Staff #12" for anyone else.
-const actorLabel = (e, me) =>
-  e.actor_role === "DELIVERY_PARTNER" ? "Applicant" : e.actor_id === null ? "System" : e.actor_id === me ? "You" : `Staff #${e.actor_id}`;
-const eventText = (p) =>
-  p?.text ?? p?.message ?? [p?.type && DOC_LABEL[p.type], p?.key && CHECK_INFO[p.key]?.[0], p?.reason, p?.note].filter(Boolean).join(" — ");
+
+// Another person's application has the same document number (P3-8). Shown to every reviewer; it never blocks anything.
+const DuplicateWarnings = ({ warnings }) => {
+  const duplicates = warnings.filter((w) => w.code === "DUPLICATE_DOCUMENT");
+  if (!duplicates.length) return null;
+  return (
+    <Card className="space-y-2 border-amber/40 bg-amber/5">
+      <p className="text-sm font-semibold text-foreground">Check for a duplicate</p>
+      <ul className="space-y-1 text-sm text-muted-foreground">
+        {duplicates.map((w) => (
+          <li key={`${w.type}-${w.other.application_id}`}>
+            {duplicateText(w)}{" "}
+            <Link to={`/dashboard/delivery-partners/applications/${w.other.application_id}`} className="font-semibold text-primary hover:underline">
+              Open it
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+};
 
 // The file link lives 120 s. A failed image gets one more link on its own (I5, C13); a PDF in a frame cannot report failure,
 // so Reload stays on screen for it.
@@ -188,19 +193,6 @@ const Review = ({ detail, action, refetch, profile }) => {
     ...Object.entries(FIELD_LABEL).filter(([key]) => key !== "vehicle_number" || detail.vehicle_type !== "CYCLE"),
   ];
 
-  const events = [...detail.events].reverse().map((e) => {
-    const text = eventText(e.payload);
-    return {
-      title: EVENT_LABEL[e.type] ?? e.type,
-      sub: (
-        <>
-          {text && <span className="block whitespace-pre-wrap text-foreground">{text}</span>}
-          {actorLabel(e, me)} · {whenIST(e.created_at)}
-        </>
-      ),
-    };
-  });
-
   return (
     <div className="space-y-5">
       <PageHeader
@@ -234,6 +226,8 @@ const Review = ({ detail, action, refetch, profile }) => {
               </button>
             )}
           </Card>
+
+          <DuplicateWarnings warnings={detail.warnings} />
 
           <Card>
             <h3 className="mb-3 font-display text-base font-semibold text-foreground">Documents</h3>
@@ -326,7 +320,7 @@ const Review = ({ detail, action, refetch, profile }) => {
               />
               <button type="button" disabled={busy || !note.trim()} onClick={addNote} className={SOLID}>Add</button>
             </div>
-            <Timeline items={events} />
+            <OnboardingTimeline events={detail.events} me={me} />
           </Card>
         </div>
 
@@ -513,11 +507,160 @@ const Review = ({ detail, action, refetch, profile }) => {
   );
 };
 
+// A draft. Staff who added the applicant upload the documents they were given and submit for them (P3). A draft the applicant
+// is filling in themselves is only shown: the server refuses staff uploads there, and `can_upload` says so.
+const DraftFill = ({ detail, action, profile }) => {
+  const me = Number(profile?.id);
+  const [fields, setFields] = useState({}); // { DL: { number, expiry } }: what staff typed beside a file
+  const [attested, setAttested] = useState(false);
+  const busy = action.isPending;
+  const run = (call, done) => action.mutate(call, { onSuccess: done, onError: (error) => notify.apiError(error) });
+
+  const uploaded = Object.fromEntries(detail.documents.map((d) => [d.type, d]));
+  const rows = DOC_ORDER.filter((type) => [...detail.required_docs, ...detail.optional_docs].includes(type));
+  const change = (type, key) => (e) => setFields((f) => ({ ...f, [type]: { ...f[type], [key]: e.target.value } }));
+
+  const pick = (type, file) => {
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) return notify.error("Files must be 5 MB or smaller");
+    const { number, expiry } = fields[type] ?? {};
+    const doc = uploaded[type];
+    if (DOC_INPUT[type]?.needsNumber && !number?.trim() && !doc?.number_masked) return notify.error(`Enter the ${DOC_LABEL[type].toLowerCase()} number first`);
+    if (DOC_INPUT[type]?.expiry && !expiry && !doc?.expiry_date) return notify.error("Enter the licence expiry date first");
+    run(
+      () => partnerReviewApi.uploadDocument(detail.id, type, file, { number: number?.trim() || undefined, expiry_date: expiry || undefined }),
+      () => setFields((f) => ({ ...f, [type]: undefined }))
+    );
+  };
+  const submit = () => run(() => partnerReviewApi.submit(detail.id), () => notify.success("Submitted for review. The applicant has been texted"));
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Draft application"
+        description={detail.can_upload ? "Add the documents you were given, then submit for review." : "The applicant is filling this in."}
+        backTo="/dashboard/delivery-partners"
+        backLabel="Applications"
+      />
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+        <div className="space-y-5">
+          <Card className="flex flex-wrap items-center gap-4">
+            <Avatar initials={initialsOf(detail.name)} className="h-14 w-14 text-lg" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-lg font-semibold text-foreground">{detail.name || "Unnamed applicant"}</h2>
+                <StatusPill status={APPLICATION_STATUS[detail.status]} />
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">{SOURCE_LABEL[detail.source]}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {detail.ref} · {detail.phone} · {detail.preferred_zone?.name ?? "No zone chosen"} ·{" "}
+                {[VEHICLE_LABEL[detail.vehicle_type], detail.vehicle_number].filter(Boolean).join(" ")}
+              </p>
+            </div>
+          </Card>
+
+          <Card className={detail.can_upload ? "bg-primary/5" : "bg-muted"}>
+            <p className="text-sm font-semibold text-foreground">
+              {detail.can_upload ? "Started on the applicant's behalf" : "Waiting for the applicant"}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {detail.can_upload
+                ? `Add their documents and submit. It cannot be approved until they have signed in with ${detail.phone}.`
+                : "Only they can add documents and submit it. It will appear in the review queue once they do."}
+            </p>
+          </Card>
+
+          <DuplicateWarnings warnings={detail.warnings} />
+
+          <Card className="space-y-3">
+            <h3 className="font-display text-base font-semibold text-foreground">Documents</h3>
+            {detail.can_upload && <p className="text-xs text-muted-foreground">Photos or PDF, max 5 MB each.</p>}
+            <ul className="space-y-2">
+              {rows.map((type) => {
+                const d = uploaded[type];
+                const info = DOC_INPUT[type];
+                const optional = detail.optional_docs.includes(type);
+                return (
+                  <li key={type} className="rounded-lg border border-border p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">
+                        {DOC_LABEL[type]}
+                        {optional && <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>}
+                      </span>
+                      <StatusPill status={d ? "Uploaded" : "Not uploaded"} />
+                      {d && (
+                        <span className="text-xs text-muted-foreground">
+                          {[d.number_masked, whenIST(d.uploaded_at)].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                      {detail.can_upload && (
+                        <label className={`ml-auto text-sm font-semibold text-primary ${busy ? "pointer-events-none opacity-50" : "cursor-pointer hover:underline"}`}>
+                          {d ? "Replace" : "Choose file"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,application/pdf"
+                            className="sr-only"
+                            disabled={busy}
+                            onChange={(e) => { pick(type, e.target.files[0]); e.target.value = ""; }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    {detail.can_upload && info && (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <label className="block text-xs font-medium text-muted-foreground">
+                          {info.number}
+                          <input value={fields[type]?.number ?? ""} onChange={change(type, "number")} maxLength={30} placeholder={d?.number_masked ?? ""} className={`${FIELD} mt-1`} />
+                        </label>
+                        {info.expiry && (
+                          <label className="block text-xs font-medium text-muted-foreground">
+                            Licence expiry date
+                            <input type="date" value={fields[type]?.expiry ?? d?.expiry_date ?? ""} onChange={change(type, "expiry")} className={`${FIELD} mt-1`} />
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+
+          <Card className="space-y-4">
+            <h3 className="font-display text-base font-semibold text-foreground">Activity</h3>
+            <OnboardingTimeline events={detail.events} me={me} />
+          </Card>
+        </div>
+
+        {detail.can_upload && (
+          <Card className="space-y-4 self-start">
+            <h2 className="font-display text-base font-semibold text-foreground">Submit for review</h2>
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
+              <span className="text-foreground">
+                I confirm the applicant agreed to Freshly's terms and to these documents being checked.
+                <span className="mt-1 block text-xs text-muted-foreground">This is recorded against your name.</span>
+              </span>
+            </label>
+            {!detail.can_submit && detail.submit_blocked_by && <p className="text-xs text-amber">{detail.submit_blocked_by}</p>}
+            <button type="button" disabled={busy || !detail.can_submit || !attested} onClick={submit} className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-border disabled:text-muted-foreground">
+              Submit for review
+            </button>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const PartnerApplicationReview = () => {
   const { applicationId } = useParams();
   const { detail, isLoading, error, refetch, action } = usePartnerReview(applicationId);
   const { data: profile } = useQuery({ queryKey: ["auth-profile"], queryFn: getProfile });
 
+  if (detail?.status === "DRAFT") return <DraftFill detail={detail} action={action} profile={profile} />;
   if (detail) return <Review detail={detail} action={action} refetch={refetch} profile={profile} />;
   return (
     <div className="space-y-5">

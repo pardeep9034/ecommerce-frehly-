@@ -1,4 +1,5 @@
 import api from "./axiosInstance";
+import { documentForm, MULTIPART } from "./documentForm";
 
 const BASE = "/delivery-partners/applications";
 const unwrap = (response) => response.data.data;
@@ -9,8 +10,27 @@ const partnerReviewApi = {
     return unwrap(await api.get(BASE, { params }));
   },
 
+  // { waiting, oldest_submitted_at, by_status } for the stat card and the sidebar badge.
+  async summary() {
+    return unwrap(await api.get(`${BASE}/summary`));
+  },
+
   async get(id) {
     return unwrap(await api.get(`${BASE}/${id}`));
+  },
+
+  // Adds someone as a draft and texts them an invite. Answers with the staff detail plus `invite_sent`.
+  async createOnBehalf(body) {
+    return unwrap(await api.post(`${BASE}/on-behalf`, body));
+  },
+
+  // Staff fill in the draft they created: upload a file (with its number / expiry), then submit with the attestation (P3-1).
+  async uploadDocument(id, type, file, fields) {
+    return unwrap(await api.put(`${BASE}/${id}/documents/${type}`, documentForm(file, fields), MULTIPART));
+  },
+
+  async submit(id) {
+    return unwrap(await api.post(`${BASE}/${id}/submit`, { consent_attested: true }));
   },
 
   async startReview(id) {

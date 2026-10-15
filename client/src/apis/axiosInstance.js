@@ -54,7 +54,11 @@ api.interceptors.response.use(
 
     /* ================= IF ACCESS TOKEN EXPIRED ================= */
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A login's own 401 (wrong password, "finish sign-up first", locked) has no session to refresh;
+    // refreshing here would swallow the server's message behind the refresh call's 400.
+    const isLogin = originalRequest?.url?.includes("/auth/login");
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isLogin) {
 
       if (isRefreshing) {
 

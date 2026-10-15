@@ -21,37 +21,11 @@ export const ME = {
 
 export const STATS_7D = { delivered: 74, onTime: "96%", failed: 3, handovers: "2 given · 1 received" };
 
-// Partner list (admin → Partners tab)
-export const PARTNERS = [
-  { id: "p1", name: "Ravi Kumar", initials: "RK", zone: "Mohali · Sec 70", vehicle: "Bike", online: true, active: 2, max: 4, deliveredToday: 11, status: "Active" },
-  { id: "p2", name: "Manpreet Kaur", initials: "MK", zone: "Mohali · Sec 71", vehicle: "Scooter", online: true, active: 1, max: 4, deliveredToday: 9, status: "Active" },
-  { id: "p3", name: "Amit Singh", initials: "AS", zone: "Mohali · Sec 71", vehicle: "Bike", online: false, active: 0, max: 4, deliveredToday: 6, status: "Active" },
-  { id: "p4", name: "Sunil Dutt", initials: "SD", zone: "Mohali · Sec 69", vehicle: "Bike", online: true, active: 2, max: 4, deliveredToday: 8, status: "Active" },
-  { id: "p5", name: "Karan Pal", initials: "KP", zone: "Zirakpur", vehicle: "Scooter", online: false, active: 0, max: 3, deliveredToday: 0, status: "Suspended" },
-];
-
+// The "Waiting for review" card is live (GET /summary); these three have no endpoint yet.
 export const PARTNER_SUMMARY = [
-  { label: "Waiting for review", value: 7, hint: "Oldest: 2 days" },
   { label: "Active partners", value: 42, hint: "Across 6 zones" },
   { label: "Online now", value: 18, hint: "36 orders in progress" },
   { label: "Suspended", value: 3, hint: "1 this week" },
-];
-
-export const PARTNER_STATUSES = ["Active", "Suspended"];
-export const ZONES = ["Mohali · Sec 70", "Mohali · Sec 71", "Mohali · Sec 69", "Zirakpur", "Kharar", "Panchkula · Sec 20", "Chandigarh · Sec 35"];
-
-export const PARTNER_DOCS = [
-  { label: "Aadhaar card", number: "•••• •••• 4412", date: "Verified 12 Mar 2026", status: "Verified" },
-  { label: "Driving licence", number: "PB65 •••• 0913", date: "Verified 12 Mar · expires 2031", status: "Verified" },
-  { label: "Vehicle RC", number: "PB 65 AX 4412", date: "Verified 12 Mar 2026", status: "Verified" },
-  { label: "PAN card", number: "•••••1234F", date: "Verified 12 Mar 2026", status: "Verified" },
-];
-
-export const ONBOARDING_LOG = [
-  { title: "Account activated", sub: "12 Mar 2026, 4:10 PM · Priya S." },
-  { title: "Screening checklist completed", sub: "12 Mar 2026 · 6 of 6 checks" },
-  { title: "Documents verified", sub: "12 Mar 2026 · Aadhaar, DL, RC, PAN" },
-  { title: "Application submitted", sub: "10 Mar 2026 · self sign-up" },
 ];
 
 export const ACTIVE_ASSIGNMENTS = [
@@ -119,18 +93,6 @@ export const HISTORY = [
   { id: "10402", area: "Sector 69", customer: "Deepak R.", day: "Yesterday", date: "23 Sep", time: "6:48 PM", status: "Delivered", attempts: "1", note: "On time" },
 ];
 
-export const FAILED_ORDER_LOG = {
-  id: "10476", customer: "Pooja Gupta · House 17, Sector 71", attempt: "Attempt 1 · 7:12 AM", reason: "Customer not reachable",
-  remarks: "Called twice, no answer. Gate locked.",
-  log: [
-    { title: "Assigned", sub: "6:40 AM · by store" },
-    { title: "Picked up", sub: "6:55 AM" },
-    { title: "Out for delivery", sub: "6:57 AM" },
-    { title: "Attempt failed", sub: "7:12 AM · store notified" },
-    { title: "Reschedule / reassign", sub: "Pending with store", pending: true },
-  ],
-};
-
 export const DOC_UPLOADS = [
   { key: "photo", label: "Profile photo", hint: "Clear face photo" },
   { key: "aadhaar", label: "Aadhaar card", hint: "Front side" },
@@ -152,7 +114,7 @@ const GREY = "bg-muted text-muted-foreground";
 const AMBER = "bg-amber/10 text-amber";
 const VIOLET = "bg-violet/10 text-violet";
 export const STATUS_STYLE = {
-  New: "bg-info/10 text-info", Assigned: "bg-info/10 text-info",
+  New: "bg-info/10 text-info", Assigned: "bg-info/10 text-info", "Picked up": "bg-info/10 text-info",
   "Under review": AMBER, "Out for delivery": AMBER, "To check": AMBER,
   "Changes requested": VIOLET, Handover: VIOLET, Transferred: VIOLET,
   Active: GREEN, Online: GREEN, Delivered: GREEN, Verified: GREEN, Approved: GREEN,

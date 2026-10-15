@@ -21,6 +21,18 @@ export const usePartners = (params) => {
   return { partners: data?.data?.partners ?? [], pagination: data?.data?.pagination, isLoading, isError };
 };
 
+// The record of how one partner came on (staff only). `application` is null for a partner an admin created directly.
+export const usePartnerOnboarding = (partnerId) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["partner-onboarding", partnerId],
+    queryFn: () => DeliveryApi.fetchOnboarding(partnerId),
+    enabled: !!partnerId,
+    retry: false,
+  });
+
+  return { onboarding: data, isLoading, error };
+};
+
 export const useDeliverySlots = (enabled) => {
   const { data, isLoading } = useQuery({
     queryKey: ["delivery-slots"],

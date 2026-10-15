@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { registerUser, resendOtp, signup, verifyOtp } from "@/apis/authApi";
 import MobileShell from "@/components/partner/MobileShell";
 import { ApplySteps, CodeInput } from "@/components/partner/PartnerBits";
@@ -14,11 +14,15 @@ const RESEND_SECONDS = 30;
 
 const Apply = () => {
   const navigate = useNavigate();
-  const { application, createMutation } = usePartnerApplication();
+  const [params] = useSearchParams();
+  const { application, createMutation, loadMine } = usePartnerApplication();
   const { deliveryZonesData } = useDeliveryZone(1, 100);
   const zones = (deliveryZonesData?.data?.deliveryZones ?? []).filter((z) => z.is_active);
 
-  const [form, setForm] = useState({ name: "", phone: "", zone: "", vehicle: "BIKE", number: "", password: "" });
+  // The invite text links here with the number staff entered (P3-9). The vehicle details are already on the application.
+  const invitePhone = /^[6-9]\d{9}$/.test(params.get("phone") ?? "") ? params.get("phone") : "";
+  const [invite, setInvite] = useState(Boolean(invitePhone));
+  const [form, setForm] = useState({ name: "", phone: invitePhone, zone: "", vehicle: "BIKE", number: "", password: "" });
   const [step, setStep] = useState("details"); // details -> otp
   const [otp, setOtp] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -57,6 +61,14 @@ const Apply = () => {
         await registerUser({ phone: form.phone, first_name: form.name.trim(), password: form.password });
         setRegistered(true);
       }
+      // Staff may have started this application already (invite link); take it instead of creating a second one (409).
+      if (await loadMine()) return; // the effect above opens it
+      if (invite) {
+        // Nothing was started for this number, so the vehicle details we hid are needed after all.
+        setInvite(false);
+        setStep("details");
+        return notify.error("Add your vehicle details to continue");
+      }
       await createMutation.mutateAsync({
         name: form.name.trim(),
         vehicle_type: form.vehicle,
@@ -77,7 +89,7 @@ const Apply = () => {
     event.preventDefault();
     if (form.name.trim().length < 2) return notify.error("Enter your full name");
     if (!/^[6-9]\d{9}$/.test(form.phone)) return notify.error("Enter a 10-digit mobile number");
-    if (!isCycle && form.number.trim().length < 4) return notify.error("Enter your vehicle number");
+    if (!invite && !isCycle && form.number.trim().length < 4) return notify.error("Enter your vehicle number");
     if (!registered && form.password.length < 8) return notify.error("Password must be at least 8 characters");
 
     if (verified) return finish();
@@ -131,37 +143,43 @@ const Apply = () => {
         </label>
         <label className="block text-sm font-semibold">
           Mobile number
-          <input type="tel" inputMode="numeric" maxLength={10} disabled={verified} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} placeholder="98765 43210" className={INPUT} />
+          <input type="tel" inputMode="numeric" maxLength={10} disabled={verified || invite} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} placeholder="98765 43210" className={INPUT} />
         </label>
         <label className="block text-sm font-semibold">
           Password
           <input type="password" autoComplete="new-password" disabled={registered} value={form.password} onChange={set("password")} placeholder="At least 8 characters" className={INPUT} />
         </label>
-        <label className="block text-sm font-semibold">
-          Preferred zone
-          <select value={form.zone} onChange={set("zone")} className={INPUT}>
-            <option value="">No preference</option>
-            {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-          </select>
-        </label>
+        {invite ? (
+          <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">Freshly has already started your application with your vehicle details. Verify your number and set a password to continue.</p>
+        ) : (
+          <>
+            <label className="block text-sm font-semibold">
+              Preferred zone
+              <select value={form.zone} onChange={set("zone")} className={INPUT}>
+                <option value="">No preference</option>
+                {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+            </label>
 
-        <fieldset>
-          <legend className="mb-1.5 text-sm font-semibold">Vehicle type</legend>
-          <div className="grid grid-cols-4 gap-2">
-            {VEHICLES.map(([value, label]) => (
-              <label key={value} className={`flex h-11 cursor-pointer items-center justify-center rounded-xl border-[1.5px] text-sm font-semibold ${form.vehicle === value ? "border-primary bg-primary/5 text-primary" : "border-border bg-white"}`}>
-                <input type="radio" name="vt" value={value} checked={form.vehicle === value} onChange={set("vehicle")} className="sr-only" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-semibold">Vehicle type</legend>
+              <div className="grid grid-cols-4 gap-2">
+                {VEHICLES.map(([value, label]) => (
+                  <label key={value} className={`flex h-11 cursor-pointer items-center justify-center rounded-xl border-[1.5px] text-sm font-semibold ${form.vehicle === value ? "border-primary bg-primary/5 text-primary" : "border-border bg-white"}`}>
+                    <input type="radio" name="vt" value={value} checked={form.vehicle === value} onChange={set("vehicle")} className="sr-only" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
-        <label className="block text-sm font-semibold">
-          Vehicle number
-          <input disabled={isCycle} maxLength={20} value={isCycle ? "" : form.number} onChange={set("number")} placeholder="PB 65 BK 7781" className={`${INPUT} uppercase`} />
-          {isCycle && <span className="mt-1 block text-xs font-normal text-muted-foreground">Not needed for cycles</span>}
-        </label>
+            <label className="block text-sm font-semibold">
+              Vehicle number
+              <input disabled={isCycle} maxLength={20} value={isCycle ? "" : form.number} onChange={set("number")} placeholder="PB 65 BK 7781" className={`${INPUT} uppercase`} />
+              {isCycle && <span className="mt-1 block text-xs font-normal text-muted-foreground">Not needed for cycles</span>}
+            </label>
+          </>
+        )}
 
         <button type="submit" disabled={busy} className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60">
           {busy ? "Please wait…" : verified ? "Continue to documents" : "Send verification code"}

@@ -25,8 +25,13 @@ import {
   LogOut,
   Leaf,
   Sparkles,
+  ScrollText,
 } from "lucide-react";
+import { usePartnerSummary } from "@/hooks/use-partnerReview";
+import { ACTIVITY_ADMIN_ROLES } from "@/lib/activityLog";
 import { logout } from "@/redux/authSlice";
+
+const PARTNERS_PATH = "/dashboard/delivery-partners";
 
 const navigationSections = [
   {
@@ -67,13 +72,16 @@ const navigationSections = [
     items: [
       { title: "Warehouses", path: "/dashboard/warehouses", icon: Building2 },
       { title: "Delivery zones", path: "/dashboard/delivery-zones", icon: Map },
-      { title: "Delivery partners", path: "/dashboard/delivery-partners", icon: Bike },
+      { title: "Delivery partners", path: PARTNERS_PATH, icon: Bike },
       { title: "Staff & admins", icon: UserCog, disabled: true },
     ],
   },
   {
     label: null,
-    items: [{ title: "Settings", path: "/dashboard/settings", icon: Settings }],
+    items: [
+      { title: "Activity log", path: "/dashboard/activity-log", icon: ScrollText, adminOnly: true },
+      { title: "Settings", path: "/dashboard/settings", icon: Settings },
+    ],
   },
 ];
 
@@ -92,6 +100,9 @@ const FreshlySidebar = ({ collapsed, onToggle, user, isMobile = false }) => {
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.name || "Admin";
   const contactDetail = user?.email || user?.phone || "Store Admin";
   const role = user?.role || "Store Admin";
+  // Applications waiting for a decision; refetched every minute (use-partnerReview).
+  const { summary } = usePartnerSummary({ enabled: Boolean(user?.role) });
+  const waiting = summary?.waiting ?? 0;
 
   const positionClasses = isMobile
     ? "fixed left-0 top-0 z-30 h-screen"
@@ -143,7 +154,7 @@ const FreshlySidebar = ({ collapsed, onToggle, user, isMobile = false }) => {
               )}
 
               <ul className="space-y-0.5">
-                {section.items.map((item) => {
+                {section.items.filter((item) => !item.adminOnly || ACTIVITY_ADMIN_ROLES.includes(user?.role)).map((item) => {
                   if (item.disabled) {
                     return (
                       <li key={item.title}>
@@ -183,6 +194,18 @@ const FreshlySidebar = ({ collapsed, onToggle, user, isMobile = false }) => {
                           <item.icon className="h-4 w-4" />
                         </span>
                         {!collapsed && <span>{item.title}</span>}
+                        {item.path === PARTNERS_PATH && waiting > 0 && (
+                          <span
+                            aria-label={`${waiting} applications waiting for review`}
+                            className={
+                              collapsed
+                                ? "absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-primary"
+                                : "ml-auto min-w-5 rounded-full bg-accent px-1.5 text-center text-[11px] font-bold leading-5 text-primary"
+                            }
+                          >
+                            {!collapsed && (waiting > 99 ? "99+" : waiting)}
+                          </span>
+                        )}
                       </NavLink>
                     </li>
                   );

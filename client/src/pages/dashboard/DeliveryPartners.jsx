@@ -6,14 +6,13 @@ import Pagination from "@/components/common/Pagination";
 import { Avatar, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import { usePartners } from "@/hooks/use-delivery";
-import { usePartnerQueue } from "@/hooks/use-partnerReview";
+import { usePartnerQueue, usePartnerSummary } from "@/hooks/use-partnerReview";
 import { PARTNER_SUMMARY } from "@/lib/partnerDemoData";
-import { APPLICATION_STATUS, SOURCE_LABEL, VEHICLE_LABEL, whenIST } from "@/lib/partnerReview";
+import { APPLICATION_STATUS, PARTNER_STATUS, SOURCE_LABEL, VEHICLE_LABEL, waitingFor, whenIST } from "@/lib/partnerReview";
 
 const TH = "px-5 py-3.5 font-medium text-muted-foreground";
 const TD = "px-5 py-4";
 const SELECT = "h-9 rounded-lg border border-border bg-white px-3 text-sm text-foreground outline-none";
-const PARTNER_STATUS_LABELS = { ACTIVE: "Active", SUSPENDED: "Suspended", INACTIVE: "Inactive" };
 
 const initialsOf = (name) => (name || "?").split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
 
@@ -59,6 +58,13 @@ const DeliveryPartners = () => {
   const queue = usePartnerQueue({ ...filters, status: status || undefined });
   const { deliveryZonesData } = useDeliveryZone(1, 100);
   const zones = deliveryZonesData?.data?.deliveryZones ?? [];
+  const { summary, isError: summaryFailed } = usePartnerSummary();
+  // The first card is live; the other three have no endpoint yet (PARTNER_SUMMARY).
+  const waiting = {
+    label: "Waiting for review",
+    value: summary ? summary.waiting : "–",
+    hint: summary ? (summary.oldest_submitted_at ? `Oldest: ${waitingFor(summary.oldest_submitted_at)}` : "Nothing waiting") : summaryFailed ? "Could not load" : "Loading…",
+  };
 
   const switchTab = (next) => {
     setParams(next === "partners" ? { tab: next } : {}, { replace: true });
@@ -86,7 +92,7 @@ const DeliveryPartners = () => {
       />
 
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        {PARTNER_SUMMARY.map((s) => (
+        {[waiting, ...PARTNER_SUMMARY].map((s) => (
           <div key={s.label} className="rounded-xl border border-border bg-white p-4 shadow-card">
             <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
             <p className="mt-1 font-display text-2xl font-semibold text-foreground">{s.value}</p>
@@ -129,7 +135,7 @@ const DeliveryPartners = () => {
           {tab === "partners" ? (
             <select aria-label="Status" value={partnerStatus} onChange={(e) => setPartnerStatus(e.target.value)} className={SELECT}>
               <option value="">All statuses</option>
-              {Object.entries(PARTNER_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(PARTNER_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           ) : (
             <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className={SELECT}>
@@ -188,7 +194,7 @@ const DeliveryPartners = () => {
                     <td className={TD}><StatusPill status={p.is_online ? "Online" : "Offline"} /></td>
                     <td className={TD}>{p.current_active_orders ?? 0} / {p.max_active_orders ?? "—"}</td>
                     <td className={TD}>{p.delivered_today}</td>
-                    <td className={TD}><StatusPill status={PARTNER_STATUS_LABELS[p.status] ?? p.status} /></td>
+                    <td className={TD}><StatusPill status={PARTNER_STATUS[p.status] ?? p.status} /></td>
                     <td className={`${TD} text-right`}>
                       <Link to={`/dashboard/delivery-partners/${p.id}`} className="text-sm font-semibold text-primary hover:underline">View</Link>
                     </td>
@@ -207,8 +213,8 @@ const DeliveryPartners = () => {
       />
       <DemoNote>
         {tab === "partners"
-          ? "The partner list is live. The four counts above and the partner profile page are still demo data; every partner shows Offline until partner sign-in exists."
-          : "The applications list is live. The four counts above are still demo data until the summary endpoint exists."}
+          ? "The partner list is live. The Active, Online and Suspended counts and the partner's delivery stats are still demo data; every partner shows Offline until partner sign-in exists."
+          : "The applications list and the Waiting for review count are live. The Active, Online and Suspended counts are still demo data."}
       </DemoNote>
     </div>
   );
