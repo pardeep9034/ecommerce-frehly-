@@ -1,9 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useStoreQueue } from "../../hooks/use-store";
 import { STAGES, deriveStage } from "../../lib/orderStage";
 
 const StoreBoard = () => {
-  const { orders, isLoading } = useStoreQueue();
+  const { staff } = useOutletContext();
+  const { orders, isLoading } = useStoreQueue(staff?.warehouse_id);
 
   const columns = STAGES.map((stage) => ({
     ...stage,

@@ -202,7 +202,7 @@ const ProductDetail = () => {
         <p className="text-lg font-medium text-foreground">Product not found or failed to load</p>
         <button
           type="button"
-          onClick={() => navigate("/dashboard/products")}
+          onClick={() => navigate("/admin/products")}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -225,7 +225,7 @@ const ProductDetail = () => {
     <div className="space-y-6 lg:space-y-7">
       <button
         type="button"
-        onClick={() => navigate("/dashboard/products")}
+        onClick={() => navigate("/admin/products")}
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

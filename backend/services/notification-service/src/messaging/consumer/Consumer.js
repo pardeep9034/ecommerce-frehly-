@@ -1,0 +1,81 @@
+import RetryHandler from '../retry/RetryHandler.js';
+import logger from '../../utils/Logger.js';
+
+/**
+ * Consumer.js
+ *
+ * The ONLY class your services should use to consume events. It wraps
+ * your business logic handler with:
+ *   - automatic JSON parsing of the envelope built by Publisher
+ *   - try/catch safety net (a thrown error doesn't crash the process)
+ *   - retry scheduling via RetryHandler (exponential backoff)
+ *   - fallback to DLQ once retries are exhausted
+ *
+ * What YOUR handler is responsible for:
+ *   - idempotency (check eventId before acting, since at-least-once
+ *     delivery means the same event can arrive more than once)
+ *   - the actual business logic
+ *
+ * Example usage from Inventory Service:
+ *
+ *   import { consumer } from '../messaging/index.js';
+ *   import queues from '../messaging/topology/queues.js';
+ *
+ *   await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name, async (event) => {
+ *     const already = await ProcessedEvent.findOne({ where: { eventId: event.eventId } });
+ *     if (already) return;
+ *     await reserveStock(event.data);
+ *     await ProcessedEvent.create({ eventId: event.eventId });
+ *   });
+ */
+export default class Consumer {
+  /**
+   * @param {IMessageBroker} broker
+   * @param {object} [retryOptions] - passed to RetryHandler
+   */
+  constructor(broker, retryOptions = {}) {
+    this.broker = broker;
+    this.retryHandler = new RetryHandler(broker, retryOptions);
+  }
+
+  /**
+   * @param {string} queueName
+   * @param {function} handler - async (parsedEventPayload, rawMsg) => void
+   */
+  async subscribe(queueName, handler) {
+    await this.broker.consume(queueName, async (msg) => {
+      let payload;
+
+      try {
+        payload = JSON.parse(msg.content.toString());
+      } catch (err) {
+        logger.error(`[Consumer] malformed JSON on queue "${queueName}", sending straight to DLQ`);
+        this.broker.nack(msg, false);
+        return;
+      }
+
+      try {
+        await handler(payload, msg);
+        this.broker.ack(msg);
+      } catch (err) {
+        // One string: winston drops a second argument, which used to hide the reason.
+        logger.error(
+          `[Consumer] handler failed for event "${payload.eventType || 'unknown'}" on queue "${queueName}": ${err.message}`
+        );
+
+        const retryScheduled = await this.retryHandler.handleFailure(msg, queueName);
+
+        // Whether retried or exhausted, we ack the ORIGINAL message here —
+        // the retry queue now holds a fresh copy (with incremented retry
+        // count), or nack(false) below sends it to the permanent DLQ.
+        if (retryScheduled) {
+          this.broker.ack(msg);
+        } else {
+          this.broker.nack(msg, false); // exhausted -> permanent DLQ
+        }
+      }
+    });
+
+    logger.info(`[Consumer] subscribed to queue "${queueName}"`);
+  }
+}

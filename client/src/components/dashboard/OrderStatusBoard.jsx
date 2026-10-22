@@ -55,7 +55,7 @@ const OrderStatusBoard = ({ statuses, previewLimit = 20, search = "" }) => {
                   <button
                     key={order.id}
                     type="button"
-                    onClick={() => navigate(`/dashboard/orders/${order.id}`)}
+                    onClick={() => navigate(`/admin/orders/${order.id}`)}
                     className="block w-full rounded-lg border border-border bg-white p-2.5 text-left text-xs transition-colors hover:border-primary/40"
                   >
                     <div className="flex items-center justify-between font-medium text-foreground">

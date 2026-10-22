@@ -13,6 +13,8 @@ import OrderEvents from "../../messaging/events/order.events.js";
 import PaymentEvents from "../../messaging/events/payment.events.js";
 import { paymentGateway } from "../../payment/index.js";
 import logger from "../../utils/Logger.js";
+import { getOrderRules } from "../../utils/orderRules.js";
+import { getStaffName } from "../../utils/staffNames.js";
 
 const STATS_CACHE = new Map();
 const STATS_TTL_MS = 30 * 1000;
@@ -50,9 +52,12 @@ const ALLOWED_TRANSITIONS = {
   [ORDER_STATUS.READY_FOR_ASSIGNMENT]: [ORDER_STATUS.ASSIGNED, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.ASSIGNED]: [ORDER_STATUS.PICKED_UP, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
   [ORDER_STATUS.PICKED_UP]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.HANDOVER_IN_PROGRESS, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
-  [ORDER_STATUS.HANDOVER_IN_PROGRESS]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
+  // Back to PICKED_UP when the handover is declined or withdrawn: the first partner still holds the order.
+  [ORDER_STATUS.HANDOVER_IN_PROGRESS]: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.PICKED_UP, ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_FAILED],
   // A partner on the way can still fail the drop (customer unreachable); the failed-delivery screen starts here.
   [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED, ORDER_STATUS.DELIVERY_FAILED],
+  // Another try with a partner (delivery-service caps it at 3 failed attempts).
+  [ORDER_STATUS.DELIVERY_FAILED]: [ORDER_STATUS.ASSIGNED],
   [ORDER_STATUS.PAYMENT_FAILED]: [ORDER_STATUS.PENDING_PAYMENT],
   [ORDER_STATUS.PAYMENT_EXPIRED]: [ORDER_STATUS.PENDING_PAYMENT]
 };
@@ -76,9 +81,11 @@ const getUserId = (user, fallback) => {
   return  user?.user_id || fallback;
 };
 
-const getAuthHeader = (authorization) => {
-  return authorization ? { Authorization: authorization } : {};
-};
+// Inventory calls: inventory-service lets staff tokens or this service's internal key through, not a customer's token.
+const getAuthHeader = (authorization) => ({
+  ...(authorization ? { Authorization: authorization } : {}),
+  ...(env.INTERNAL_API_KEY ? { "x-internal-key": env.INTERNAL_API_KEY } : {}),
+});
 
 const toJson = (value) => {
   if (!value) {
@@ -96,6 +103,23 @@ const generateOrderNumber = () => {
   const time = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `ORD-${time}-${random}`;
+};
+
+// Which warehouse delivers to this address, asked of delivery-service. Never trust the client's x-warehouse-id for this.
+const getServiceArea = async (address) => {
+  const params = new URLSearchParams();
+  if (/^\d{6}$/.test(String(address.postal_code ?? "").trim())) params.set("pincode", String(address.postal_code).trim());
+  if (address.latitude != null && address.longitude != null) {
+    params.set("lat", address.latitude);
+    params.set("lng", address.longitude);
+  }
+  if (!params.size) return { serviceable: false };
+
+  const response = await fetch(`${env.API_GATEWAY_URL}/delivery-zones/serviceability?${params}`);
+  if (!response.ok) {
+    throw new AppError("Could not check delivery for this address", 502);
+  }
+  return (await response.json()).data;
 };
 
 class OrderService {
@@ -145,8 +169,21 @@ if(!userAddress.success){
   throw new AppError("user address not found",404)
 }
 
+    // The cart was priced and stock-checked against x-warehouse-id; the order must go to the warehouse that serves
+    // the address. A mismatch means the customer changed location without switching store.
+    const serviceArea = await getServiceArea(userAddress.data);
+    if (!serviceArea.serviceable) {
+      throw new AppError("We don't deliver to this address yet", 422);
+    }
+    if (data.warehouse_id && Number(data.warehouse_id) !== serviceArea.warehouse_id) {
+      throw new AppError("This address is served by another store. Switch your location to this address and check your cart again.", 409);
+    }
+    data = { ...data, warehouse_id: serviceArea.warehouse_id };
+
     const paymentMethod = data.payment_method || "COD";
     const isCOD = paymentMethod === "COD";
+    const { paymentWindow } = await getOrderRules();
+    const expiresAt = new Date(Date.now() + paymentWindow * 60 * 1000);
 
     const db = await initializeModels();
     const reservationIds = [];
@@ -193,13 +230,12 @@ if(!userAddress.success){
           longitude:userAddress.data.longitude,
         }, { transaction });
 
-        await OrderStatusHistoryRepository.createStatusHistory({
-          order_id: order.id,
+        await this.recordStatusChange(order, {
           old_status: null,
           new_status: order.status,
           changed_by: userId,
           remarks: isCOD ? "Order placed with Cash on Delivery" : "Order created and awaiting payment"
-        }, { transaction });
+        }, transaction);
 
         const payment = await PaymentRepository.createPayment({
           order_id: order.id,
@@ -219,7 +255,8 @@ if(!userAddress.success){
             item.variant_id,
             data.warehouse_id,
             item.quantity,
-            authorization
+            authorization,
+            expiresAt
           );
 
           if (reservation?.id) {
@@ -242,19 +279,21 @@ if(!userAddress.success){
         await PaymentRepository.updatePayment(payment.id, {
           gateway_response: JSON.stringify({
             reservation_ids: reservationIds,
-            ...(isCOD ? {} : { expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() }),
+            ...(isCOD ? {} : { expires_at: expiresAt.toISOString() }),
             ...(gatewaySession ? { provider_session_id: gatewaySession.providerSessionId, checkout_url: gatewaySession.checkoutUrl } : {})
           })
         }, { transaction });
-           await publisher.publish(OrderEvents.ORDER_CREATED,{...orderData,items:snapshotItems})
+        // After commit only, and not awaited: a broker outage must not fail checkout, and a
+        // rollback must not leave an order.created (cart-service clears the cart on it).
+        transaction.afterCommit(() => {
+          void this.publishEvent(OrderEvents.ORDER_CREATED, { ...orderData, items: snapshotItems });
+        });
 
-        // COD orders start at PLACED with no payment webhook to trigger
-        // finalization later, so confirm reservations and auto-finalize
-        // right here instead — same as the online-payment path does once
-        // its webhook lands.
+        // COD orders start at PLACED with no payment webhook, so confirm the
+        // reservations here. Nothing else happens by itself: the order stays
+        // PLACED until staff review the items and finalize them.
         if (isCOD) {
           await this.confirmReservations(order.id, authorization);
-          await this.autoFinalizeOrder(order.id, authorization, transaction);
         }
 
         const details = await this.getOrderDetails(order.id, user, { transaction });
@@ -267,7 +306,7 @@ if(!userAddress.success){
             payment_id: payment.id,
             amount: totals.total_amount,
             status: payment.status,
-            expires_in_minutes: isCOD ? null : 15,
+            expires_in_minutes: isCOD ? null : paymentWindow,
             checkout_url: gatewaySession?.checkoutUrl || null,
             provider_session_id: gatewaySession?.providerSessionId || null
           }
@@ -289,6 +328,7 @@ if(!userAddress.success){
     const details = await this.getOrderDetails(order.id, user);
     const latestPayment = details.latest_payment;
     const gatewayInfo = this.parseGatewayResponse(latestPayment?.gateway_response);
+    const { paymentWindow } = await getOrderRules();
 
     return {
       order: details,
@@ -298,7 +338,7 @@ if(!userAddress.success){
         payment_id: latestPayment?.id || null,
         amount: details.total_amount,
         status: latestPayment?.status || details.payment_status,
-        expires_in_minutes: details.payment_status === PAYMENT_STATUS.SUCCESS ? null : 15,
+        expires_in_minutes: details.payment_status === PAYMENT_STATUS.SUCCESS ? null : paymentWindow,
         checkout_url: gatewayInfo.checkout_url || null,
         provider_session_id: gatewayInfo.provider_session_id || null
       }
@@ -314,11 +354,35 @@ if(!userAddress.success){
     }
   }
 
-  async publishPaymentEvent(event, payload) {
+  // Every status change goes through here: the history row, then order.status.changed after commit (the customer's
+  // texts hang off it). A row that keeps the status (a refund) is history only.
+  async recordStatusChange(order, change, transaction) {
+    const history = await OrderStatusHistoryRepository.createStatusHistory({ order_id: order.id, ...change }, { transaction });
+    if (change.old_status !== change.new_status) {
+      const data = {
+        historyId: history.id,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        userId: order.user_id,
+        warehouseId: order.warehouse_id,
+        oldStatus: change.old_status,
+        newStatus: change.new_status,
+        changedBy: change.changed_by ?? null,
+        totalAmount: order.total_amount,
+      };
+      transaction.afterCommit(() => {
+        void this.publishEvent(OrderEvents.ORDER_STATUS_CHANGED, data);
+      });
+    }
+    return history;
+  }
+
+  // Never throws. The log names the order only: payloads carry items and amounts.
+  async publishEvent(event, payload) {
     try {
       await publisher.publish(event, payload);
     } catch (error) {
-      logger.error(`Failed to publish ${event.routingKey}`, { error: error.message, ...payload });
+      logger.error(`Failed to publish ${event.routingKey}`, { error: error.message, orderId: payload.orderId ?? payload.id });
     }
   }
 
@@ -611,14 +675,26 @@ if(!userAddress.success){
     );
     orderJson.latest_payment = orderJson.payments[0] || null;
 
+    // Who picked the order is for staff only. The name is looked up on request (options.withStaffNames): it is an
+    // extra call to auth-service, so the many internal calls that only need the order skip it.
+    if (!this.isStaffUser(user)) {
+      delete orderJson.picked_by;
+    } else if (options.withStaffNames && orderJson.picked_by) {
+      orderJson.picked_by_name = await getStaffName(orderJson.picked_by);
+    }
+
     return orderJson;
+  }
+
+  // SYSTEM is the short-lived internal token other services mint (delivery-service reads items and moves the status with it).
+  isStaffUser(user) {
+    const role = user?.role || user?.user_role;
+    return ["ADMIN", "SUPER_ADMIN", "SUPPORT", "SYSTEM"].includes(String(role || "").toUpperCase());
   }
 
   validateOrderAccess(order, user) {
     const userId = getUserId(user);
-    const role = user?.role || user?.user_role;
-    // SYSTEM is the short-lived internal token other services mint (delivery-service reads items and moves the status with it).
-    const isAdmin = ["ADMIN", "SUPER_ADMIN", "SUPPORT", "SYSTEM"].includes(String(role || "").toUpperCase());
+    const isAdmin = this.isStaffUser(user);
 
     if (!isAdmin && userId && Number(order.user_id) !== Number(userId)) {
       throw new AppError("You do not have access to this order", 403);
@@ -645,13 +721,12 @@ if(!userAddress.success){
 
       // changed_by is a BIGINT: a SYSTEM caller's user_id is the text "system", so it is recorded as no one.
       const actorId = Number(getUserId(user));
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: oldStatus,
         new_status: data.status,
         changed_by: data.changed_by || (Number.isInteger(actorId) ? actorId : null),
         remarks: data.remarks || null
-      }, { transaction });
+      }, transaction);
 
       return await this.getOrderDetails(order.id, user, { transaction });
     });
@@ -677,13 +752,12 @@ if(!userAddress.success){
 
       await OrderRepository.updateOrder(order.id, { status: ORDER_STATUS.CANCELLED }, { transaction });
 
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: previousStatus,
         new_status: ORDER_STATUS.CANCELLED,
         changed_by: data.changed_by || getUserId(user),
         remarks: data.reason
-      }, { transaction });
+      }, transaction);
 
       let manualInventoryReview = false;
 
@@ -756,10 +830,9 @@ if(!userAddress.success){
     });
   }
 
-  // Shared by the manual admin finalize endpoint and auto-finalize-on-payment
-  // (see autoFinalizeOrder): both start from an order whose items already
-  // carry a READY/NOT_AVAILABLE status and just need the order-level
-  // transition + refund bookkeeping that follows from that.
+  // Staff finalize an order whose items they have all reviewed (READY or
+  // NOT_AVAILABLE): the order-level transition + refund bookkeeping that
+  // follows. The staff member is recorded as who picked the order.
   async finalizeReviewedItems(order, transaction, user, authorization) {
     const items = order.items || [];
     const readyItems = items.filter((item) => item.status === "READY");
@@ -798,22 +871,24 @@ if(!userAddress.success){
 
     this.assertTransition(oldStatus, newStatus);
 
+    // picked_by is a BIGINT: a SYSTEM caller's user_id is the text "system", so it is recorded as no one.
+    const pickerId = Number(getUserId(user));
     await OrderRepository.updateOrder(order.id, {
       status: newStatus,
-      refunded_amount: Number(order.refunded_amount) + refundTotal
+      refunded_amount: Number(order.refunded_amount) + refundTotal,
+      picked_by: Number.isInteger(pickerId) ? pickerId : null
     }, { transaction });
 
-    await OrderStatusHistoryRepository.createStatusHistory({
-      order_id: order.id,
+    await this.recordStatusChange(order, {
       old_status: oldStatus,
       new_status: newStatus,
       changed_by: getUserId(user),
       remarks: unavailableItems.length > 0
         ? `${unavailableItems.length} item(s) unavailable, ₹${refundTotal.toFixed(2)} refunded`
         : "All items ready for delivery"
-    }, { transaction });
+    }, transaction);
 
-    await publisher.publish(OrderEvents.ORDER_ITEMS_FINALIZED, {
+    const finalized = {
       orderId: order.id,
       readyItems: readyItems.map((item) => ({ id: item.id, product_name: item.product_name })),
       unavailableItems: unavailableItems.map((item) => ({
@@ -823,31 +898,12 @@ if(!userAddress.success){
       })),
       refundAmount: refundTotal,
       newStatus
+    };
+    transaction.afterCommit(() => {
+      void this.publishEvent(OrderEvents.ORDER_ITEMS_FINALIZED, finalized);
     });
 
     return await this.getOrderDetails(order.id, user, { transaction });
-  }
-
-  // Every item's stock reservation is already confirmed by the time an
-  // order reaches PLACED (see confirmReservations calls below), so there's
-  // nothing left for an admin to decide in the normal case — skip straight
-  // to the same transition the manual review flow ends with. Failures are
-  // swallowed: the order just stays at PLACED and the existing manual
-  // OrderFulfillmentTab flow remains a working fallback for it.
-  async autoFinalizeOrder(orderId, authorization, transaction) {
-    try {
-      const order = await OrderRepository.getOrderWithItems(orderId, { transaction });
-      const items = order.items || [];
-
-      for (const item of items) {
-        await OrderItemRepository.updateItem(item.id, { status: "READY" }, { transaction });
-        item.status = "READY";
-      }
-
-      await this.finalizeReviewedItems(order, transaction, null, authorization);
-    } catch (error) {
-      logger.error("order.autoFinalize.failed", { orderId, error: error.message });
-    }
   }
 
   async confirmPartialOrder(orderId, decision, user, authorization) {
@@ -903,15 +959,14 @@ if(!userAddress.success){
         refunded_amount: Number(order.refunded_amount) + additionalRefund
       }, { transaction });
 
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: oldStatus,
         new_status: newStatus,
         changed_by: getUserId(user),
         remarks: decision === "ACCEPT_PARTIAL"
           ? "Customer accepted partial order"
           : "Customer cancelled remaining items"
-      }, { transaction });
+      }, transaction);
 
       return await this.getOrderDetails(order.id, user, { transaction });
     });
@@ -960,20 +1015,17 @@ if(!userAddress.success){
         placed_at: new Date()
       }, { transaction });
 
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: oldStatus,
         new_status: ORDER_STATUS.PLACED,
         changed_by: null,
         remarks: data.remarks || "Payment successful"
-      }, { transaction });
-
-      await this.autoFinalizeOrder(order.id, authorization, transaction);
+      }, transaction);
 
       return await this.getOrderDetails(order.id, null, { transaction });
     });
 
-    await this.publishPaymentEvent(PaymentEvents.PAYMENT_CHARGED, {
+    await this.publishEvent(PaymentEvents.PAYMENT_CHARGED, {
       orderId,
       amount: details.total_amount,
       transactionId: details.latest_payment?.transaction_id
@@ -1023,18 +1075,17 @@ if(!userAddress.success){
         payment_status: PAYMENT_STATUS.FAILED
       }, { transaction });
 
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: oldStatus,
         new_status: ORDER_STATUS.PAYMENT_FAILED,
         changed_by: null,
         remarks: data.remarks || "Payment failed"
-      }, { transaction });
+      }, transaction);
 
       return await this.getOrderDetails(order.id, null, { transaction });
     });
 
-    await this.publishPaymentEvent(PaymentEvents.PAYMENT_FAILED, {
+    await this.publishEvent(PaymentEvents.PAYMENT_FAILED, {
       orderId,
       reason: data.remarks || data.reason || "unknown"
     });
@@ -1077,13 +1128,12 @@ if(!userAddress.success){
         payment_status: PAYMENT_STATUS.REFUNDED
       }, { transaction });
 
-      await OrderStatusHistoryRepository.createStatusHistory({
-        order_id: order.id,
+      await this.recordStatusChange(order, {
         old_status: order.status,
         new_status: order.status,
         changed_by: getUserId(user),
         remarks: data.remarks || "Payment refunded"
-      }, { transaction });
+      }, transaction);
 
       return {
         details: await this.getOrderDetails(order.id, user, { transaction }),
@@ -1091,7 +1141,7 @@ if(!userAddress.success){
       };
     });
 
-    await this.publishPaymentEvent(PaymentEvents.PAYMENT_REFUNDED, {
+    await this.publishEvent(PaymentEvents.PAYMENT_REFUNDED, {
       orderId,
       transactionId
     });
@@ -1101,7 +1151,10 @@ if(!userAddress.success){
 
   async expirePendingPayments(authorization) {
     const db = await initializeModels();
-    const expiryTime = new Date(Date.now() - 15 * 60 * 1000);
+    // ponytail: uses today's window, so a changed window also applies to orders already waiting; read
+    // gateway_response.expires_at per order if that ever matters.
+    const { paymentWindow } = await getOrderRules();
+    const expiryTime = new Date(Date.now() - paymentWindow * 60 * 1000);
     const orders = await OrderRepository.getExpiredPendingPayments(expiryTime);
 
     const expired = [];
@@ -1123,13 +1176,12 @@ if(!userAddress.success){
           payment_status: PAYMENT_STATUS.FAILED
         }, { transaction });
 
-        await OrderStatusHistoryRepository.createStatusHistory({
-          order_id: order.id,
+        await this.recordStatusChange(order, {
           old_status: ORDER_STATUS.PENDING_PAYMENT,
           new_status: ORDER_STATUS.PAYMENT_EXPIRED,
           changed_by: null,
           remarks: "Payment reservation expired"
-        }, { transaction });
+        }, transaction);
       });
 
       expired.push(order.id);
@@ -1156,6 +1208,8 @@ if(!userAddress.success){
       { order: [["created_at", "DESC"]] }
     );
     const paymentMethod = data.payment_method || latestPayment?.payment_method || "COD";
+    const { paymentWindow } = await getOrderRules();
+    const expiresAt = new Date(Date.now() + paymentWindow * 60 * 1000);
 
     const db = await initializeModels();
     const reservationIds = [];
@@ -1168,20 +1222,22 @@ if(!userAddress.success){
         this.assertTransition(oldStatus, ORDER_STATUS.PENDING_PAYMENT);
 
         const items = await OrderItemRepository.getItemsByOrderId(orderId, { transaction });
+        // The order's warehouse was checked against its address at checkout; the header only fills in old orders
+        // saved without one.
+        const warehouseId = freshOrder.warehouse_id ?? (data.warehouse_id ? Number(data.warehouse_id) : null);
 
         await OrderRepository.updateOrder(freshOrder.id, {
           status: ORDER_STATUS.PENDING_PAYMENT,
           payment_status: PAYMENT_STATUS.PENDING,
-          ...(data.warehouse_id ? { warehouse_id: Number(data.warehouse_id) } : {}) // retry re-reserves stock here
+          ...(warehouseId ? { warehouse_id: warehouseId } : {}) // retry re-reserves stock here
         }, { transaction });
 
-        await OrderStatusHistoryRepository.createStatusHistory({
-          order_id: freshOrder.id,
+        await this.recordStatusChange(freshOrder, {
           old_status: oldStatus,
           new_status: ORDER_STATUS.PENDING_PAYMENT,
           changed_by: getUserId(user),
           remarks: data.remarks || "Payment retry initiated"
-        }, { transaction });
+        }, transaction);
 
         const payment = await PaymentRepository.createPayment({
           order_id: freshOrder.id,
@@ -1196,9 +1252,10 @@ if(!userAddress.success){
           const reservation = await this.createReservation(
             freshOrder.id,
             item.variant_id,
-            data.warehouse_id,
+            warehouseId,
             item.quantity,
-            authorization
+            authorization,
+            expiresAt
           );
 
           if (reservation?.id) {
@@ -1217,7 +1274,7 @@ if(!userAddress.success){
         await PaymentRepository.updatePayment(payment.id, {
           gateway_response: JSON.stringify({
             reservation_ids: reservationIds,
-            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            expires_at: expiresAt.toISOString(),
             provider_session_id: gatewaySession.providerSessionId,
             checkout_url: gatewaySession.checkoutUrl
           })
@@ -1233,7 +1290,7 @@ if(!userAddress.success){
             payment_id: payment.id,
             amount: freshOrder.total_amount,
             status: payment.status,
-            expires_in_minutes: 15,
+            expires_in_minutes: paymentWindow,
             checkout_url: gatewaySession.checkoutUrl,
             provider_session_id: gatewaySession.providerSessionId
           }
@@ -1292,21 +1349,22 @@ if(!userAddress.success){
     return result.data;
   }
 
- async createReservation(orderId, variantId, warehouseId, quantity, authorization) {
+ // expiresAt: end of the payment window (Settings → Order rules), same for every item of the order.
+ async createReservation(orderId, variantId, warehouseId, quantity, authorization, expiresAt) {
   const inventoryResponse = await fetch(
     `${env.API_GATEWAY_URL}/stock-reservations`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authorization,
+        ...getAuthHeader(authorization),
       },
       body: JSON.stringify({
         order_id: orderId,
         variant_id: variantId,
         warehouse_id: warehouseId,
         quantity,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        expires_at: expiresAt.toISOString(),
       }),
     }
   );

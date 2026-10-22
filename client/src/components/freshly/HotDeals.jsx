@@ -5,8 +5,8 @@ import useProduct from "@/hooks/use-product";
 import ShopProductCard from './ShopProductCard';
 
 export const HotDeals = () => {
-    const {  isLoading, error, productsByType } = useProduct(1, 4,"HOT");
-    console.log(productsByType);
+    const { productsByType } = useProduct({ page: 1, limit: 4, type: "HOT" });
+    const { isLoading } = productsByType;
     const deals = productsByType?.data?.data?.products ||[];
 
     if (isLoading) {

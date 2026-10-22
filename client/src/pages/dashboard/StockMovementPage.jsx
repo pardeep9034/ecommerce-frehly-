@@ -71,7 +71,7 @@ const StockMovementPage = () => {
       <PageHeader
         title="Stock Movements"
         description="Track stock transfers and adjustments over time."
-        backTo="/dashboard/inventory"
+        backTo="/admin/inventory"
         backLabel="Back to Inventory"
         action={
           <button

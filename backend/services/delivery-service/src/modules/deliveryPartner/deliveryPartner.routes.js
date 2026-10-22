@@ -13,6 +13,7 @@ router.get("/", DeliveryPartnerController.getAvalableDeliveryPartners);
 // Dashboard staff only. Must stay above /:id.
 router.get("/list", authenticateToken, staffOnly, DeliveryPartnerController.listPartners);
 router.get("/:id/onboarding", authenticateToken, staffOnly, uuidParam(), DeliveryPartnerController.getOnboarding);
+router.get("/:id/work", authenticateToken, staffOnly, uuidParam(), DeliveryPartnerController.getWork);
 router.get("/:id", DeliveryPartnerController.getDeliveryPartnerById);
 router.patch("/:id", authenticateToken, staffOnly, validate("updateDeliveryPartnerSchema"), DeliveryPartnerController.updateDeliveryPartner);
 router.patch("/:id/location", authenticateToken, staffOnly, validate("updateDeliveryPartnerLocationSchema"), DeliveryPartnerController.updateLocation);

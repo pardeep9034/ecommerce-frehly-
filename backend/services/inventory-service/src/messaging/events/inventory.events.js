@@ -50,4 +50,26 @@ export default {
       });
     },
   },
+
+  // For notification-service, which declares its own queue and binding.
+  WAREHOUSE_STATUS_CHANGED: {
+    routingKey: 'warehouse.status.changed',
+    exchange: EXCHANGE,
+    version: 1,
+    /**
+     * @param {{ warehouseId: string|number, name: string, oldStatus: string, newStatus: string, changedBy: string|number|null }} change
+     */
+    buildPayload(change) {
+      if (!change?.warehouseId) {
+        throw new Error('WarehouseStatusChanged payload requires warehouseId');
+      }
+      return buildEnvelope('warehouse.status.changed', 1, {
+        warehouseId: change.warehouseId,
+        name: change.name,
+        oldStatus: change.oldStatus,
+        newStatus: change.newStatus,
+        changedBy: change.changedBy ?? null,
+      });
+    },
+  },
 };

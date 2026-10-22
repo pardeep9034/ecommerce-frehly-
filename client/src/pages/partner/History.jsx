@@ -2,12 +2,12 @@ import { useState } from "react";
 import MobileShell from "@/components/partner/MobileShell";
 import { Card, StatusPill } from "@/components/partner/PartnerBits";
 import { usePartnerAssignments } from "@/hooks/use-partner";
-import { STEP_LABEL, dayOf, timeOf } from "@/lib/assignmentStatus";
+import { STEP_LABEL, dayOf, timeOf, ymd } from "@/lib/assignmentStatus";
 
-// ponytail: the backend filters finished work by "today" only; week / month need a new `date` value there.
 const RANGES = [
-  { label: "Today", date: "today" },
-  { label: "All time", date: undefined },
+  { label: "Today", days: 1 },
+  { label: "7 days", days: 7 },
+  { label: "All time" },
 ];
 const COUNTED = [
   ["COMPLETED", "Delivered"],
@@ -16,22 +16,15 @@ const COUNTED = [
 ];
 const LIMIT = 20;
 
-// Own component so each tile can call the hook; limit 1 because only the `total` is used.
-const CountCard = ({ status, label, date }) => {
-  const { total } = usePartnerAssignments(status, { date, limit: 1 });
-  return (
-    <Card className="p-3 text-center">
-      <p className="font-display text-xl font-bold text-foreground">{total}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-    </Card>
-  );
-};
-
 const History = () => {
   const [range, setRange] = useState(RANGES[0]);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const { assignments, total, isLoading, error } = usePartnerAssignments("HISTORY", { date: range.date, page, limit: LIMIT });
-  const days = [...new Set(assignments.map((a) => dayOf(a.updated_at)))];
+  // Today counts as one of the days, so "7 days" starts six days back.
+  const from = range.days && ymd(new Date(Date.now() - (range.days - 1) * 24 * 60 * 60 * 1000));
+  const { assignments, total, counts, isLoading, error } = usePartnerAssignments("HISTORY", { from, search: search.trim(), page, limit: LIMIT });
+  const finishedAt = (a) => a.completed_at ?? a.updated_at;
+  const days = [...new Set(assignments.map((a) => dayOf(finishedAt(a))))];
 
   const pick = (r) => {
     setRange(r);
@@ -53,9 +46,25 @@ const History = () => {
         ))}
       </div>
 
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+        maxLength={50}
+        placeholder="Order number or customer name"
+        aria-label="Search history"
+        className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+      />
+
       <div className="grid grid-cols-3 gap-2.5">
         {COUNTED.map(([status, label]) => (
-          <CountCard key={status} status={status} label={label} date={range.date} />
+          <Card key={status} className="p-3 text-center">
+            <p className="font-display text-xl font-bold text-foreground">{counts[status] ?? 0}</p>
+            <p className="text-[11px] text-muted-foreground">{label}</p>
+          </Card>
         ))}
       </div>
 
@@ -71,12 +80,12 @@ const History = () => {
         <div key={day} className="space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{day}</h2>
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-card">
-            {assignments.filter((a) => dayOf(a.updated_at) === day).map((a) => (
+            {assignments.filter((a) => dayOf(finishedAt(a)) === day).map((a) => (
               <li key={a.id} className="flex items-center gap-3 p-3.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">#{a.order_id} · {a.customer_name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {timeOf(a.updated_at)}
+                    {timeOf(finishedAt(a))}
                     {a.status === "DELIVERY_FAILED" && a.last_attempt_reason && ` · ${a.last_attempt_reason}`}
                   </p>
                 </div>

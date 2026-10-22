@@ -25,6 +25,10 @@ class DeliveryZoneRepository extends BaseRepository {
     });
   }
 
+  async getActiveZones() {
+    return await this.findAll({ is_active: true });
+  }
+
   async updateDeliveryZone(id, data, options = {}) {
     return await this.updateById(id, data, options);
   }

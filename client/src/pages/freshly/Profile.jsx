@@ -179,7 +179,7 @@ const Profile = () => {
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
                   <div className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-full bg-success px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary mb-4">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-success px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white mb-4">
                         <User className="h-3.5 w-3.5 fill-primary" />
                         Account Details
                       </div>
@@ -309,8 +309,8 @@ const InfoCard = ({ label, value, isVerified }) => (
       <span className="text-sm font-black text-slate-900">{value}</span>
       {isVerified && (
         <div className="flex items-center gap-1.5 rounded-full bg-success px-3 py-1">
-            <CheckCircle2 className="h-3 w-3 text-success" />
-            <span className="text-[8px] font-black uppercase tracking-wider text-success">Verified</span>
+            <CheckCircle2 className="h-3 w-3 text-yellow-300" />
+            <span className="text-[8px] font-black uppercase tracking-wider text-yellow-300">Verified</span>
         </div>
       )}
     </div>

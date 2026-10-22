@@ -1,7 +1,7 @@
 import app from './app.js';
 import initializeModels from './models/index.js';
 import redisManager from './config/redis.js';
-import { initializeTopology } from './messaging/index.js';
+import { initializeTopology, broker } from './messaging/index.js';
 import logger from './utils/Logger.js';
 import { env } from './config/env.js';
 
@@ -44,7 +44,7 @@ async function startServer() {
       logger.info(`${signal} received — shutting down gracefully`);
       server.close(async () => {
         await redisManager.disconnect().catch(() => {});
-        await initializeTopology().disconnect().catch(() => {});
+        await broker.disconnect().catch(() => {});
         logger.info('✅ Auth Service shut down cleanly');
         process.exit(0);
       });

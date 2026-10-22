@@ -75,7 +75,7 @@ const OnboardingTab = ({ hours }) => {
             />
             {prettyJson(current.payload) && <CodeBlock title="Payload">{prettyJson(current.payload)}</CodeBlock>}
             <Link
-              to={`/dashboard/delivery-partners/applications/${current.application.id}`}
+              to={`/admin/delivery-partners/applications/${current.application.id}`}
               className="flex h-10 items-center justify-center rounded-lg border border-border bg-white text-sm font-medium text-foreground hover:bg-muted"
             >
               Open the application

@@ -151,6 +151,18 @@ services:
       - ./services/config-service/.env
     restart: always
 
+  # No published port: reached through api-gateway (/notifications) and, for /internal, other containers.
+  # A lost broker connection exits the process on purpose; restart brings the consumer back.
+  notification-service:
+    build: ./services/notification-service
+    container_name: notification-service
+    env_file:
+      - ./services/notification-service/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+
   order-service:
     build: ./services/order-service
     container_name: order-service

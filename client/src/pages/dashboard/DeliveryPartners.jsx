@@ -3,11 +3,10 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Pagination from "@/components/common/Pagination";
-import { Avatar, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
+import { Avatar, StatusPill } from "@/components/partner/PartnerBits";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import { usePartners } from "@/hooks/use-delivery";
 import { usePartnerQueue, usePartnerSummary } from "@/hooks/use-partnerReview";
-import { PARTNER_SUMMARY } from "@/lib/partnerDemoData";
 import { APPLICATION_STATUS, PARTNER_STATUS, SOURCE_LABEL, VEHICLE_LABEL, waitingFor, whenIST } from "@/lib/partnerReview";
 
 const TH = "px-5 py-3.5 font-medium text-muted-foreground";
@@ -59,12 +58,20 @@ const DeliveryPartners = () => {
   const { deliveryZonesData } = useDeliveryZone(1, 100);
   const zones = deliveryZonesData?.data?.deliveryZones ?? [];
   const { summary, isError: summaryFailed } = usePartnerSummary();
-  // The first card is live; the other three have no endpoint yet (PARTNER_SUMMARY).
-  const waiting = {
-    label: "Waiting for review",
-    value: summary ? summary.waiting : "–",
-    hint: summary ? (summary.oldest_submitted_at ? `Oldest: ${waitingFor(summary.oldest_submitted_at)}` : "Nothing waiting") : summaryFailed ? "Could not load" : "Loading…",
-  };
+  const p = summary?.partners;
+  const loadingHint = summaryFailed ? "Could not load" : "Loading…";
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const cards = [
+    {
+      label: "Waiting for review",
+      value: summary ? summary.waiting : "–",
+      hint: summary ? (summary.oldest_submitted_at ? `Oldest: ${waitingFor(summary.oldest_submitted_at)}` : "Nothing waiting") : loadingHint,
+    },
+    { label: "Active partners", value: p ? p.active : "–", hint: p ? `Across ${plural(p.zones, "zone")}` : loadingHint },
+    { label: "Online now", value: p ? p.online : "–", hint: p ? `${plural(p.orders_in_progress, "order")} in progress` : loadingHint },
+    // No "this week" hint: suspending doesn't record a date yet.
+    { label: "Suspended", value: p ? p.suspended : "–", hint: p ? "Can't take orders" : loadingHint },
+  ];
 
   const switchTab = (next) => {
     setParams(next === "partners" ? { tab: next } : {}, { replace: true });
@@ -83,7 +90,7 @@ const DeliveryPartners = () => {
         description="Onboard, verify and manage delivery partners across all zones."
         action={
           <Link
-            to="/dashboard/delivery-partners/new"
+            to="/admin/delivery-partners/new"
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" /> Add partner
@@ -92,7 +99,7 @@ const DeliveryPartners = () => {
       />
 
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        {[waiting, ...PARTNER_SUMMARY].map((s) => (
+        {cards.map((s) => (
           <div key={s.label} className="rounded-xl border border-border bg-white p-4 shadow-card">
             <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
             <p className="mt-1 font-display text-2xl font-semibold text-foreground">{s.value}</p>
@@ -169,7 +176,7 @@ const DeliveryPartners = () => {
                     <td className={`${TD} ${a.documents.verified < a.documents.required ? "font-semibold text-amber" : "text-foreground"}`}>{a.documents.verified} / {a.documents.required}</td>
                     <td className={TD}><StatusPill status={APPLICATION_STATUS[a.status]} /></td>
                     <td className={`${TD} text-right`}>
-                      <Link to={`/dashboard/delivery-partners/applications/${a.id}`} className="text-sm font-semibold text-primary hover:underline">Review</Link>
+                      <Link to={`/admin/delivery-partners/applications/${a.id}`} className="text-sm font-semibold text-primary hover:underline">Review</Link>
                     </td>
                   </tr>
                 ))}
@@ -196,7 +203,7 @@ const DeliveryPartners = () => {
                     <td className={TD}>{p.delivered_today}</td>
                     <td className={TD}><StatusPill status={PARTNER_STATUS[p.status] ?? p.status} /></td>
                     <td className={`${TD} text-right`}>
-                      <Link to={`/dashboard/delivery-partners/${p.id}`} className="text-sm font-semibold text-primary hover:underline">View</Link>
+                      <Link to={`/admin/delivery-partners/${p.id}`} className="text-sm font-semibold text-primary hover:underline">View</Link>
                     </td>
                   </tr>
                 ))}
@@ -211,11 +218,6 @@ const DeliveryPartners = () => {
         totalItems={(tab === "partners" ? pagination : queue.pagination)?.totalItems ?? 0}
         onPageChange={setPage}
       />
-      <DemoNote>
-        {tab === "partners"
-          ? "The partner list is live. The Active, Online and Suspended counts and the partner's delivery stats are still demo data; every partner shows Offline until partner sign-in exists."
-          : "The applications list and the Waiting for review count are live. The Active, Online and Suspended counts are still demo data."}
-      </DemoNote>
     </div>
   );
 };

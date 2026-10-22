@@ -7,20 +7,20 @@ import FreshlySidebar from "./FreshlySidebar";
 import FreshlyHeader from "./FreshlyHeader";
 
 const pageTitles = {
-  "/dashboard": "Dashboard",
-  "/dashboard/products": "Products",
-  "/dashboard/products/brands":"Brands",
-  "/dashboard/categories": "Categories",
-  "/dashboard/inventory": "Inventory",
-  "/dashboard/warehouses": "Warehouses",
-  "/dashboard/warehouses/new": "Add warehouse",
-  "/dashboard/staff": "Staff & admins",
-  "/dashboard/staff/new": "Add user",
-  "/dashboard/orders": "Orders",
-  "/dashboard/customers": "Customers",
-  "/dashboard/delivery-partners": "Delivery partners",
-  "/dashboard/discounts": "Discounts",
-  "/dashboard/settings": "Settings",
+  "/admin": "Dashboard",
+  "/admin/products": "Products",
+  "/admin/products/brands":"Brands",
+  "/admin/categories": "Categories",
+  "/admin/inventory": "Inventory",
+  "/admin/warehouses": "Warehouses",
+  "/admin/warehouses/new": "Add warehouse",
+  "/admin/staff": "Staff",
+  "/admin/staff/new": "Add staff",
+  "/admin/orders": "Orders",
+  "/admin/customers": "Customers",
+  "/admin/delivery-partners": "Delivery partners",
+  "/admin/discounts": "Discounts",
+  "/admin/settings": "Settings",
 };
 
 const DashboardLayout = () => {
@@ -34,7 +34,7 @@ const DashboardLayout = () => {
   // profile directly instead (same call Settings.jsx already makes).
   const { data: profile } = useQuery({ queryKey: ["auth-profile"], queryFn: getProfile });
   const user = profile || reduxUser;
-  // Detail pages (/dashboard/warehouses/12) take their section title.
+  // Detail pages (/admin/warehouses/12) take their section title.
   const titlePath = Object.keys(pageTitles)
     .filter((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
     .sort((a, b) => b.length - a.length)[0];

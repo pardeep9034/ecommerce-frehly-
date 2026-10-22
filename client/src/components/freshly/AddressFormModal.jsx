@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { X, MapPin, Building, Globe, Mail } from "lucide-react";
+import { X, MapPin, Building, Globe, Mail, LocateFixed } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createAddress, updateAddress } from "../../apis/userApi";
+import { getCurrentPoint } from "@/lib/geolocation";
+import { notify } from "@/lib/notify";
 
-const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
+// `prefill` seeds a new address (e.g. { postal_code } from the location picker); `onSaved` gets the saved address.
+const AddressFormModal = ({ isOpen, onClose, initialData, userId, prefill, onSaved }) => {
   const queryClient = useQueryClient();
+  const [locating, setLocating] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -45,17 +49,32 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
         landmark: "",
         address_type: "HOME",
         is_default: false,
+        ...prefill,
       });
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- prefill is read when the form opens
+
+  // Pins the address to where the customer is standing. Only on request: they may be adding an address elsewhere.
+  const pinHere = async () => {
+    setLocating(true);
+    try {
+      const { lat, lng } = await getCurrentPoint();
+      setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+    } catch (error) {
+      notify.error(error.message);
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (data) =>
       initialData
         ? updateAddress(initialData.id, data)
         : createAddress( data ),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       queryClient.invalidateQueries(["addresses", userId]);
+      onSaved?.(saved);
       onClose();
     },
     onError: (error) => {
@@ -225,6 +244,22 @@ const AddressFormModal = ({ isOpen, onClose, initialData, userId }) => {
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
                     placeholder="E.g. near Apollo Hospital"
                 />
+            </div>
+
+            {/* Exact spot */}
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    onClick={pinHere}
+                    disabled={locating}
+                    className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
+                >
+                    <LocateFixed className="h-4 w-4" />
+                    {locating ? "Locating..." : "I'm at this address"}
+                </button>
+                <span className="text-xs font-bold text-slate-400">
+                    {formData.latitude != null ? "Location pinned ✓" : "Optional: pins your exact spot for the delivery partner"}
+                </span>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between pt-4 pb-2">

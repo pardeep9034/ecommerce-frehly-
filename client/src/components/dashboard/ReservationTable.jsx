@@ -59,7 +59,7 @@ const ReservationTable = ({ reservations = [], variantNames = {}, warehouseNames
               return (
                 <tr key={reservation.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted">
                   <td className="px-5 py-4 sm:px-6">
-                    <Link to={`/dashboard/orders/${reservation.order_id}`} className="font-medium text-primary hover:underline">
+                    <Link to={`/admin/orders/${reservation.order_id}`} className="font-medium text-primary hover:underline">
                       #{reservation.order_id}
                     </Link>
                   </td>

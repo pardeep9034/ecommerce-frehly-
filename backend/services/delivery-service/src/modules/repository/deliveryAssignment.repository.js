@@ -29,8 +29,10 @@ class DeliveryAssignmentRepository extends BaseRepository {
     });
   }
 
+  // The newest one: an order that failed delivery can be assigned again, so it may have several.
   async getDeliveryAssignmentByOrderId(orderId, options = {}) {
     return await this.findOne({ order_id: orderId }, {
+      order: [["assigned_at", "DESC"], ["created_at", "DESC"]],
       include: [
         { association: "deliveryPartner" },
         { association: "deliverySlot" }
@@ -52,36 +54,44 @@ class DeliveryAssignmentRepository extends BaseRepository {
   }
 
   // { partnerId: completedCount } for assignments completed since `since`.
-  // ponytail: no completed_at column, so updated_at of a COMPLETED row stands in;
-  // add a real completed_at if completed rows ever get edited afterwards.
   async countCompletedSince(partnerIds, since) {
     if (partnerIds.length === 0) return {};
     const Model = await this.getModel();
     const rows = await Model.findAll({
       attributes: ["delivery_partner_id", [Sequelize.fn("COUNT", Sequelize.col("id")), "count"]],
-      where: { delivery_partner_id: partnerIds, status: "COMPLETED", updated_at: { [Op.gte]: since } },
+      where: { delivery_partner_id: partnerIds, status: "COMPLETED", completed_at: { [Op.gte]: since } },
       group: ["delivery_partner_id"],
       raw: true
     });
     return Object.fromEntries(rows.map((row) => [row.delivery_partner_id, Number(row.count)]));
   }
 
-  // One partner's assignments, newest first (the partner app's lists). `statuses` are assignment status values and `since`
-  // keeps rows changed on or after it, which for a finished assignment is when it finished (see countCompletedSince).
-  async findForPartner(partnerId, { statuses, since, limit, offset }) {
-    const where = { delivery_partner_id: partnerId, status: statuses };
-    if (since) where.updated_at = { [Op.gte]: since };
-    // Open work newest-assigned first; finished work most-recently-finished first (the History screen groups by that day).
-    const sortBy = statuses.includes("ACTIVE") ? "created_at" : "updated_at";
-    return await this.findAndCountAll(where, { limit, offset, order: [[sortBy, "DESC"], ["id", "DESC"]] });
+  // Where clause for one partner's assignments: finished in [from, to) and matching `search` (an order number, or part of
+  // the customer's name). A time range only ever matches finished work, since open work has no completed_at.
+  partnerWhere(partnerId, { from, to, search } = {}) {
+    const where = { delivery_partner_id: partnerId };
+    if (from || to) where.completed_at = { ...(from && { [Op.gte]: from }), ...(to && { [Op.lt]: to }) };
+    if (search) {
+      where[Op.or] = [{ customer_name: { [Op.iLike]: `%${search.replace(/[\\%_]/g, "\\$&")}%` } }];
+      if (/^\d{1,18}$/.test(search)) where[Op.or].push({ order_id: search });
+    }
+    return where;
   }
 
-  // { COMPLETED: n, FAILED: n, ... } for one partner's assignments that changed on or after `since`.
-  async countByStatusSince(partnerId, since) {
+  // One partner's assignments, newest first (the partner app's lists). `statuses` are assignment status values.
+  async findForPartner(partnerId, { statuses, limit, offset, ...filters }) {
+    const where = { ...this.partnerWhere(partnerId, filters), status: statuses };
+    // Open work newest-assigned first; finished work most-recently-finished first (the History screen groups by that day).
+    const order = statuses.includes("ACTIVE") ? [["created_at", "DESC"]] : [["completed_at", "DESC NULLS LAST"]];
+    return await this.findAndCountAll(where, { limit, offset, order: [...order, ["id", "DESC"]] });
+  }
+
+  // { COMPLETED: n, FAILED: n, ... } for one partner's assignments under the same filters as findForPartner.
+  async countByStatus(partnerId, filters) {
     const Model = await this.getModel();
     const rows = await Model.findAll({
       attributes: ["status", [Sequelize.fn("COUNT", Sequelize.col("id")), "count"]],
-      where: { delivery_partner_id: partnerId, updated_at: { [Op.gte]: since } },
+      where: this.partnerWhere(partnerId, filters),
       group: ["status"],
       raw: true
     });

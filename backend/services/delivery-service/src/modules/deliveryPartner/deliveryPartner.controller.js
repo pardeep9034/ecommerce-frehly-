@@ -1,4 +1,5 @@
 import DeliveryPartnerService from "./deliveryPartner.service.js";
+import PartnerMeService from "../partnerMe/partnerMe.service.js";
 import ResponseUtil from "../../utils/response.js";
 
 class DeliveryPartnerController {
@@ -45,6 +46,16 @@ class DeliveryPartnerController {
     }
   }
 
+
+  async getWork(req, res, next) {
+    try {
+      const result = await PartnerMeService.getWork(req.params.id);
+
+      return ResponseUtil.success(res, result, "Partner work fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
 
   async getOnboarding(req, res, next) {
     try {

@@ -12,6 +12,11 @@ const InventoryApi = {
     return response.data;
   },
 
+  // { total, low, out, reserved } for one warehouse, or all of them when warehouseId is empty (staff only).
+  async fetchStockSummary(warehouseId) {
+    const response = await api.get("/inventory/summary", { params: { warehouse_id: warehouseId || undefined } });
+    return response.data.data;
+  },
   async fetchInventoryByWarehouse(warehouseId, page = 1, limit = 10) {
     const response = await api.get(`inventory/warehouse/${warehouseId}?page=${page}&limit=${limit}`);
     return response.data;

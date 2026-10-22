@@ -89,7 +89,7 @@ const PromotionTable = ({ promotions = [], onEdit, onDelete }) => {
                     <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         type="button"
-                        onClick={() => navigate(`/dashboard/promotions/${promo.id}/items`)}
+                        onClick={() => navigate(`/admin/promotions/${promo.id}/items`)}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-500 hover:text-white"
                         title="Manage Items"
                       >

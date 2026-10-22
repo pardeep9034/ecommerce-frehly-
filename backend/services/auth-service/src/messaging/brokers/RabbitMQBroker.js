@@ -13,8 +13,11 @@ import logger from '../../utils/Logger.js';
  *    resolved value. If two services call connect() before the first
  *    connection finishes, both await the SAME promise instead of racing
  *    to open two connections.
- * 2. Auto-reconnect on connection loss, so a broker restart doesn't
- *    permanently kill your service.
+ * 2. Crash-only on a lost connection or channel. A service that consumes
+ *    exits, and compose's `restart: always` brings it back with its
+ *    consumers (an in-place reconnect used to drop them silently). A
+ *    publish-only service drops the dead connection and reconnects on its
+ *    next publish, so its HTTP side keeps working while the broker is down.
  * 3. Channel is separate from Connection — one connection can have many
  *    channels (cheap, lightweight), so we keep one channel per broker
  *    instance and reuse it.
@@ -36,7 +39,9 @@ export default class RabbitMQBroker extends IMessageBroker {
     // This is what actually prevents the race condition.
     this._connectingPromise = null;
 
-    this.reconnectDelayMs = merged.reconnectDelayMs;
+    this._consuming = false;
+    this._closing = false;
+
     this.prefetchCount = merged.prefetchCount;
     this.heartbeatSec = merged.heartbeatSec;
     this.publisherConfirms = merged.publisherConfirms;
@@ -62,35 +67,45 @@ export default class RabbitMQBroker extends IMessageBroker {
   }
 
   async _doConnect() {
-    this.connection = await amqp.connect(this.url, { heartbeat: this.heartbeatSec });
-
-    this.connection.on('error', (err) => {
-      logger.error('[RabbitMQBroker] connection error:', err.message);
-    });
-
-    this.connection.on('close', () => {
-      logger.warn('[RabbitMQBroker] connection closed. Reconnecting...');
-      this.channel = null;
-      this.connection = null;
-      setTimeout(() => this.connect().catch(() => {}), this.reconnectDelayMs);
-    });
+    const connection = await amqp.connect(this.url, { heartbeat: this.heartbeatSec });
 
     // Confirm channel makes publish() resolve only once the broker has
-    // actually persisted the message — safer for financial events
-    // (payments), controlled via rabbitmq.config.js publisherConfirms.
-    this.channel = this.publisherConfirms
-      ? await this.connection.createConfirmChannel()
-      : await this.connection.createChannel();
+    // actually persisted the message, controlled via rabbitmq.config.js publisherConfirms.
+    const channel = this.publisherConfirms
+      ? await connection.createConfirmChannel()
+      : await connection.createChannel();
 
-    await this.channel.prefetch(this.prefetchCount);
+    // 'error' is always followed by 'close', and a dead connection closes its channel too:
+    // the identity check makes only the first of those events act.
+    const lost = (what) => (err) => {
+      if (this._closing || this.connection !== connection) return;
+      this.connection = null;
+      this.channel = null;
+      const reason = err?.message ? `: ${err.message}` : '';
+      if (this._consuming) {
+        logger.error(`[RabbitMQBroker] ${what} lost${reason}. Exiting so the restart brings the consumers back`);
+        process.exit(1);
+      }
+      logger.warn(`[RabbitMQBroker] ${what} lost${reason}. The next publish reconnects`);
+      connection.close().catch(() => {});
+    };
+    connection.on('error', lost('connection'));
+    connection.on('close', lost('connection'));
+    channel.on('error', lost('channel'));
+    channel.on('close', lost('channel'));
+
+    await channel.prefetch(this.prefetchCount);
+    this.connection = connection;
+    this.channel = channel;
 
     logger.info(
-      `[RabbitMQBroker] connected to ${this.url} (prefetch: ${this.prefetchCount}, confirms: ${this.publisherConfirms})`
+      `[RabbitMQBroker] connected to ${this.url.replace(/\/\/[^@/]*@/, '//***@')} (prefetch: ${this.prefetchCount}, confirms: ${this.publisherConfirms})`
     );
-    return this.channel;
+    return channel;
   }
 
   async disconnect() {
+    this._closing = true;
     if (this.channel) await this.channel.close();
     if (this.connection) await this.connection.close();
     this.channel = null;
@@ -115,14 +130,20 @@ export default class RabbitMQBroker extends IMessageBroker {
 
   async publish(exchangeName, routingKey, content, options = {}) {
     const channel = await this.connect();
-    return channel.publish(exchangeName, routingKey, content, {
-      persistent: true,
-      ...options,
+    const publishOptions = { persistent: true, ...options };
+    if (!this.publisherConfirms) return channel.publish(exchangeName, routingKey, content, publishOptions);
+
+    // amqplib calls back once the broker acks (or nacks) the message, and with an error for
+    // every unconfirmed message when the channel closes, so this cannot wait forever.
+    await new Promise((resolve, reject) => {
+      channel.publish(exchangeName, routingKey, content, publishOptions, (err) => (err ? reject(err) : resolve()));
     });
+    return true;
   }
 
   async consume(queueName, onMessage, options = {}) {
     const channel = await this.connect();
+    this._consuming = true;
 
     await channel.consume(
       queueName,

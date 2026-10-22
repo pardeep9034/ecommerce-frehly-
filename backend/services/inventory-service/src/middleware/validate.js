@@ -22,6 +22,9 @@ const schemas={
     deleteInventorySchema:joi.object({
         id:joi.number().integer().required(),
     }),
+    stockSummarySchema:joi.object({
+        warehouse_id:joi.number().integer().positive().empty(""),
+    }),
     listStockMovementsSchema:joi.object({
         type:joi.string().valid(...MOVEMENT_TYPES).empty(""),
         warehouse_id:joi.number().integer().positive().empty(""),

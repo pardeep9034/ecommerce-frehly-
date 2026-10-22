@@ -71,7 +71,7 @@ const ProductTable = ({ products, categoriesById = {}, brandsById = {}, productT
                     <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"
-                        onClick={() => navigate(`/dashboard/products/${product.id}`)}
+                        onClick={() => navigate(`/admin/products/${product.id}`)}
                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       >
                         <Eye className="h-4 w-4" />

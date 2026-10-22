@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getToken, setToken, clearToken } from "@/lib/tokenStorage";
+import { store } from "@/redux/store";
 
 /* ================= AXIOS INSTANCE ================= */
 
@@ -8,7 +9,6 @@ const api = axios.create({
   withCredentials: true, // MUST be here (not inside headers)
   headers: {
     "Content-Type": "application/json",
-    "x-warehouse-id":"1"
   },
 });
 
@@ -20,6 +20,12 @@ api.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // The store serving the customer's chosen location (LocationPicker). A header the caller set itself wins.
+  const warehouseId = store.getState().location.current?.warehouse_id;
+  if (warehouseId && !config.headers["x-warehouse-id"]) {
+    config.headers["x-warehouse-id"] = String(warehouseId);
   }
 
   return config;
@@ -110,7 +116,7 @@ api.interceptors.response.use(
         // every page, public ones included; forcing a redirect here would
         // yank the user off whatever page they're on. Callers decide what
         // to do with a failed/expired session (AuthLoader dispatches
-        // logout(); route guards like /dashboard re-check on next render).
+        // logout(); route guards like /admin re-check on next render).
         clearToken();
 
         return Promise.reject(refreshError);

@@ -20,7 +20,8 @@ router.post('/login', validate('login'), asyncHandler(AuthController.login));
 router.post("/login/password",asyncHandler(AuthController.loginWithPassword))
 router.post('/refresh-token', asyncHandler(AuthController.refreshToken));
 router.post('/logout', authenticateToken, asyncHandler(AuthController.logout));
-router.post('logout/all',authenticateToken,asyncHandler(AuthController.logoutFromAllDevices));
+router.post('/logout/all',authenticateToken,asyncHandler(AuthController.logoutFromAllDevices));
+router.post('/logout/others', authenticateToken, asyncHandler(AuthController.logoutOtherDevices)); // keeps this device
 
 router.post('/forgot-password', validate('forgotPassword'), asyncHandler(AuthController.forgotPassword));
 router.post('/reset-password', validate('resetPassword'), asyncHandler(AuthController.resetPassword));
@@ -29,6 +30,9 @@ router.post("/otp/resend", asyncHandler(otpController.resendOtp));
 
 // Protected routes
 router.get('/profile', authenticateToken, asyncHandler(AuthController.getProfile));
+router.put('/profile', authenticateToken, validate('updateProfile'), asyncHandler(AuthController.updateProfile));
+router.post('/profile/phone/otp', authenticateToken, validate('phoneChangeOtp'), asyncHandler(AuthController.requestPhoneChange));
+router.put('/password', authenticateToken, validate('changePassword'), asyncHandler(AuthController.changePassword));
 
 
 // Health check

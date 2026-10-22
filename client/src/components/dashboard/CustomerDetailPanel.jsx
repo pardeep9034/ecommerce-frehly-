@@ -63,7 +63,7 @@ const CustomerDetailPanel = ({ customer, onClose, onToggleBlock, isUpdating }) =
               <li key={order.id} className="flex items-center justify-between text-xs">
                 <button
                   type="button"
-                  onClick={() => navigate(`/dashboard/orders/${order.id}`)}
+                  onClick={() => navigate(`/admin/orders/${order.id}`)}
                   className="font-medium text-primary hover:underline"
                 >
                   #{order.id}
@@ -90,7 +90,7 @@ const CustomerDetailPanel = ({ customer, onClose, onToggleBlock, isUpdating }) =
         </button>
         <button
           type="button"
-          onClick={() => navigate(`/dashboard/orders?customer=${customer.id}`)}
+          onClick={() => navigate(`/admin/orders?customer=${customer.id}`)}
           className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
         >
           View orders

@@ -31,56 +31,56 @@ import { usePartnerSummary } from "@/hooks/use-partnerReview";
 import { ACTIVITY_ADMIN_ROLES } from "@/lib/activityLog";
 import { logout } from "@/redux/authSlice";
 
-const PARTNERS_PATH = "/dashboard/delivery-partners";
+const PARTNERS_PATH = "/admin/delivery-partners";
 
 const navigationSections = [
   {
     label: null,
-    items: [{ title: "Dashboard", path: "/dashboard", icon: LayoutDashboard }],
+    items: [{ title: "Dashboard", path: "/admin", icon: LayoutDashboard }],
   },
   {
     label: "Sales",
     items: [
-      { title: "Orders", path: "/dashboard/orders", icon: ShoppingCart },
-      { title: "Customers", path: "/dashboard/customers", icon: Users },
-      { title: "Promotions", path: "/dashboard/promotions", icon: BadgePercent },
-      { title: "Assigned Promos", path: "/dashboard/assign-promotions", icon: Tag },
+      { title: "Orders", path: "/admin/orders", icon: ShoppingCart },
+      { title: "Customers", path: "/admin/customers", icon: Users },
+      { title: "Promotions", path: "/admin/promotions", icon: BadgePercent },
+      { title: "Assigned Promos", path: "/admin/assign-promotions", icon: Tag },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { title: "Products", path: "/dashboard/products", icon: Package },
-      { title: "Variants", path: "/dashboard/variants", icon: Layers },
-      { title: "Categories", path: "/dashboard/categories", icon: FolderTree },
-      { title: "Brands", path: "/dashboard/brands", icon: Award },
-      { title: "Product types", path: "/dashboard/product-type", icon: Shapes },
-      { title: "Attributes", path: "/dashboard/product-attribute", icon: SlidersHorizontal },
-      { title: "Units", path: "/dashboard/units", icon: Ruler },
+      { title: "Products", path: "/admin/products", icon: Package },
+      { title: "Variants", path: "/admin/variants", icon: Layers },
+      { title: "Categories", path: "/admin/categories", icon: FolderTree },
+      { title: "Brands", path: "/admin/brands", icon: Award },
+      { title: "Product types", path: "/admin/product-type", icon: Shapes },
+      { title: "Attributes", path: "/admin/product-attribute", icon: SlidersHorizontal },
+      { title: "Units", path: "/admin/units", icon: Ruler },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { title: "Stock", path: "/dashboard/inventory", icon: Warehouse },
-      { title: "Stock movements", path: "/dashboard/stock-movement", icon: ArrowLeftRight },
-      { title: "Reservations", path: "/dashboard/stock-reservation", icon: Clock },
+      { title: "Stock", path: "/admin/inventory", icon: Warehouse },
+      { title: "Stock movements", path: "/admin/stock-movement", icon: ArrowLeftRight },
+      { title: "Reservations", path: "/admin/stock-reservation", icon: Clock },
     ],
   },
   {
     label: "Operations",
     items: [
-      { title: "Warehouses", path: "/dashboard/warehouses", icon: Building2 },
-      { title: "Delivery zones", path: "/dashboard/delivery-zones", icon: Map },
+      { title: "Warehouses", path: "/admin/warehouses", icon: Building2 },
+      { title: "Delivery zones", path: "/admin/delivery-zones", icon: Map },
       { title: "Delivery partners", path: PARTNERS_PATH, icon: Bike },
-      { title: "Staff & admins", path: "/dashboard/staff", icon: UserCog },
+      { title: "Staff", path: "/admin/staff", icon: UserCog },
     ],
   },
   {
     label: null,
     items: [
-      { title: "Activity log", path: "/dashboard/activity-log", icon: ScrollText, adminOnly: true },
-      { title: "Settings", path: "/dashboard/settings", icon: Settings },
+      { title: "Activity log", path: "/admin/activity-log", icon: ScrollText, adminOnly: true },
+      { title: "Settings", path: "/admin/settings", icon: Settings },
     ],
   },
 ];
@@ -109,8 +109,8 @@ const FreshlySidebar = ({ collapsed, onToggle, user, isMobile = false }) => {
     : "sticky top-0 z-30 h-screen";
 
   const isActiveRoute = (path) => {
-    if (path === "/dashboard") {
-      return location.pathname === "/dashboard";
+    if (path === "/admin") {
+      return location.pathname === "/admin";
     }
     return location.pathname.startsWith(path);
   };

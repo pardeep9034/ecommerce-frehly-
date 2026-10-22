@@ -23,6 +23,15 @@ class DeliveryZoneController {
     }
   }
 
+  async checkServiceability(req, res, next) {
+    try {
+      const result = await DeliveryZoneService.checkServiceability(req.filters);
+      return ResponseUtil.success(res, result, result.serviceable ? "Serviceable" : "Not serviceable");
+    } catch (error) {
+       next(error);
+    }
+  }
+
   async getDeliveryZoneById(req, res, next) {
     try {
       const result = await DeliveryZoneService.getDeliveryZoneById(req.params.id);

@@ -148,7 +148,7 @@ const WarehouseDetailPage = () => {
   return (
     <div className="space-y-5">
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link to="/dashboard/warehouses" className="font-medium hover:text-foreground">Warehouses</Link>
+        <Link to="/admin/warehouses" className="font-medium hover:text-foreground">Warehouses</Link>
         <span className="mx-2" aria-hidden="true">/</span>
         <span className="text-foreground">{warehouse.name}</span>
       </nav>
@@ -171,7 +171,7 @@ const WarehouseDetailPage = () => {
           </p>
         </div>
         {status === "DRAFT" ? (
-          <Link to={`/dashboard/warehouses/new?draft=${warehouse.id}`} className={primaryButtonClass}>
+          <Link to={`/admin/warehouses/new?draft=${warehouse.id}`} className={primaryButtonClass}>
             Continue setup
           </Link>
         ) : (
@@ -256,7 +256,7 @@ const WarehouseDetailPage = () => {
             <h2 className="flex flex-1 items-center gap-2 font-display text-base font-bold text-foreground">
               People at this warehouse {isDemoTeam && <DemoBadge title="Sample people until the staff and team APIs exist." />}
             </h2>
-            <Link to="/dashboard/staff/new" className={secondaryButtonClass}>Create user</Link>
+            <Link to="/admin/staff/new" className={secondaryButtonClass}>Add staff</Link>
             <button type="button" onClick={() => setAssignMode("staff")} className={primaryButtonClass}>
               <UserPlus className="h-4 w-4" aria-hidden="true" />
               Assign staff

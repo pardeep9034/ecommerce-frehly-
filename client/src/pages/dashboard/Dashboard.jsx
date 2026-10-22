@@ -6,11 +6,13 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import { WarehouseSelect } from "@/components/dashboard/WarehousePicker";
 import { useSelectedWarehouse } from "@/hooks/use-selected-warehouse";
 import { StatusBadge } from "@/components/dashboard/OrderTable";
-import { toast } from "@/components/ui/sonner";
 import { useAdminOrders, useOrderStats, useOrderStatusCounts } from "@/hooks/use-order";
 import useWarehouse from "@/hooks/use-warehouse";
 import { usePartnerSummary } from "@/hooks/use-partnerReview";
-import { NEEDS_ATTENTION_DEMO } from "@/lib/overviewDemoData";
+import { useQuery } from "@tanstack/react-query";
+import staffApi from "@/apis/staffApi";
+import { getToken, getTokenRole } from "@/lib/tokenStorage";
+import InventoryApi from "@/apis/inventoryApi";
 import { getWarehouseStatus } from "@/lib/warehouseStatus";
 
 const Dashboard = () => {
@@ -22,6 +24,19 @@ const Dashboard = () => {
   const { orders: latestOrders, isLoading: ordersLoading } = useAdminOrders({ statuses: null, page: 1, limit: 5, warehouseId });
   const { warehouses, isLoading: warehousesLoading } = useWarehouse(1, 5);
   const { summary } = usePartnerSummary();
+  // Staff accounts are super-admin only (the API 403s for anyone else), so the row is hidden for other roles.
+  const isSuperAdmin = getTokenRole(getToken()) === "SUPER_ADMIN";
+  const { data: staffData } = useQuery({
+    queryKey: ["staff", 1, 1, {}],
+    queryFn: () => staffApi.getAllStaff(1, 1),
+    enabled: isSuperAdmin,
+  });
+  const staffSummary = staffData?.data?.summary;
+  // Each product short in each warehouse counts once per warehouse; follows the warehouse picker (empty = all).
+  const { data: stockSummary } = useQuery({
+    queryKey: ["inventory", "summary", warehouseId],
+    queryFn: () => InventoryApi.fetchStockSummary(warehouseId),
+  });
 
   const statusPills = [
     {
@@ -86,7 +101,7 @@ const Dashboard = () => {
       <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
         <div className="mb-3.5 flex items-center justify-between gap-3">
           <h2 className="font-display text-base font-semibold text-foreground">{warehouseId ? "Live orders" : "Live orders across all warehouses"}</h2>
-          <Link to="/dashboard/orders" className="text-sm font-semibold text-primary hover:underline">
+          <Link to="/admin/orders" className="text-sm font-semibold text-primary hover:underline">
             Open orders board
           </Link>
         </div>
@@ -94,7 +109,7 @@ const Dashboard = () => {
           {statusPills.map((pill) => (
             <Link
               key={pill.label}
-              to="/dashboard/orders"
+              to="/admin/orders"
               className="flex flex-col gap-1 rounded-xl bg-muted p-3 transition-colors hover:bg-secondary"
             >
               <span className={`font-display text-xl font-bold ${pill.tone}`}>{countsLoading ? "…" : pill.value}</span>
@@ -142,7 +157,7 @@ const Dashboard = () => {
         <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-display text-base font-semibold text-foreground">Warehouses</h2>
-            <Link to="/dashboard/inventory/warehouses" className="text-sm font-semibold text-primary hover:underline">
+            <Link to="/admin/inventory/warehouses" className="text-sm font-semibold text-primary hover:underline">
               Manage
             </Link>
           </div>
@@ -172,30 +187,28 @@ const Dashboard = () => {
         <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
           <h2 className="mb-3 font-display text-base font-semibold text-foreground">Needs attention</h2>
           <div className="flex flex-col gap-2">
-            <Link to="/dashboard/delivery-partners" className="flex items-center gap-2.5 rounded-lg bg-violet/10 px-3 py-2.5 text-violet">
+            <Link to="/admin/delivery-partners" className="flex items-center gap-2.5 rounded-lg bg-violet/10 px-3 py-2.5 text-violet">
               <Users className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-sm text-foreground">Partner applications to review</span>
               <strong className="text-sm">{summary ? summary.waiting : "…"}</strong>
             </Link>
-            <Link to="/dashboard/inventory" className="flex items-center gap-2.5 rounded-lg bg-amber/10 px-3 py-2.5 text-amber">
+            <Link to="/admin/inventory" className="flex items-center gap-2.5 rounded-lg bg-amber/10 px-3 py-2.5 text-amber">
               <Package className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-sm text-foreground">Items low or out of stock</span>
-              <strong className="text-sm">{NEEDS_ATTENTION_DEMO.lowStockItems}</strong>
+              <strong className="text-sm">{stockSummary ? stockSummary.low + stockSummary.out : "…"}</strong>
             </Link>
-            <Link to="/dashboard/orders" className="flex items-center gap-2.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-destructive">
+            <Link to="/admin/orders" className="flex items-center gap-2.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-destructive">
               <CreditCard className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-sm text-foreground">Payments failed</span>
               <strong className="text-sm">{countsLoading ? "…" : failedPayments}</strong>
             </Link>
-            <button
-              type="button"
-              onClick={() => toast("Staff account management isn't wired up yet")}
-              className="flex items-center gap-2.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-left text-destructive"
-            >
-              <Lock className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-sm text-foreground">Locked staff account</span>
-              <strong className="text-sm">{NEEDS_ATTENTION_DEMO.lockedStaffAccounts}</strong>
-            </button>
+            {isSuperAdmin && (
+              <Link to="/admin/staff" className="flex items-center gap-2.5 rounded-lg bg-destructive/10 px-3 py-2.5 text-destructive">
+                <Lock className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-sm text-foreground">Locked staff accounts</span>
+                <strong className="text-sm">{staffSummary ? staffSummary.locked : "…"}</strong>
+              </Link>
+            )}
           </div>
         </section>
       </div>
@@ -203,7 +216,7 @@ const Dashboard = () => {
       <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-card">
         <div className="flex items-center justify-between gap-3 px-5 py-3.5">
           <h2 className="font-display text-base font-semibold text-foreground">Latest orders</h2>
-          <Link to="/dashboard/orders" className="text-sm font-semibold text-primary hover:underline">
+          <Link to="/admin/orders" className="text-sm font-semibold text-primary hover:underline">
             View all
           </Link>
         </div>
@@ -222,7 +235,7 @@ const Dashboard = () => {
               {latestOrders.map((order) => (
                 <tr key={order.id} className="border-t border-border transition-colors hover:bg-muted">
                   <td className="px-5 py-3.5">
-                    <Link to={`/dashboard/orders/${order.id}`} className="font-medium text-primary hover:underline">
+                    <Link to={`/admin/orders/${order.id}`} className="font-medium text-primary hover:underline">
                       {order.order_number}
                     </Link>
                   </td>

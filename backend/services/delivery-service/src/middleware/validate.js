@@ -3,6 +3,7 @@ import ResponseUtil from "../utils/response.js";
 import {
     ACTIVITY_GROUPS, ACTIVITY_HOURS, DOC_TYPES, FIELD_ITEMS, LISTED_STATUSES, MAX_ORDERS, REASON_CODES, VEHICLE_TYPES,
 } from "../modules/partnerApplication/partnerApplicationRules.js";
+import { FAILURE_REASONS } from "../constants/deliveryFailure.js";
 
 // A real calendar day as "YYYY-MM-DD". joi.date().iso() also lets 2026-02-31 and full timestamps through, and a DATEONLY
 // column then fails with a 500.
@@ -84,6 +85,12 @@ const schema={
         estimated_delivery_time:joi.number().integer().min(0).optional(),
         is_active:joi.boolean().optional()
     }).min(1),
+    // A pincode, a point, or both. lat and lng only come as a pair.
+    serviceabilityQuerySchema:joi.object({
+        pincode:joi.string().trim().pattern(/^\d{6}$/).messages({ "string.pattern.base": "pincode must be 6 digits" }),
+        lat:joi.number().min(-90).max(90),
+        lng:joi.number().min(-180).max(180)
+    }).and("lat","lng").or("pincode","lat").messages({ "object.missing": "Send a pincode or lat and lng", "object.and": "Send lat and lng together" }),
     createDeliveryPartnerZoneSchema:joi.object({
         delivery_partner_id:joi.string().uuid().required(),
         zone_id:joi.number().integer().positive().required(),
@@ -104,18 +111,46 @@ const schema={
     partnerAssignmentsQuerySchema:joi.object({
         status:joi.string().valid("ACTIVE","HISTORY","COMPLETED","FAILED","TRANSFERRED","CANCELLED").default("ACTIVE"),
         date:joi.string().valid("today").optional(),
+        from:dateOnly.optional(),
+        to:dateOnly.optional(),
+        search:joi.string().trim().max(50).allow(""),
         page:joi.number().integer().min(1).default(1),
         limit:joi.number().integer().min(1).max(50).default(20)
     }),
-    // The only moves a partner makes themselves; a failed drop needs its reason, nothing else takes one.
+    // The only moves a partner makes themselves. A failed drop needs a reason from the list (a note is required for OTHER,
+    // optional otherwise); nothing else takes either.
     partnerAssignmentStatusSchema:joi.object({
         status:joi.string().valid("PICKED_UP","OUT_FOR_DELIVERY","DELIVERED","DELIVERY_FAILED").required(),
-        reason:joi.string().trim().min(3).max(255)
-            .when("status", { is:"DELIVERY_FAILED", then:joi.required(), otherwise:joi.forbidden() })
+        reason_code:joi.string().valid(...Object.keys(FAILURE_REASONS))
+            .when("status", { is:"DELIVERY_FAILED", then:joi.required(), otherwise:joi.forbidden() }),
+        note:joi.string().trim().max(200).allow("")
+            .when("reason_code", { is:"OTHER", then:joi.string().min(3).required() })
+            .when("status", { not:"DELIVERY_FAILED", then:joi.forbidden() })
     }),
     // An explicit state, never a flip, so a retry or a double tap lands in the same place. strict: a real boolean, not "true".
     partnerOnlineSchema:joi.object({
         online:joi.boolean().strict().required()
+    }),
+    // Partner-to-partner handover, request step. order_id is never sent: it comes from the assignment. lowercase, so the
+    // "same partner" check cannot be dodged with an upper-case uuid.
+    handOverSchema:joi.object({
+        new_delivery_partner_id:joi.string().uuid().lowercase().required(),
+        reason:joi.string().trim().min(3).max(255).required(),
+        handover_latitude:joi.number().min(-90).max(90),
+        handover_longitude:joi.number().min(-180).max(180)
+    }),
+    // Both confirm steps: the first partner may add where it happened, the second a note. All optional.
+    handoverConfirmSchema:joi.object({
+        handover_latitude:joi.number().min(-90).max(90),
+        handover_longitude:joi.number().min(-180).max(180),
+        reason:joi.string().trim().min(3).max(255)
+    }),
+    // Partner app Handover screen: "in" = handed to me, "out" = handed on by me.
+    partnerHandoversQuerySchema:joi.object({
+        dir:joi.string().valid("in","out").required()
+    }),
+    handoverCandidatesQuerySchema:joi.object({
+        assignment_id:joi.string().uuid().required()
     }),
     // Partner onboarding. phone, user_id, status, source never come from the body, so unknown keys are refused.
     createPartnerApplicationSchema:joi.object({

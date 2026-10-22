@@ -15,6 +15,24 @@ class InventoryRepository extends BaseRepository{
     });
   }
 
+  // Stock health per (variant, warehouse) row, one warehouse or all. Measured on what is free to sell
+  // (current_stock - reserved_stock): low is 1..low_stock_threshold, out is 0 or less. A product short in
+  // two warehouses counts twice, since each warehouse restocks on its own.
+  async stockSummary(warehouseId) {
+    const Model = await this.getModel();
+    const [row] = await Model.sequelize.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE current_stock - reserved_stock > 0
+                                 AND current_stock - reserved_stock <= low_stock_threshold)::int AS low,
+              COUNT(*) FILTER (WHERE current_stock - reserved_stock <= 0)::int AS out,
+              COALESCE(SUM(reserved_stock), 0)::int AS reserved
+         FROM inventory
+        WHERE (CAST(:warehouseId AS bigint) IS NULL OR warehouse_id = CAST(:warehouseId AS bigint))`,
+      { replacements: { warehouseId: warehouseId ?? null }, type: Model.sequelize.QueryTypes.SELECT },
+    );
+    return row;
+  }
+
   async getInventoryById(id) {
    
     return await this.findById(id);

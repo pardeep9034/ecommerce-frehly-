@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, FileText, RotateCcw } from "lucide-react";
 import { useOrderDetail } from "@/hooks/use-order";
 import { useCustomerStats } from "@/hooks/use-customer";
@@ -7,7 +7,10 @@ import OrderFulfillmentTab from "@/components/dashboard/OrderFulfillmentTab";
 import DeliveryAssignmentTab from "@/components/dashboard/DeliveryAssignmentTab";
 import { toast } from "@/components/ui/sonner";
 import useWarehouse from "@/hooks/use-warehouse";
-import { getDemoFulfilment } from "@/lib/orderDemoData";
+import { useOrderAssignment } from "@/hooks/use-delivery";
+
+// Statuses before a delivery partner is chosen: no assignment to look up yet.
+const BEFORE_ASSIGNMENT = ["PENDING_PAYMENT", "PLACED", "CONFIRMED", "AWAITING_CUSTOMER_CONFIRMATION", "READY_FOR_ASSIGNMENT"];
 
 const formatDateTime = (value) =>
   value
@@ -33,6 +36,7 @@ const AdminOrderDetail = () => {
   const { warehouses } = useWarehouse(1, 100);
   const { order, isLoading, isError } = useOrderDetail(orderId);
   const customerStats = useCustomerStats(order?.user_id);
+  const { assignment } = useOrderAssignment(orderId, !!order && !BEFORE_ASSIGNMENT.includes(order.status));
 
   if (isLoading) {
     return (
@@ -55,7 +59,7 @@ const AdminOrderDetail = () => {
         <p className="text-lg font-medium text-foreground">Order not found or failed to load</p>
         <button
           type="button"
-          onClick={() => navigate("/dashboard/orders")}
+          onClick={() => navigate("/admin/orders")}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -70,7 +74,6 @@ const AdminOrderDetail = () => {
   const statusHistory = [...(order.statusHistory || [])].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
-  const fulfilment = getDemoFulfilment(order.id); // picker and rider are still sample data
   const warehouseName = order.warehouse_id
     ? warehouses.find((warehouse) => String(warehouse.id) === String(order.warehouse_id))?.name ?? `Warehouse #${order.warehouse_id}`
     : "Not assigned";
@@ -79,7 +82,7 @@ const AdminOrderDetail = () => {
     <div className="space-y-6 lg:space-y-7">
       <button
         type="button"
-        onClick={() => navigate("/dashboard/orders")}
+        onClick={() => navigate("/admin/orders")}
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -144,7 +147,7 @@ const AdminOrderDetail = () => {
               <h2 className="font-display text-base font-semibold text-foreground">Customer</h2>
               <button
                 type="button"
-                onClick={() => navigate(`/dashboard/customers?customer=${order.user_id}`)}
+                onClick={() => navigate(`/admin/customers?customer=${order.user_id}`)}
                 className="text-sm font-medium text-primary hover:underline"
               >
                 View customer
@@ -172,10 +175,23 @@ const AdminOrderDetail = () => {
             <h2 className="font-display text-base font-semibold text-foreground">Fulfilment</h2>
             <div className="mt-2 divide-y divide-border">
               <PaymentRow label="Warehouse" value={warehouseName} />
-              <PaymentRow label="Picked by" value={fulfilment.picker} />
-              <PaymentRow label="Rider" value={fulfilment.rider} />
+              <PaymentRow
+                label="Picked by"
+                value={order.picked_by ? order.picked_by_name || `Staff #${order.picked_by}` : "Not picked yet"}
+              />
+              <PaymentRow
+                label="Rider"
+                value={
+                  assignment?.partner ? (
+                    <Link to={`/admin/delivery-partners/${assignment.partner.id}`} className="text-primary hover:underline">
+                      {assignment.partner.name}
+                    </Link>
+                  ) : (
+                    "Not assigned"
+                  )
+                }
+              />
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">Picked by and Rider are demo data — not tracked by the backend yet.</p>
           </div>
 
           <DeliveryAssignmentTab order={order} />

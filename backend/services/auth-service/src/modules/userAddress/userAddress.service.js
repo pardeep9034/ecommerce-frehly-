@@ -40,6 +40,19 @@ class UserAddressService {
     await UserAddressRepository.updateByIdAndUserId(addressId, userId, data);
     return await this.getAddressById(userId, addressId);
   }
+  async setDefaultAddress(userId, addressId) {
+    const address = await this.getAddressById(userId, addressId);
+    if (!address) {
+      throw new AppError("Address not found", 404);
+    }
+
+    await UserAddressRepository.clearDefaultForUser(userId);
+    await UserAddressRepository.updateByIdAndUserId(addressId, userId, { is_default: true });
+
+    return await this.getAddressById(userId, addressId);
+
+
+  }
 
   async deleteAddress(userId, addressId) {
     const deleted = await UserAddressRepository.deleteByIdAndUserId(addressId, userId);

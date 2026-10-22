@@ -5,10 +5,10 @@ import { getProfile } from "@/apis/authApi";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import OnboardingTimeline from "@/components/dashboard/OnboardingTimeline";
 import PageHeader from "@/components/dashboard/PageHeader";
-import { Avatar, Card, DemoNote, StatusPill } from "@/components/partner/PartnerBits";
-import { usePartnerOnboarding } from "@/hooks/use-delivery";
+import { Avatar, Card, StatusPill } from "@/components/partner/PartnerBits";
+import { usePartnerOnboarding, usePartnerWork } from "@/hooks/use-delivery";
+import { STEP_LABEL } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
-import { ACTIVE_ASSIGNMENTS, STATS_7D } from "@/lib/partnerDemoData";
 import { DOC_LABEL, DOC_ORDER, DOC_STATUS, PARTNER_STATUS, SOURCE_LABEL, VEHICLE_LABEL, whenIST } from "@/lib/partnerReview";
 
 const Stat = ({ label, value, hint }) => (
@@ -28,11 +28,13 @@ const Notice = ({ backTo, children }) => (
   </div>
 );
 
-const BACK = "/dashboard/delivery-partners?tab=partners";
+const BACK = "/admin/delivery-partners?tab=partners";
 
 const DeliveryPartnerDetail = () => {
   const { partnerId } = useParams();
   const { onboarding, isLoading, error } = usePartnerOnboarding(partnerId);
+  const { work, error: workError } = usePartnerWork(partnerId);
+  const { stats, active } = work ?? {};
   const { data: profile } = useQuery({ queryKey: ["auth-profile"], queryFn: getProfile });
   const [suspendOpen, setSuspendOpen] = useState(false);
 
@@ -75,11 +77,12 @@ const DeliveryPartnerDetail = () => {
         </div>
       </Card>
 
+      {/* No on-time rate: nothing records the promised delivery time yet. */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <Stat label="Delivered · 7 days" value={STATS_7D.delivered} hint="Sample data" />
-        <Stat label="On-time rate" value={STATS_7D.onTime} hint="Last 7 days" />
-        <Stat label="Failed attempts" value={STATS_7D.failed} hint="Last 7 days" />
-        <Stat label="Handovers" value="2 / 1" hint="Given / received" />
+        <Stat label="Delivered" value={stats?.delivered_7d ?? "–"} hint="Last 7 days" />
+        <Stat label="Failed attempts" value={stats?.failed_7d ?? "–"} hint="Last 7 days" />
+        <Stat label="Handovers" value={stats ? `${stats.handovers_given_7d} / ${stats.handovers_received_7d}` : "–"} hint="Given / received · 7 days" />
+        <Stat label="Open jobs" value={active ? `${active.length} / ${partner.max_active_orders ?? "–"}` : "–"} hint="Now / max" />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -95,21 +98,23 @@ const DeliveryPartnerDetail = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    {["Order", "Status", "Customer", "Due"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}
+                    {["Order", "Status", "Customer", "Assigned"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {ACTIVE_ASSIGNMENTS.map((a) => (
+                  {active?.map((a) => (
                     <tr key={a.id} className="border-b border-border last:border-0">
-                      <td className="py-3 pr-4 font-semibold text-foreground">#{a.id}</td>
-                      <td className="py-3 pr-4"><StatusPill status={a.status} /></td>
-                      <td className="py-3 pr-4 text-muted-foreground">{a.customer}</td>
-                      <td className="py-3 text-muted-foreground">{a.due}</td>
+                      <td className="py-3 pr-4 font-semibold text-foreground">#{a.order_id}</td>
+                      <td className="py-3 pr-4"><StatusPill status={STEP_LABEL[a.status] ?? a.status} /></td>
+                      <td className="py-3 pr-4 text-muted-foreground">{a.customer_name}</td>
+                      <td className="py-3 text-muted-foreground">{whenIST(a.assigned_at)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {workError && <p className="text-sm text-destructive">Couldn’t load this partner’s jobs. Reload to try again.</p>}
+            {active?.length === 0 && <p className="text-sm text-muted-foreground">No open jobs right now.</p>}
           </Card>
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -157,7 +162,7 @@ const DeliveryPartnerDetail = () => {
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-display text-base font-semibold text-foreground">Onboarding record</h2>
               {application && (
-                <Link to={`/dashboard/delivery-partners/applications/${application.id}`} className="text-sm font-semibold text-primary hover:underline">
+                <Link to={`/admin/delivery-partners/applications/${application.id}`} className="text-sm font-semibold text-primary hover:underline">
                   View application
                 </Link>
               )}
@@ -173,7 +178,6 @@ const DeliveryPartnerDetail = () => {
           </Card>
         </div>
       </div>
-      <DemoNote>Delivery stats and active assignments are sample data until partner orders exist. Profile, zone, documents and the onboarding record are live.</DemoNote>
 
       <ConfirmationModal
         open={suspendOpen}

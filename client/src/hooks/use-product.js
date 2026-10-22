@@ -3,6 +3,8 @@ import ProductApi from "@/apis/productApi";
 
 const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => {
   const queryClient = useQueryClient();
+  // Callers asking for one product (id) or a type list never read the list/selection queries below.
+  const wantsList = !type && !id;
 
   // GET - fetch all products with pagination
   const {
@@ -12,6 +14,7 @@ const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => 
   } = useQuery({
     queryKey: ["products", page, limit, status],
     queryFn: () => ProductApi.getAllProducts(page, limit, status),
+    enabled: wantsList,
   });
 
   // GET - fetch a single product by id
@@ -41,7 +44,8 @@ const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => 
     error:productSelectionError
   }=useQuery({
     queryKey:["productSelection",search,page,limit],
-    queryFn:()=>ProductApi.productSelection(search,page,limit)
+    queryFn:()=>ProductApi.productSelection(search,page,limit),
+    enabled: wantsList,
   })
   const {
 data:searchedProduct,

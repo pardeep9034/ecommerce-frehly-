@@ -57,7 +57,7 @@ const StoreLogin = () => {
     }
 
     setError("");
-    signIn({ phone: normalizedPhone, password, guest_cart: [] });
+    signIn({ identifier: normalizedPhone, password, guest_cart: [] });
   };
 
   return (

@@ -4,7 +4,7 @@ import useProduct from "../../hooks/use-product";
 import { useAddPromotionItemMutation } from "../../hooks/use-promotion-item";
 
 const PromotionItemModal = ({ isOpen, onClose, promotionId, existingItems }) => {
-    const { products: productsData, isLoading } = useProduct(1, 100);
+    const { products: productsData, isLoading } = useProduct({ page: 1, limit: 100 });
     const addMutation = useAddPromotionItemMutation(promotionId);
 
     const [selectedProductId, setSelectedProductId] = useState("");

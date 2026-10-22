@@ -1,36 +1,24 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Star, ShoppingCart, Eye, Heart } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Minus, Plus, ShoppingBasket } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { addToCart } from "@/redux/cartSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { addToCart, removeFromCart, updateQuantity } from "@/redux/cartSlice";
 import useProduct from "@/hooks/use-product";
 import useVariant from "@/hooks/use-variant";
 import useInventory from "@/hooks/use-inventory";
-import { useAddToCartMutation } from "@/hooks/use-addToCart";
+import {
+  useAddToCartMutation,
+  increaseQuantityMutation,
+  decreaseQuantityMutation,
+} from "@/hooks/use-addToCart";
 
-
-const ShopProductCard = ({ product, viewMode = "grid" }) => {
-  console.log("test product",product)
-  const {
-    id,
-    name,
-    price,
-    oldPrice,
-    image,
-    rating = 4,
-    status = true,
-    Category,
-    variants = []
-  } = (product.Product || product);
+// Same markup on every screen; only sizes change at lg (design B).
+const ShopProductCard = ({ product }) => {
+  const { id, name, price, oldPrice, image } = product.Product || product;
   const dispatch = useDispatch();
-  console.log("variants on home",variants)
-
-
-  // const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart") || "[]"))
-
-
-  const isList = viewMode === "list";
   const addToCartMutation = useAddToCartMutation();
+  const increaseMutation = increaseQuantityMutation();
+  const decreaseMutation = decreaseQuantityMutation();
 
   // Parent (Shop.jsx) may already pass merged variants annotated with `in_stock`.
   // When it hasn't (e.g. ShopProductDetail's related-products strip), self-fetch.
@@ -60,181 +48,160 @@ const ShopProductCard = ({ product, viewMode = "grid" }) => {
     : (productById?.data?.variants?.length || 0);
   const isOutOfStock = totalVariantCount > 0 && variantData.length === 0;
 
-  const [selectedVariant, setSelectedVariant] = useState(variantData?.[0] || {});
-  useEffect(() => {
-  if (variantData?.length > 0) {
-    setSelectedVariant(variantData[0]);
-  }
-}, [variantData]);
+  // Out-of-stock products still show their first pack's price.
+  const shownVariants = isOutOfStock ? (preloadedVariants || variantInfo || []) : variantData;
+  const [pickedIndex, setSelectedIndex] = useState(0);
+  const selectedIndex = shownVariants[pickedIndex] ? pickedIndex : 0;
+  const selectedVariant = shownVariants[selectedIndex] || {};
 
-  const currentPrice = selectedVariant.price || price;
-  const currentMrp = selectedVariant.mrp || oldPrice;
-  const discount = currentMrp ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
-const handleAddToCart = () => {
-  if (isOutOfStock || !selectedVariant?.id) return;
-  addToCartMutation.mutate(
-    {
-      variant_id: selectedVariant.id,
-      quantity: 1
-    },
-    {
-      onSuccess: (response) => {
-        const cartItem = response?.data?.data;
-        dispatch(
-          addToCart({
-            id: cartItem?.id,
-            cart_id: cartItem?.cart_id,
-            product_id: product.id,
-            variant_id: selectedVariant.id,
-            product_name: name,
-            image: image,
-            variant_name: selectedVariant.variant_name,
-            quantity: 1,
-            price: currentPrice
-          })
-        );
-      }
-    }
+  const currentPrice = Number(selectedVariant.price || price || 0);
+  const currentMrp = Number(selectedVariant.mrp || oldPrice || 0);
+  const discount = currentMrp > currentPrice ? Math.round(((currentMrp - currentPrice) / currentMrp) * 100) : 0;
+
+  const cartItem = useSelector((state) =>
+    state.cart.items.find(
+      (item) => item.product_id === id && item.variant_id === selectedVariant.id
+    )
   );
-};
-    
-  
+
+  const handleAddToCart = () => {
+    if (isOutOfStock || !selectedVariant?.id) return;
+    addToCartMutation.mutate(
+      { variant_id: selectedVariant.id, quantity: 1 },
+      {
+        onSuccess: (response) => {
+          const added = response?.data?.data;
+          dispatch(
+            addToCart({
+              id: added?.id,
+              cart_id: added?.cart_id,
+              product_id: id,
+              variant_id: selectedVariant.id,
+              product_name: name,
+              image,
+              variant_name: selectedVariant.variant_name,
+              quantity: 1,
+              price: currentPrice,
+            })
+          );
+        },
+      }
+    );
+  };
+
+  // Same steps as CartPage; the server drops the item when it reaches 0.
+  const changeQuantity = (delta) => {
+    const keys = { product_id: cartItem.product_id, variant_id: cartItem.variant_id };
+    if (delta > 0) {
+      dispatch(updateQuantity({ ...keys, quantity: cartItem.quantity + 1 }));
+      increaseMutation.mutate({ cartItemId: cartItem.id });
+    } else {
+      if (cartItem.quantity <= 1) dispatch(removeFromCart(keys));
+      else dispatch(updateQuantity({ ...keys, quantity: cartItem.quantity - 1 }));
+      decreaseMutation.mutate({ cartItemId: cartItem.id });
+    }
+  };
 
   return (
-    <div className={`group relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-border bg-white transition-all duration-500 hover:border-success/30 hover:shadow-2xl hover:shadow-success/5 ${
-      isList ? "flex flex-col sm:flex-row p-3 sm:p-4 gap-4 sm:gap-6" : "flex flex-col h-full"
-    }`}>
-      
-      {/* Badge (Sale) */}
+    <div className="relative flex h-full flex-col rounded-xl border border-border bg-white p-2.5 lg:rounded-2xl lg:p-3">
       {discount > 0 && !isOutOfStock && (
-        <div className="absolute left-2 top-2 sm:left-4 sm:top-4 z-10 rounded-full bg-accent px-2 py-0.5 sm:px-3 sm:py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-accent-foreground shadow-lg shadow-accent/20">
-          Save {discount}%
-        </div>
+        <span className="absolute left-2 top-2 z-10 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-accent-foreground lg:text-[11px]">
+          {discount}% OFF
+        </span>
       )}
 
-      {/* Out of Stock overlay */}
-      {isOutOfStock && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
-          <span className="rounded-full bg-foreground px-3 py-1 text-[10px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg">
-            Out of Stock
+      <Link
+        to={`/products/${id}`}
+        className="relative flex h-[120px] items-center justify-center overflow-hidden rounded-lg bg-muted lg:h-[150px]"
+      >
+        <ShoppingBasket className="h-10 w-10 text-muted-foreground/40" />
+        {image && (
+          <img
+            src={image}
+            alt={name}
+            loading="lazy"
+            onError={(e) => e.currentTarget.remove()}
+            className={`absolute inset-0 h-full w-full bg-muted object-contain p-2 ${isOutOfStock ? "opacity-50 grayscale" : ""}`}
+          />
+        )}
+        {isOutOfStock && (
+          <span className="absolute rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase text-white">
+            Out of stock
           </span>
-        </div>
+        )}
+      </Link>
+
+      <Link
+        to={`/products/${id}`}
+        className="mt-2 line-clamp-2 min-h-10 text-[13px] font-semibold leading-5 text-foreground hover:text-primary lg:text-sm"
+      >
+        {name}
+      </Link>
+
+      {shownVariants.length > 1 && !isOutOfStock ? (
+        <select
+          value={selectedIndex}
+          onChange={(e) => setSelectedIndex(Number(e.target.value))}
+          aria-label={`Pack size for ${name}`}
+          className="mt-1.5 w-full rounded-md border border-border bg-white px-2 py-1 text-xs font-medium text-muted-foreground outline-none focus:border-primary"
+        >
+          {shownVariants.map((v, index) => (
+            <option key={v.id ?? index} value={index}>
+              {v.variant_name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="mt-1.5 px-0.5 py-1 text-xs font-medium text-muted-foreground">
+          {selectedVariant.variant_name || " "}
+        </p>
       )}
 
-      {/* Wishlist Button */}
-      <button className="absolute right-2 top-2 sm:right-4 sm:top-4 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-muted-foreground backdrop-blur-md transition-all hover:bg-destructive hover:text-white shadow-sm opacity-0 group-hover:opacity-100">
-        <Heart className="h-5 w-5" />
-      </button>
-
-      {/* Image Container */}
-      <div className={`relative overflow-hidden bg-muted rounded-[1rem] sm:rounded-[1.5rem] shrink-0 ${
-        isList ? "w-full sm:w-48 lg:w-64 aspect-square" : "aspect-square"
-      }`}>
-        <img
-          src={image || "/placeholder.png"}
-          alt={name}
-          className="h-full w-full object-contain p-2 sm:p-4 transition-transform duration-700 group-hover:scale-110"
-        />
-        
-        {/* Quick Actions Overlay (Grid only) */}
-        {!isList && (
-          <div className="absolute inset-x-0 bottom-4 hidden sm:flex items-center justify-center gap-2 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
-            <Link 
-              to={`/products/${id}`} 
-              className="flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-xs font-bold text-white shadow-xl hover:bg-primary transition-colors"
-            >
-              <Eye className="h-4 w-4" />
-              Quick View
-            </Link>
-          </div>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span className="text-[15px] font-extrabold text-foreground lg:text-base">₹{currentPrice}</span>
+        {currentMrp > currentPrice && (
+          <span className="text-xs text-muted-foreground line-through">₹{currentMrp}</span>
         )}
       </div>
 
-      {/* Content */}
-      <div className={`flex flex-1 flex-col ${isList ? "py-1 sm:py-2" : "p-3 sm:p-6"}`}>
-     
-        
-        <Link to={`/products/${id}`} className="mb-1 sm:mb-2 line-clamp-1 text-xs sm:text-lg font-black text-foreground hover:text-primary transition-colors tracking-tight">
-          {name}
-        </Link>
-
-        {/* Rating - Hide on small mobile to save space if needed, or keep compact */}
-        <div className="mb-2 sm:mb-4 flex items-center gap-1 hidden sm:block md:block lg:block xl:block">
-          <div className="flex items-center gap-0.5">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 ${
-                  i < Math.floor(rating) ? "fill-accent text-accent" : "text-border"
-                }`}
-              />
-            ))}
-          </div>
-          {/* <span className="ml-1 text-[10px] sm:text-xs font-bold text-muted-foreground">{rating}</span> */}
-        </div>
-
-        {/* Variant Selector - Compact on mobile */}
-        {variantData?.length > 1? (
-          <div className="mb-3 sm:mb-6">
-            <select
-              value={variantData.indexOf(selectedVariant)}
-              onChange={(e) => setSelectedVariant(variantData[e.target.value])}
-              className="w-full rounded-lg sm:rounded-xl border border-border bg-muted px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-muted-foreground outline-none transition-all focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5"
-            >
-              {variantData.map((v, index) => (
-                <option key={index} value={index}>
-                 {v.variant_name} - ₹{v.price}
-                </option>
-              ))}
-            </select>
-          </div>
-        ):
-        (
-          <div className="mb-3 sm:mb-6">
-            <span className="w-full rounded-lg sm:rounded-xl border border-border bg-muted px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-bold text-muted-foreground outline-none transition-all focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5">{selectedVariant?.variant_name}</span>
-            
-            </div>
-        )
-        
-        }
-
-        {/* Price & Action */}
-        <div className={`mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 ${isList ? "pt-3 sm:pt-4 border-t border-muted" : ""}`}>
-          <div className="flex items-baseline gap-1.5 sm:gap-3">
-            <>
-            <span className="text-sm sm:text-2xl font-black text-primary">₹{currentPrice}</span>
-            {currentMrp > currentPrice && (
-              <span className="text-[10px] sm:text-sm font-bold text-muted-foreground line-through">₹{currentMrp}</span>
-            )}</>
-             <button
-              onClick={handleAddToCart}
-              disabled={isOutOfStock}
-              className="flex h-9 sm:h-12 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-primary px-3 sm:px-6 text-[10px] sm:text-sm font-black text-white shadow-lg shadow-success/20 transition-all hover:scale-105 hover:bg-primary/90 active:scale-95 group/cart overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-            <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 transition-transform " />
-
-
-
+      <div className="mt-auto pt-2">
+        {isOutOfStock ? (
+          <button
+            disabled
+            className="h-9 w-full rounded-lg border border-border text-xs font-bold text-muted-foreground"
+          >
+            Out of stock
           </button>
+        ) : cartItem ? (
+          <div className="flex h-9 w-full items-center justify-between rounded-lg bg-primary text-white">
+            <button
+              onClick={() => changeQuantity(-1)}
+              aria-label={`Remove one ${name}`}
+              className="flex h-full w-10 items-center justify-center"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-extrabold" aria-live="polite">{cartItem.quantity}</span>
+            <button
+              onClick={() => changeQuantity(1)}
+              aria-label={`Add one more ${name}`}
+              className="flex h-full w-10 items-center justify-center"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
-          
-          
-        </div>
-        
-        {isList && (
-           <p className="mt-4 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-             Our premium organic products are sourced directly from sustainable farms to ensure the highest quality and freshness for your kitchen.
-           </p>
+        ) : (
+          <button
+            onClick={handleAddToCart}
+            disabled={addToCartMutation.isPending || !selectedVariant.id}
+            className="h-9 w-full rounded-lg border-[1.5px] border-primary bg-primary/10 text-sm font-extrabold text-primary transition-colors hover:bg-primary hover:text-white disabled:opacity-60"
+          >
+            ADD
+          </button>
         )}
       </div>
     </div>
   );
 };
-
-const Plus = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-  </svg>
-);
 
 export default ShopProductCard;

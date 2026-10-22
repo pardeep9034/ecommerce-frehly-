@@ -8,6 +8,7 @@ import TableSkeleton from "@/components/dashboard/TableSkeleton";
 import SearchableSelector from "@/components/common/SearchableSelector";
 import WarehouseApi from "@/apis/warehouseApi";
 import useInventory from "@/hooks/use-inventory";
+import { stockLevel } from "@/lib/stockLevel";
 import { toast } from "@/components/ui/sonner";
 import { Plus, Search, Warehouse, ArrowLeftRight, Lock, AlertCircle } from "lucide-react";
 
@@ -25,14 +26,14 @@ const Inventory = () => {
     const pageSize = 10;
 
     const quickLinks = [
-        { label: "Warehouse", icon: Warehouse, path: "/dashboard/warehouses" },
-        { label: "Stock Movement", icon: ArrowLeftRight, path: "/dashboard/stock-movement" },
-        { label: "Stock Reservation", icon: Lock, path: "/dashboard/stock-reservation" },
+        { label: "Warehouse", icon: Warehouse, path: "/admin/warehouses" },
+        { label: "Stock Movement", icon: ArrowLeftRight, path: "/admin/stock-movement" },
+        { label: "Stock Reservation", icon: Lock, path: "/admin/stock-reservation" },
     ];
 
     const {
         inventory: inventoryData,
-        inventoryStats,
+        stockSummary,
         isLoading,
         error,
         createInventory,
@@ -64,29 +65,10 @@ const Inventory = () => {
                     item.variant.measurementUnit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.variant.unit?.toLowerCase().includes(searchTerm.toLowerCase())
                 ));
-            const stockMatch =
-                stockFilter === "All" ||
-                (stockFilter === "Low" && item.current_stock > 0 && item.current_stock <= item.low_stock_threshold) ||
-                (stockFilter === "Out" && item.current_stock <= 0);
+            const stockMatch = stockFilter === "All" || stockLevel(item) === stockFilter.toUpperCase();
             return searchMatch && stockMatch;
         });
     }, [inventoryList, searchTerm, stockFilter]);
-
-    // Stat cards are scoped to the selected warehouse (real numbers from
-    // inventoryStats, a wider fetch of the same warehouse — see use-inventory.js).
-    // No cross-warehouse aggregate endpoint exists, so "across all warehouses"
-    // from the design isn't shown; these are honest per-warehouse totals instead.
-    const stockStats = useMemo(() => {
-        const lowStock = inventoryStats.filter((i) => i.current_stock > 0 && i.current_stock <= i.low_stock_threshold).length;
-        const outOfStock = inventoryStats.filter((i) => i.current_stock <= 0).length;
-        const reserved = inventoryStats.reduce((sum, i) => sum + (i.reserved_stock || 0), 0);
-        return {
-            variantsStocked: inventoryStats.length,
-            lowStock,
-            outOfStock,
-            reserved,
-        };
-    }, [inventoryStats]);
 
     const totalPages = pagination.totalPages || 1;
 
@@ -156,10 +138,10 @@ const Inventory = () => {
             {warehouseId && (
                 <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
                     {[
-                        { label: "Variants stocked", value: stockStats.variantsStocked, hint: "In this warehouse" },
-                        { label: "Low stock", value: stockStats.lowStock, warn: true },
-                        { label: "Out of stock", value: stockStats.outOfStock, warn: true },
-                        { label: "Reserved now", value: stockStats.reserved },
+                        { label: "Variants stocked", value: stockSummary?.total ?? "…", hint: "In this warehouse" },
+                        { label: "Low stock", value: stockSummary?.low ?? "…", hint: "Not counting reserved", warn: true },
+                        { label: "Out of stock", value: stockSummary?.out ?? "…", hint: "Not counting reserved", warn: true },
+                        { label: "Reserved now", value: stockSummary?.reserved ?? "…" },
                     ].map((card) => (
                         <div key={card.label} className="rounded-xl border border-border bg-white p-4 shadow-card">
                             <p className="text-xs text-muted-foreground">{card.label}</p>
@@ -173,7 +155,7 @@ const Inventory = () => {
             )}
         {/*
         <button
-        onClick={()=>navigate("/dashboard/products/category")}
+        onClick={()=>navigate("/admin/products/category")}
           className="flex h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <List className="h-5 w-5 text-gray-500" />
@@ -181,7 +163,7 @@ const Inventory = () => {
         </button>
       
         <button
-        onClick={()=>navigate("/dashboard/products/product-type")}
+        onClick={()=>navigate("/admin/products/product-type")}
           className="flex h-20 min-w-28 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <List className="h-5 w-5 text-gray-500" />
@@ -189,7 +171,7 @@ const Inventory = () => {
         </button>
       
         <button
-        onClick={()=>navigate("/dashboard/products/product-attribute")}
+        onClick={()=>navigate("/admin/products/product-attribute")}
           className="flex h-20 min-w-32 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-primary shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <List className="h-5 w-5 text-gray-500" />

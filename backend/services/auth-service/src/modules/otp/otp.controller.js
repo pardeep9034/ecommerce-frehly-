@@ -10,12 +10,12 @@ class otpController{
 
   if (result.success === true) {
 
+    // Outside development every success reply carries data: {}, so it doesn't show whether the number is registered.
     return ResponseUtil.success(
       res,
-      null,
+      result.data ?? {},
       result.message,
-      result.statusCode || 200,
-      result.data
+      result.statusCode || 200
     );
 
   } else {

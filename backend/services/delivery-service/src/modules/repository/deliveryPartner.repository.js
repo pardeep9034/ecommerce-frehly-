@@ -6,6 +6,21 @@ class DeliveryPartnerRepository extends BaseRepository {
     super("DeliveryPartner");
   }
 
+  // Numbers for the Delivery partners stat cards, in one pass over the table.
+  async countSummary() {
+    const Model = await this.getModel();
+    const [row] = await Model.sequelize.query(
+      `SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active,
+              COUNT(DISTINCT zone_id) FILTER (WHERE status = 'ACTIVE')::int AS zones,
+              COUNT(*) FILTER (WHERE status = 'ACTIVE' AND is_online)::int AS online,
+              COALESCE(SUM(current_active_orders) FILTER (WHERE status = 'ACTIVE'), 0)::int AS orders_in_progress,
+              COUNT(*) FILTER (WHERE status = 'SUSPENDED')::int AS suspended
+         FROM delivery_partners`,
+      { type: Model.sequelize.QueryTypes.SELECT }
+    );
+    return row;
+  }
+
   async createDeliveryPartner(data, options = {}) {
     return await this.create(data, options);
   }
@@ -78,6 +93,31 @@ class DeliveryPartnerRepository extends BaseRepository {
   async findWithZone(id) {
     const Model = (await this.getModel()).unscoped();
     return await Model.findByPk(id, { include: [{ association: "zone", attributes: ["id", "name"] }] });
+  }
+
+  // Names and phones of the partners on the other side of a partner's handovers (partner "me" routes only).
+  async findContacts(ids) {
+    if (ids.length === 0) return [];
+    const Model = (await this.getModel()).unscoped();
+    return await Model.findAll({ where: { id: ids }, attributes: ["id", "name", "phone"] });
+  }
+
+  // Who a partner can hand an order to: same zone, active, online, room for one more, never themselves; least busy first.
+  // The same filter handOver() applies to the receiver. Name only, no phone.
+  async findHandoverCandidates(zoneId, excludeId) {
+    const Model = (await this.getModel()).unscoped();
+    return await Model.findAll({
+      where: {
+        zone_id: zoneId,
+        status: "ACTIVE",
+        is_online: true,
+        id: { [Op.ne]: excludeId },
+        current_active_orders: { [Op.lt]: Model.sequelize.col("max_active_orders") },
+      },
+      attributes: ["id", "name", "vehicle_type", "current_active_orders", "max_active_orders"],
+      order: [["current_active_orders", "ASC"], ["name", "ASC"]],
+      limit: 20,
+    });
   }
 
   async updateDeliveryPartner(id, data, options = {}) {

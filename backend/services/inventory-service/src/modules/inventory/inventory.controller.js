@@ -59,6 +59,15 @@ class InventoryController {
       next(error);
     }
   }
+  async getStockSummary(req, res, next) {
+    try {
+      const warehouseId = req.query.warehouse_id ? Number(req.query.warehouse_id) : undefined;
+      const result = await InventoryServices.getStockSummary(warehouseId);
+      return ResponseUtil.success(res, result, "Stock summary fetched successfully");
+    } catch (error) {
+      next(error);
+    }
+  }
   async getInventoryByWarehouseId(req, res, next) {
     try {
       const { warehouseId } = req.params;

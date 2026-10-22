@@ -24,7 +24,11 @@
     <meta name="theme-color" content="#ffffff" /> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freshly</title>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Fonts load here, not via @import in index.css, so the browser fetches them in parallel with the bundle.
+         Razorpay is loaded on demand by src/lib/razorpay.js. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@500;600;700&display=swap" />
   </head>
   <body>
     <div id="root"></div>

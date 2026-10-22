@@ -11,7 +11,7 @@ import DeliveryZoneRepository from "../repository/deliveryZone.repository.js";
 import AppError from "../../utils/AppError.js";
 import logger from "../../utils/Logger.js";
 import * as storage from "../../utils/storage.js";
-import { sms } from "../../utils/notify.js";
+import { publishEvent } from "../../utils/notificationClient.js";
 import { maskPhone } from "../../utils/helper.js";
 import { env } from "../../config/env.js";
 import { findOrCreatePartnerUser } from "../../utils/authClient.js";
@@ -31,6 +31,8 @@ const num = (value) => (value === null || value === undefined ? null : Number(va
 const same = (a, b) => a !== null && a !== undefined && String(a) === String(b);
 const inOrder = (order, key) => (x, y) => order.indexOf(x[key]) - order.indexOf(y[key]);
 const zoneView = (zone) => (zone ? { id: num(zone.id), name: zone.name, is_active: zone.is_active } : null);
+// Who an applicant text goes to: notification-service reads the account's mobile (the application's phone is the same number).
+const textTo = (application) => ({ applicationId: application.id, userId: application.user_id, ref: application.ref_no });
 
 const parseDocType = (raw) => {
   const type = String(raw).toUpperCase();
@@ -207,8 +209,13 @@ class PartnerReviewService {
     };
   }
 
+  // Applications waiting (+ per status) and the partner counts (`partners`) for the stat cards.
   async summary() {
-    return summarize(await PartnerApplicationRepository.countByStatus());
+    const [applications, partners] = await Promise.all([
+      PartnerApplicationRepository.countByStatus(),
+      DeliveryPartnerRepository.countSummary(),
+    ]);
+    return { ...summarize(applications), partners };
   }
 
   // The event stream across all applications for the Activity log (admins only): newest first, document opens included.
@@ -303,7 +310,7 @@ class PartnerReviewService {
 
     // P3-7: someone with a working account does not need a sign-up link; the screen tells staff to ask them to log in.
     if (!registered) {
-      await sms(data.phone, "invite", { link: `${env.PARTNER_APP_URL}/partner/apply?phone=${data.phone}` });
+      void publishEvent("partner.application.invited", { applicationId: application.id, phone: data.phone });
     }
     return { ...(await this.getDetail(application.id, staff)), invite_sent: !registered };
   }
@@ -451,8 +458,8 @@ class PartnerReviewService {
       );
       return locked;
     });
-    // After the commit; a failed text is logged inside sms() and does not undo the request.
-    await sms(application.phone, "reupload", { ref: application.ref_no, doc: docLabel(type) });
+    // After the commit, not awaited: publishEvent never rejects, so a failed text does not undo the request.
+    void publishEvent("partner.application.reupload_requested", { ...textTo(application), doc: docLabel(type) });
     return this.getDetail(id, user);
   }
 
@@ -528,7 +535,7 @@ class PartnerReviewService {
       );
       return locked;
     });
-    await sms(application.phone, "changes", { ref: application.ref_no });
+    void publishEvent("partner.application.changes_requested", textTo(application));
     return this.getDetail(id, user);
   }
 
@@ -553,7 +560,7 @@ class PartnerReviewService {
       await PartnerApplicationEventRepository.log({ applicationId: id, type: "REJECTED", actor: user, visible: true }, { transaction });
       return locked;
     });
-    await sms(application.phone, "rejected", { ref: application.ref_no, date: formatDate(reapplyDate(decidedAt)) });
+    void publishEvent("partner.application.rejected", { ...textTo(application), date: formatDate(reapplyDate(decidedAt)) });
     return this.getDetail(id, user);
   }
 
@@ -607,7 +614,7 @@ class PartnerReviewService {
       return locked;
     });
 
-    await sms(application.phone, "approved", { name: safeName(application.name) });
+    void publishEvent("partner.application.approved", { ...textTo(application), name: safeName(application.name) });
     return { ...(await this.getDetail(id, user)), partner_id: partner.id };
   }
 }

@@ -1,5 +1,8 @@
 
+import crypto from "node:crypto";
 import ResponseUtil from "../utils/response.js";
+import { env } from "../config/env.js";
+import { ADMIN_ROLES } from "../constants/roles.js";
 
 import verifyToken from "../utils/verifyToken.js";
 import logger from "../utils/Logger.js";
@@ -19,18 +22,11 @@ const authenticateToken = async (req, res, next) => {
             if (token) {
 
                 /* ================= TOKEN VERIFICATION ================= */
+                // Any signed-in role; routes that need staff add requireRole(ADMIN_ROLES) or use staffOrService.
                 const decoded = verifyToken(token);
                 if(decoded.role){
-                    if(decoded.role === "ADMIN" || "SUPER_ADMIN"||"OPS_STAFF"){
-                        req.user=decoded;
-                        next();
-                    }
-                    else{
-                        return ResponseUtil.unauthorized(
-                            res,
-                            "Unauthorized"
-                        );
-                    }
+                    req.user=decoded;
+                    next();
                 }
                 else{
                     return ResponseUtil.unauthorized(
@@ -117,4 +113,18 @@ const requireRole = (roles) => {
 
 };
 
-export { authenticateToken, requireRole };
+// Hashing first gives timingSafeEqual two equal-length buffers whatever the caller sends.
+const digest = (value) => crypto.createHash("sha256").update(String(value)).digest();
+
+// Staff (ADMIN_ROLES) with a token, or a sibling service (order-service) holding INTERNAL_API_KEY.
+// Without a configured key only staff get in.
+const staffOrService = (req, res, next) => {
+    const sent = req.headers["x-internal-key"];
+    if (sent && env.INTERNAL_API_KEY && crypto.timingSafeEqual(digest(sent), digest(env.INTERNAL_API_KEY))) {
+        req.service = true;
+        return next();
+    }
+    return authenticateToken(req, res, () => requireRole(ADMIN_ROLES)(req, res, next));
+};
+
+export { authenticateToken, requireRole, staffOrService };

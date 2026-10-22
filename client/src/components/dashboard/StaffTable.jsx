@@ -53,7 +53,7 @@ const StaffTable = ({ staff = [], isLoading, onEdit, onResetPassword, onResendIn
                       {initials(user)}
                     </span>
                     <span className="flex min-w-0 flex-col">
-                      <span className="font-semibold text-foreground">{fullName(user)}</span>
+                      <span className="font-semibold text-foreground">{user.name}</span>
                       <span className="text-xs text-muted-foreground">{user.phone || user.email}</span>
                     </span>
                   </span>

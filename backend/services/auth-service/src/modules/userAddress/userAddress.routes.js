@@ -12,6 +12,7 @@ router.post("/", validateAddress("createAddress"), asyncHandler(UserAddressContr
 router.get("/", asyncHandler(UserAddressController.getUserAddresses));
 router.get("/:id", asyncHandler(UserAddressController.getAddressById));
 router.put("/:id", validateAddress("updateAddress"), asyncHandler(UserAddressController.updateAddress));
+router.put("/:id/set-default", asyncHandler(UserAddressController.setDefaultAddress));
 router.delete("/:id", asyncHandler(UserAddressController.deleteAddress));
 
 export default router;

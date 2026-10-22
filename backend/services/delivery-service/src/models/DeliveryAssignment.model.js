@@ -76,6 +76,10 @@ export default (sequelize) => {
       },
       cancellation_reason: {
         type: DataTypes.TEXT
+      },
+      // Set by a DB trigger when status leaves ACTIVE; never written from code.
+      completed_at: {
+        type: DataTypes.DATE
       }
     },
     {

@@ -89,8 +89,8 @@ const AssignStaffModal = ({ open, onClose, warehouse, staff = [], onAssign, isPe
         <div className="flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
           <span className="flex-1 text-[13px] text-muted-foreground">
             Not in the list?{" "}
-            <Link to="/dashboard/staff/new" className="font-semibold text-primary hover:text-primary/80">
-              Create a new user
+            <Link to="/admin/staff/new" className="font-semibold text-primary hover:text-primary/80">
+              Add new staff
             </Link>
           </span>
           <button type="button" onClick={close} className={secondaryButtonClass}>

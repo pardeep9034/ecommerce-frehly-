@@ -51,7 +51,7 @@ export const isMovingFromAnotherWarehouse = (user, targetWarehouseId) =>
 export const fullName = (user) => [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "—";
 
 export const initials = (user) =>
-  [user?.first_name, user?.last_name]
+  [user?.name]
     .filter(Boolean)
     .map((part) => part[0])
     .join("")

@@ -111,5 +111,9 @@ export default [
     route: "/config",
     target: process.env.CONFIG_SERVICE_URL || "http://config-service:3007"
   },
+  {
+    route: "/notifications",
+    target: process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:3008"
+  },
  
 ]

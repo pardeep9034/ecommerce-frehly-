@@ -34,7 +34,7 @@ const OfferedServices = () => {
               key={index} 
               className="group flex flex-col items-center text-center gap-2 p-2 sm:p-4 rounded-2xl sm:rounded-[2rem] bg-white border border-gray-100 transition-all duration-300 hover:border-success hover:shadow-2xl hover:shadow-success/5 transition-all"
             >
-              <div className="flex shrink-0 h-10 w-6 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl bg-success text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
+              <div className="flex shrink-0 h-10 w-6 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl bg-success text-yellow-300 group-hover:bg-primary group-hover:text-white transition-all duration-300">
                 {React.cloneElement(service.icon, { className: "h-2 w-2 sm:h-4 sm:w-4" })}
               </div>
               <div>

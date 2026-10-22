@@ -132,6 +132,10 @@ try {
     assert.equal(got.waiting, want.waiting, `${label}: waiting equals NEW + UNDER_REVIEW`);
     assert.equal(got.oldest_submitted_at === null ? null : new Date(got.oldest_submitted_at).getTime(), want.oldest, `${label}: oldest waiting`);
     assert.ok(Object.values(got.by_status).every((n) => typeof n === "number") && typeof got.waiting === "number", `${label}: numbers, not strings`);
+    const [partners] = await sql(`SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active, COUNT(*) FILTER (WHERE status = 'ACTIVE' AND is_online)::int AS online,
+      COUNT(*) FILTER (WHERE status = 'SUSPENDED')::int AS suspended FROM delivery_partners`);
+    assert.deepEqual({ active: got.partners.active, online: got.partners.online, suspended: got.partners.suspended }, partners, `${label}: partner counts equal SQL`);
+    assert.ok(Number.isInteger(got.partners.zones) && Number.isInteger(got.partners.orders_in_progress), `${label}: zones and orders are numbers`);
     return got;
   };
 

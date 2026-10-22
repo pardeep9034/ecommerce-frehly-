@@ -234,17 +234,21 @@ const StoreOrderDetail = () => {
         <aside className="flex flex-col gap-4">
           <section className="rounded-2xl border border-border bg-white p-4">
             <h2 className="mb-2 font-bold text-foreground">Customer</h2>
-            <p className="text-sm font-semibold">{order.customer_name}</p>
-            <p className="text-sm text-muted-foreground">{order.delivery_address}</p>
+            <p className="text-sm font-semibold">{order.address?.full_name}</p>
+            <p className="text-sm text-muted-foreground">
+              {[order.address?.address_line_1, order.address?.address_line_2, order.address?.landmark, order.address?.city, order.address?.postal_code]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
           </section>
 
-          {order.status_history?.length > 0 && (
+          {order.statusHistory?.length > 0 && (
             <section className="rounded-2xl border border-border bg-white p-4">
               <h2 className="mb-2 font-bold text-foreground">Timeline</h2>
               <ul className="flex flex-col gap-2">
-                {order.status_history.map((entry, index) => (
+                {order.statusHistory.map((entry, index) => (
                   <li key={index} className="flex justify-between text-sm">
-                    <span>{entry.status}</span>
+                    <span>{entry.new_status}</span>
                     <span className="text-muted-foreground">{new Date(entry.created_at).toLocaleTimeString()}</span>
                   </li>
                 ))}

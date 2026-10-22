@@ -35,7 +35,17 @@ export default (sequelize) => {
       old_partner_confirmed_at : {
         type: DataTypes.DATE
       },
-    
+      receipt_confirmed_at: {
+        type: DataTypes.DATE
+      },
+      cancelled_at: {
+        type: DataTypes.DATE
+      },
+      // The partner who declined or withdrew; null when staff called it off.
+      cancelled_by: {
+        type: DataTypes.UUID
+      },
+
       status:{
         type:DataTypes.ENUM("PENDING","OLD_PARTNER_CONFIRMED","COMPLETED","CANCELLED"),
         defaultValue:"PENDING" ,

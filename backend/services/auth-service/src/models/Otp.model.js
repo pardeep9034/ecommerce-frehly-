@@ -24,7 +24,8 @@ export default (sequelize) => {
                 type: DataTypes.ENUM(
                     "SIGNUP",
                     "EMAIL_VERIFY",
-                    "FORGOT_PASSWORD"
+                    "FORGOT_PASSWORD",
+                    "PHONE_CHANGE" // sent to the new number when a signed-in user changes their mobile
                 ),
                 allowNull: false
             },

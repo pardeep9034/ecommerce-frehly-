@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import useInventory from "../../hooks/use-inventory";
 import useStockMovement from "../../hooks/use-stockMovement";
+import { stockLevel } from "@/lib/stockLevel";
 
 // Reuses the existing InventoryApi.fetchInventoryByWarehouse / StockMovementApi
 // (already in the codebase for the admin dashboard) instead of a new
@@ -48,8 +49,9 @@ const StoreStock = () => {
               <tbody>
                 {items.map((item) => {
                   const available = (item.current_stock ?? 0) - (item.reserved_stock ?? 0);
-                  const isOut = available <= 0;
-                  const isLow = !isOut && available <= (item.low_stock_threshold ?? 10);
+                  const level = stockLevel(item);
+                  const isOut = level === "OUT";
+                  const isLow = level === "LOW";
                   return (
                     <tr key={item.id} className="border-t border-border">
                       <td className="px-4 py-3 font-semibold">{item.product_name || item.variant_name || `Variant #${item.variant_id}`}</td>

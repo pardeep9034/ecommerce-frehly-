@@ -59,6 +59,17 @@ export const getProfile = async () => {
   }
 };
 
+// Own name / email / mobile. A new mobile also needs `otp` from requestPhoneChangeOtp. Answers the fresh profile.
+export const updateProfile = async (changes) => (await api.put("/auth/profile", changes)).data.data;
+
+// Sends a code to the NEW mobile number. In development the code comes back as data.otp.
+export const requestPhoneChangeOtp = async (phone) => (await api.post("/auth/profile/phone/otp", { phone })).data;
+
+// Keeps this device signed in and signs out the others. Answers { message, data: { signed_out_sessions } }.
+export const changePassword = async (current_password, new_password) =>
+  (await api.put("/auth/password", { current_password, new_password })).data;
+export const logoutOtherDevices = async () => (await api.post("/auth/logout/others")).data;
+
 export const resendOtp = async (phone,type) => {
   try {
     const response = await api.post("/auth/otp/resend", { phone,type });

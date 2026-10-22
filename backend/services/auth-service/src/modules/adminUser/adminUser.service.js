@@ -4,6 +4,7 @@ import UserSessionRepository from "../repository/userSession.repository.js";
 import AuditRepository from "../repository/audit.repository.js";
 import initializeModels from "../../models/index.js";
 import AppError from "../../utils/AppError.js";
+import { STAFF_ROLES } from "../../constants/roles.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATUSES = { active: true, blocked: false };
@@ -32,16 +33,16 @@ class AdminUserService {
     }
 
     // One exact customer, e.g. "View customer" from an order.
-    let customerId;
+    let userId;
     if (query.id) {
-      customerId = Number(query.id);
-      if (!Number.isInteger(customerId) || customerId <= 0) throw new AppError("id must be a positive number", 400);
+      userId = Number(query.id);
+      if (!Number.isInteger(userId) || userId <= 0) throw new AppError("id must be a positive number", 400);
     }
 
     const search = String(query.search ?? "").trim() || undefined;
 
     const [{ count, rows }, counts] = await Promise.all([
-      userRepository.findCustomers({ id: customerId, search, isActive, joinedSince, limit, offset: (page - 1) * limit }),
+      userRepository.findCustomers({ id: userId, search, isActive, joinedSince, limit, offset: (page - 1) * limit }),
       userRepository.getCustomerCounts(new Date(Date.now() - 7 * DAY_MS))
     ]);
 
@@ -52,6 +53,8 @@ class AdminUserService {
         name: fullName(user),
         phone: user.phone,
         email: user.email,
+        role: user.role,
+        warehouse_id: user.warehouse_id,
         is_active: user.is_active,
         joined: user.created_at,
         last_login_at: user.last_login_at,
@@ -69,19 +72,23 @@ class AdminUserService {
     };
   }
 
-  // Block (is_active = false) or unblock a customer. Blocking also signs them out everywhere:
+  // Block (is_active = false) or unblock a customer or a staff user. Blocking also signs them out everywhere:
   // refresh tokens and sessions are revoked, and login / token refresh refuse inactive users.
   // An access token already issued still works in the other services until it expires (15 min),
   // because they verify the JWT locally.
-  async setCustomerStatus(id, isActive, adminId) {
+  // Staff accounts are for super admins only, and nobody can disable themselves.
+  async setStatus(id, isActive, actor) {
     const userId = Number(id);
-    if (!Number.isInteger(userId) || userId <= 0) throw new AppError("Invalid customer id", 400);
+    if (!Number.isInteger(userId) || userId <= 0) throw new AppError("Invalid user id", 400);
     if (typeof isActive !== "boolean") throw new AppError("is_active must be true or false", 400);
 
-    // Customers only: an admin can't block another admin (or themselves) from here.
-    const user = await userRepository.findOne({ id: userId, role: "CUSTOMER", deleted_at: null });
-    if (!user) throw new AppError("Customer not found", 404);
-    if (user.is_active === isActive) return { id: userId, is_active: isActive };
+    const user = await userRepository.findOne({ id: userId, role: ["CUSTOMER", ...STAFF_ROLES], deleted_at: null });
+    if (!user) throw new AppError("User not found", 404);
+    if (STAFF_ROLES.includes(user.role)) {
+      if (actor.role !== "SUPER_ADMIN") throw new AppError("Only super admins can manage staff accounts", 403);
+      if (!isActive && userId === Number(actor.id)) throw new AppError("You cannot disable your own account", 400);
+    }
+    if (user.is_active === isActive) return { id: userId, is_active: isActive, role: user.role };
 
     const db = await initializeModels();
     await db.sequelize.transaction(async (transaction) => {
@@ -102,11 +109,11 @@ class AdminUserService {
         user_id: userId,
         event_type: isActive ? "ACCOUNT_UNLOCKED" : "ACCOUNT_LOCKED",
         status: "SUCCESS",
-        details: { reason: isActive ? "ADMIN_UNBLOCK" : "ADMIN_BLOCK", by_admin_id: Number(adminId) }
+        details: { reason: isActive ? "ADMIN_UNBLOCK" : "ADMIN_BLOCK", by_admin_id: Number(actor.id) }
       }, { transaction });
     });
 
-    return { id: userId, is_active: isActive };
+    return { id: userId, is_active: isActive, role: user.role };
   }
 }
 

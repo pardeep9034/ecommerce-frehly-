@@ -2,7 +2,7 @@
  * rabbitmq.config.js
  *
  * Single source of truth for every tunable RabbitMQ setting: connection
- * details, prefetch, heartbeat, reconnect behavior, and retry/backoff
+ * details, prefetch, heartbeat, and retry/backoff
  * defaults.
  *
  * WHY THIS FILE EXISTS:
@@ -30,13 +30,9 @@ const base = {
   // --- Connection ---
   url: env.RABBITMQ_URL || 'amqp://localhost:5672',
 
-  // How long (ms) to wait before trying to reconnect after the
-  // connection drops (broker restart, network blip, etc.)
-  reconnectDelayMs: 3000,
-
   // AMQP heartbeat interval (seconds). If no heartbeat is seen for
   // 2x this interval, the connection is considered dead and closed —
-  // this is what actually triggers the 'close' event and reconnect logic.
+  // this is what actually triggers the 'close' event (see RabbitMQBroker: crash-only).
   heartbeatSec: 30,
 
   // --- Consumer behavior ---
@@ -63,13 +59,12 @@ const overrides = {
   development: {
     url: env.RABBITMQ_URL || 'amqp://localhost:5672',
     prefetchCount: 5,
-    publisherConfirms: false, // faster local iteration, less strict
+    publisherConfirms: true, // a publish resolves only once the broker has the message
   },
 
   test: {
     url: env.RABBITMQ_URL || 'amqp://localhost:5672',
     prefetchCount: 1, // easier to reason about ordering in tests
-    reconnectDelayMs: 500,
     maxRetries: 1,
     backoffMs: [100],
     publisherConfirms: false,
@@ -84,7 +79,6 @@ const overrides = {
   production: {
     url: env.RABBITMQ_URL, // must be set via env in production
     prefetchCount: 20,
-    reconnectDelayMs: 5000,
     maxRetries: 5,
     backoffMs: [5000, 15000, 60000, 300000, 900000], // up to 15 min
     publisherConfirms: true,

@@ -23,7 +23,7 @@ const ActivityLog = () => {
   const queryClient = useQueryClient();
   const refreshing = useIsFetching({ queryKey: [ACTIVITY_LOG] }) > 0;
 
-  if (!ACTIVITY_ADMIN_ROLES.includes(getTokenRole(getToken()))) return <Navigate to="/dashboard" replace />;
+  if (!ACTIVITY_ADMIN_ROLES.includes(getTokenRole(getToken()))) return <Navigate to="/admin" replace />;
 
   const tab = TABS.some(([id]) => id === params.get("tab")) ? params.get("tab") : "security";
   const hours = RANGES.some(([h]) => String(h) === params.get("hours")) ? Number(params.get("hours")) : 24;

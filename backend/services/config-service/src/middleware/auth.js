@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import ResponseUtil from "../utils/response.js";
 import AppError from "../utils/AppError.js";
@@ -16,6 +17,22 @@ export const authenticateToken = (req, res, next) => {
   } catch {
     return ResponseUtil.unauthorized(res, "Invalid or expired token");
   }
+};
+
+// Hashing first gives timingSafeEqual two equal-length buffers whatever the caller sends.
+const digest = (value) => crypto.createHash("sha256").update(String(value)).digest();
+
+// Guards /config/internal/*: only a sibling service holding INTERNAL_API_KEY may call. Fails closed.
+export const requireInternalKey = (req, res, next) => {
+  const key = process.env.INTERNAL_API_KEY;
+  if (!key) return next(new AppError("Internal API is not configured", 503));
+
+  const sent = req.headers["x-internal-key"];
+  if (!sent || !crypto.timingSafeEqual(digest(sent), digest(key))) {
+    return next(new AppError("Invalid internal key", 401));
+  }
+
+  return next();
 };
 
 export const requireRole = (...roles) => (req, res, next) => {

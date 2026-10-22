@@ -29,6 +29,24 @@ class PartnerMeController {
       return next(error);
     }
   }
+  async listHandovers(req, res, next) {
+    try {
+      const result = await PartnerMeService.listHandovers(req.partner, req.filters.dir);
+      return ResponseUtil.success(res, result, "Handovers fetched");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async handoverCandidates(req, res, next) {
+    try {
+      const result = await PartnerMeService.handoverCandidates(req.partner, req.filters.assignment_id);
+      return ResponseUtil.success(res, result, "Partners fetched");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   async setOnlineStatus(req, res, next) {
     try {
       const result = await PartnerMeService.setOnlineStatus(req.partner.id, req.body.online);

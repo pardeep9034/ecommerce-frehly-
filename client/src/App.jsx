@@ -43,7 +43,7 @@ const WarehousePage = lazy(() => import("./pages/dashboard/WarehousePage"));
 const WarehouseDetailPage = lazy(() => import("./pages/dashboard/WarehouseDetailPage"));
 const WarehouseNewPage = lazy(() => import("./pages/dashboard/WarehouseNewPage"));
 const StaffPage = lazy(() => import("./pages/dashboard/StaffPage"));
-const StaffNewPage = lazy(() => import("./pages/dashboard/StaffNewPage"));
+const StaffFormPage = lazy(() => import("./pages/dashboard/StaffFormPage"));
 const StockMovementPage = lazy(() => import("./pages/dashboard/StockMovementPage"));
 const StockReservationPage = lazy(() => import("./pages/dashboard/StockReservationPage"));
 const Zones = lazy(() => import("./pages/dashboard/Zones"));
@@ -149,7 +149,7 @@ function App() {
 
         {/* DASHBOARD ROUTES */}
         <Route
-          path="/dashboard"
+          path="/admin"
           element={hasAdminAccess() ? <DashboardLayout /> : <Navigate to="/admin/login" replace />}
         >
           <Route index element={<Dashboard />} />
@@ -161,7 +161,7 @@ function App() {
           <Route path="warehouses/new" element={<WarehouseNewPage />} />
           <Route path="warehouses/:warehouseId" element={<WarehouseDetailPage />} />
           <Route path="staff" element={<StaffPage />} />
-          <Route path="staff/new" element={<StaffNewPage />} />
+          <Route path="staff/new" element={<StaffFormPage />} />
           <Route path="stock-movement" element={<StockMovementPage />} />
           <Route path="stock-reservation" element={<StockReservationPage />} />
           <Route path="delivery-zones" element={<Zones />} />

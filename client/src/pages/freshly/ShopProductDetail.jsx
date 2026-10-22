@@ -91,7 +91,7 @@ console.log("---",selectedVariant)
   // Fetch Related Products (same category)
   const categoryName = product?.Category?.name || product?.category || "All";
   console.log("category",product?.category_id)
-  const { products: allProductsData ,catProducts} = useProduct(1, 20,"",product?.category_id);
+  const { products: allProductsData ,catProducts} = useProduct({ page: 1, limit: 20, catId: product?.category_id });
   
   // const relatedProducts = useMemo(() => {
   

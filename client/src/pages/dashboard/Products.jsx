@@ -114,12 +114,12 @@ const Products = () => {
   ];
 
   const quickLinks = [
-    { label: "Variants", icon: Layers, path: "/dashboard/variants" },
-    { label: "Units", icon: Ruler, path: "/dashboard/units" },
-    { label: "Brands", icon: Award, path: "/dashboard/brands" },
-    { label: "Category", icon: FolderTree, path: "/dashboard/category" },
-    { label: "Product Type", icon: Boxes, path: "/dashboard/product-type" },
-    { label: "Product Attribute", icon: SlidersHorizontal, path: "/dashboard/product-attribute" },
+    { label: "Variants", icon: Layers, path: "/admin/variants" },
+    { label: "Units", icon: Ruler, path: "/admin/units" },
+    { label: "Brands", icon: Award, path: "/admin/brands" },
+    { label: "Category", icon: FolderTree, path: "/admin/category" },
+    { label: "Product Type", icon: Boxes, path: "/admin/product-type" },
+    { label: "Product Attribute", icon: SlidersHorizontal, path: "/admin/product-attribute" },
   ];
 
   return (

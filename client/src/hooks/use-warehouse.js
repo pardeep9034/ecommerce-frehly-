@@ -56,11 +56,12 @@ const useWarehouse = (page, limit) => {
 };
 
 // GET - fetch a single warehouse by id
-export const useWarehouseDetail = (id) => {
+export const useWarehouseDetail = (id, options = {}) => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["warehouse", id],
     queryFn: () => warehouseApi.getWarehouseById(id),
     enabled: !!id,
+    ...options,
   });
 
   return { warehouse: data?.data ?? null, isLoading, error };

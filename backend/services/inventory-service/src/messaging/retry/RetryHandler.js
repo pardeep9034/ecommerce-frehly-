@@ -8,11 +8,14 @@
  * which routes them back to the ORIGINAL queue for another attempt.
  *
  * Flow for one failed message:
- *   original_queue -> handler throws -> nack (no requeue)
- *     -> published to retry_queue_5s with x-dead-letter-exchange
- *        pointing back at the original exchange/routing key
+ *   original_queue -> handler throws -> a copy is published to
+ *        retry.<original_queue>.5000ms, whose dead-letter target is the
+ *        default exchange with routing key <original_queue>
  *     -> after 5 seconds, TTL expires -> RabbitMQ dead-letters it
- *     -> lands back in original_queue -> consumer tries again
+ *     -> lands back in original_queue only -> consumer tries again
+ *
+ * The retry queues are per queue on purpose: a shared retry.5000ms used to
+ * send every service's retries to whichever exchange first declared it.
  *     -> if retry count exceeds max, send to permanent DLQ instead
  *
  * The retry count is tracked in message headers (x-retry-count), which
@@ -38,15 +41,15 @@ export default class RetryHandler {
    * Ensures a retry queue exists for a given delay tier. Called lazily
    * the first time a message needs to retry at that tier.
    */
-  async _ensureRetryQueue(originalExchange, originalRoutingKey, delayMs) {
-    const retryQueueName = `retry.${delayMs}ms`;
+  async _ensureRetryQueue(queueName, delayMs) {
+    const retryQueueName = `retry.${queueName}.${delayMs}ms`;
 
     await this.broker.assertQueue(retryQueueName, {
       durable: true,
       arguments: {
         'x-message-ttl': delayMs,
-        'x-dead-letter-exchange': originalExchange,
-        'x-dead-letter-routing-key': originalRoutingKey,
+        'x-dead-letter-exchange': '',
+        'x-dead-letter-routing-key': queueName,
       },
     });
 
@@ -58,10 +61,10 @@ export default class RetryHandler {
    * schedule a retry or give up and let it fall through to the DLQ.
    *
    * @param {object} msg - the raw amqplib message (has .properties.headers, .content, .fields)
-   * @param {string} originalExchange
+   * @param {string} queueName - the queue the message failed on; the retry comes back to it only
    * @returns {boolean} true if a retry was scheduled, false if retries exhausted
    */
-  async handleFailure(msg, originalExchange) {
+  async handleFailure(msg, queueName) {
     const headers = msg.properties.headers || {};
     const retryCount = headers['x-retry-count'] || 0;
 
@@ -73,7 +76,7 @@ export default class RetryHandler {
     }
 
     const delayMs = this.backoffMs[retryCount] || this.backoffMs[this.backoffMs.length - 1];
-    const retryQueueName = await this._ensureRetryQueue(originalExchange, msg.fields.routingKey, delayMs);
+    const retryQueueName = await this._ensureRetryQueue(queueName, delayMs);
 
     // Republish directly to the retry queue (default exchange, routing key = queue name)
     await this.broker.publish('', retryQueueName, msg.content, {

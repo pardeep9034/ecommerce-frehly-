@@ -1,7 +1,38 @@
 import DeliveryZoneRepository from "../repository/deliveryZone.repository.js";
 import AppError from "../../utils/AppError.js";
+import { env } from "../../config/env.js";
+import { pickWarehouse } from "./serviceability.js";
 
 class DeliveryZoneService {
+  // Which warehouse delivers to { pincode, lat, lng }, with that zone's fee and delivery time.
+  // ponytail: loads every active zone and warehouse per call; filter in SQL once there are dozens of each.
+  async checkServiceability({ pincode, lat, lng }) {
+    const [zones, warehouseResponse] = await Promise.all([
+      DeliveryZoneRepository.getActiveZones(),
+      fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}?limit=1000`),
+    ]);
+    if (!warehouseResponse.ok) {
+      throw new AppError("Warehouse lookup failed", 502);
+    }
+    const { data } = await warehouseResponse.json();
+
+    const match = pickWarehouse(zones, data.warehouses, { pincode, lat, lng });
+    if (!match) return { serviceable: false, pincode: pincode ?? null };
+
+    const { warehouse, zone } = match;
+    return {
+      serviceable: true,
+      pincode: pincode ?? null,
+      warehouse_id: Number(warehouse.id),
+      zone_id: Number(zone.id),
+      area: zone.name,
+      city: zone.city,
+      delivery_fee: Number(zone.delivery_fee),
+      minimum_order_amount: Number(zone.minimum_order_amount),
+      estimated_delivery_time: zone.estimated_delivery_time,
+    };
+  }
+
   async createDeliveryZone(data) {
     const existingZone = await DeliveryZoneRepository.getDeliveryZoneByCode(data.code);
     if (existingZone) {

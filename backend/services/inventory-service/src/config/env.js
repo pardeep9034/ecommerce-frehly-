@@ -44,7 +44,9 @@ RABBITMQ_URL:Joi.string().uri(),
         .integer()
         .default(7200000),
     DELIVERY_SERVICE_URL:Joi.string().uri().optional(),
-    API_GATEWAY_URL:Joi.string().uri().optional()
+    API_GATEWAY_URL:Joi.string().uri().optional(),
+    // Shared with order-service: lets it reserve / release stock for a customer's order (see middleware/auth.js).
+    INTERNAL_API_KEY: Joi.string().min(32).optional()
 }).unknown(true);
 
 const { error, value } = envSchema.validate(process.env);

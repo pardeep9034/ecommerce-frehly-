@@ -33,6 +33,26 @@ export const usePartnerOnboarding = (partnerId) => {
   return { onboarding: data, isLoading, error };
 };
 
+export const usePartnerWork = (partnerId) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["partner-work", partnerId],
+    queryFn: () => DeliveryApi.fetchPartnerWork(partnerId),
+    enabled: !!partnerId,
+  });
+
+  return { work: data, isLoading, error };
+};
+
+export const useOrderAssignment = (orderId, enabled) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["order-assignment", orderId],
+    queryFn: () => DeliveryApi.fetchOrderAssignment(orderId),
+    enabled,
+  });
+
+  return { assignment: data ?? null, isLoading };
+};
+
 export const useDeliverySlots = (enabled) => {
   const { data, isLoading } = useQuery({
     queryKey: ["delivery-slots"],
@@ -48,6 +68,9 @@ export const useAssignDelivery = (orderId) => {
 
   return useMutation({
     mutationFn: (payload) => DeliveryApi.assignOrder(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-assignment", orderId] });
+    },
   });
 };

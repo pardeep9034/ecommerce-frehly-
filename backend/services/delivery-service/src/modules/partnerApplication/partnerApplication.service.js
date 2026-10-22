@@ -9,7 +9,7 @@ import DeliveryZoneRepository from "../repository/deliveryZone.repository.js";
 import AppError from "../../utils/AppError.js";
 import logger from "../../utils/Logger.js";
 import * as storage from "../../utils/storage.js";
-import { sms } from "../../utils/notify.js";
+import { publishEvent } from "../../utils/notificationClient.js";
 import { env } from "../../config/env.js";
 import {
   CHECK_KEYS, DOC_TYPES, EDITABLE, EXTENSION, FINAL, NUMBER_DOCS, allowedDocs, applicableChecks, checksToUntick, isCycle, maskNumber,
@@ -333,7 +333,7 @@ class PartnerApplicationService {
   async submitDraft(application, actor, onBehalf = false) {
     const now = new Date();
     const db = await initializeModels();
-    await db.sequelize.transaction(async (transaction) => {
+    const submitted = await db.sequelize.transaction(async (transaction) => {
       // Lock first, then judge: the status and the documents are read on the row nobody else can change meanwhile.
       const locked = await PartnerApplicationRepository.findByIdForUpdate(application.id, transaction);
       if (locked.status !== "DRAFT") throw new AppError("Only a draft can be submitted", 409);
@@ -364,10 +364,14 @@ class PartnerApplicationService {
         },
         { transaction }
       );
+      return locked;
     });
 
-    // After the commit; a failed text is logged inside sms() and does not undo the submit.
-    await sms(application.phone, "received", { ref: application.ref_no });
+    // After the commit, not awaited: publishEvent never rejects and the reply must not wait on notification-service.
+    // notification-service sends the applicant's "received" text and the admins' emails from this one event.
+    void publishEvent("partner.application.submitted", {
+      applicationId: submitted.id, refNo: submitted.ref_no, userId: submitted.user_id, vehicleType: submitted.vehicle_type, onBehalf,
+    });
   }
 
   async resubmit(user) {

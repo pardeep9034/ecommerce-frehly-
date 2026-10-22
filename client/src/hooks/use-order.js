@@ -165,9 +165,9 @@ export const useOrderDetail = (orderId) => {
     queryKey: ["order-detail", orderId],
     queryFn: () => OrderApi.fetchOrderById(orderId),
     enabled: !!orderId,
-    // Auto-finalize and the delivery timeline both progress on the server
-    // with no user action — poll while the order is still moving so the
-    // page reflects that without a manual refresh.
+    // The delivery timeline progresses on the server with no user action —
+    // poll while the order is still moving so the page reflects that
+    // without a manual refresh.
     refetchInterval: (query) => (LIVE_ORDER_STATUSES.has(query.state.data?.data?.status) ? false : 15000),
   });
 

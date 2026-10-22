@@ -41,11 +41,8 @@ export default class Consumer {
   /**
    * @param {string} queueName
    * @param {function} handler - async (parsedEventPayload, rawMsg) => void
-   * @param {object} [options] - { exchangeForRetry: string } - which exchange
-   *   to dead-letter back to on retry (needed since the queue itself
-   *   doesn't know which exchange originally routed to it)
    */
-  async subscribe(queueName, handler, options = {}) {
+  async subscribe(queueName, handler) {
     await this.broker.consume(queueName, async (msg) => {
       let payload;
 
@@ -61,13 +58,12 @@ export default class Consumer {
         await handler(payload, msg);
         this.broker.ack(msg);
       } catch (err) {
+        // One string: winston drops a second argument, which used to hide the reason.
         logger.error(
-          `[Consumer] handler failed for event "${payload.eventType || 'unknown'}" on queue "${queueName}":`,
-          err.message
+          `[Consumer] handler failed for event "${payload.eventType || 'unknown'}" on queue "${queueName}": ${err.message}`
         );
 
-        const originalExchange = options.exchangeForRetry || msg.fields.exchange;
-        const retryScheduled = await this.retryHandler.handleFailure(msg, originalExchange);
+        const retryScheduled = await this.retryHandler.handleFailure(msg, queueName);
 
         // Whether retried or exhausted, we ack the ORIGINAL message here —
         // the retry queue now holds a fresh copy (with incremented retry

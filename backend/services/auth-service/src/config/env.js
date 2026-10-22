@@ -53,6 +53,11 @@ const envSchema = Joi.object({
     .min(32)
     .optional(),
 
+  // Where staff sign in; added to the "your login is ready" SMS when set.
+  ADMIN_APP_URL: Joi.string()
+    .uri()
+    .optional(),
+
   // ponytail: add "messagecentral" here with its provider at launch.
   SMS_PROVIDER: Joi.string()
     .valid("console")

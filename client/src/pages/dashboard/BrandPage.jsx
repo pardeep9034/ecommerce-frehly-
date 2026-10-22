@@ -49,7 +49,7 @@ const BrandPage = () => {
       <PageHeader
      
       
-        backTo="/dashboard/products"
+        backTo="/admin/products"
         backLabel="Back to Products"
         
       />

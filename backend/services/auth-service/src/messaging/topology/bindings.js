@@ -19,21 +19,6 @@ export default [
     routingKey: 'order.created',
   },
   {
-    exchange: exchanges.ORDER_EVENTS.name,
-    queue: queues.EMAIL_ORDER_QUEUE.name,
-    routingKey: 'order.created',
-  },
-  {
-    exchange: exchanges.ORDER_EVENTS.name,
-    queue: queues.EMAIL_ORDER_QUEUE.name,
-    routingKey: 'order.cancelled', // same queue, different routing key
-  },
-  {
-    exchange: exchanges.PAYMENT_EVENTS.name,
-    queue: queues.PAYMENT_QUEUE.name,
-    routingKey: 'payment.*', // topic wildcard: payment.charged, payment.refunded, etc.
-  },
-  {
     exchange:exchanges.USER_EVENTS.name,
     queue:queues.CART_QUEUE.name,
     routingKey:'user.logged_in'

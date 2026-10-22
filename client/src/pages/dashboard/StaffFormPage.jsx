@@ -38,7 +38,7 @@ const validate = (form, isEdit) => {
 
 const loginUrl = (role) => `${window.location.origin}${role === "SUPER_ADMIN" ? "/admin/login" : "/store/login"}`;
 
-const StaffNewPage = () => {
+const StaffFormPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -97,7 +97,7 @@ const StaffNewPage = () => {
 
     if (isEdit) {
       if (isDemo || Number(editId) < 0) return notify.info(DEMO_NOTICE);
-      updateMutation.mutate({ id: editId, data: payload() }, { onSuccess: () => navigate("/dashboard/staff") });
+      updateMutation.mutate({ id: editId, data: payload() }, { onSuccess: () => navigate("/admin/staff") });
       return;
     }
 
@@ -134,7 +134,7 @@ const StaffNewPage = () => {
         {!saved && (
           <div role="status" className="flex items-center gap-2.5 rounded-xl bg-accent/20 px-3.5 py-3 text-[13px] text-foreground">
             <DemoBadge title="POST /auth/admin/staff doesn't exist yet." />
-            Preview only: this user was not saved. The backend API is needed first.
+            Preview only: this person was not saved. The backend API is needed first.
           </div>
         )}
         <section className={`${cardClass} items-center text-center`}>
@@ -194,8 +194,8 @@ const StaffNewPage = () => {
             >
               <MessageSquare className="h-4 w-4" aria-hidden="true" /> Send by SMS
             </button>
-            <button type="button" onClick={startOver} className={secondaryButtonClass}>Add another user</button>
-            <Link to="/dashboard/staff" className={primaryButtonClass}>Go to staff list</Link>
+            <button type="button" onClick={startOver} className={secondaryButtonClass}>Add another</button>
+            <Link to="/admin/staff" className={primaryButtonClass}>Go to staff list</Link>
           </div>
         </section>
       </div>
@@ -215,9 +215,9 @@ const StaffNewPage = () => {
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link to="/dashboard/staff" className="font-medium hover:text-foreground">Staff &amp; admins</Link>
+        <Link to="/admin/staff" className="font-medium hover:text-foreground">Staff</Link>
         <span className="mx-2" aria-hidden="true">/</span>
-        <span className="text-foreground">{isEdit ? `Edit ${name}` : "Add user"}</span>
+        <span className="text-foreground">{isEdit ? `Edit ${name}` : "Add staff"}</span>
       </nav>
 
       <div className="flex flex-col gap-5 lg:flex-row">
@@ -286,7 +286,7 @@ const StaffNewPage = () => {
             ) : (
               <div className="flex gap-2.5 rounded-xl bg-purple-50 px-3.5 py-3 text-[13px] text-foreground">
                 <ShieldCheck className="h-[18px] w-[18px] shrink-0 text-purple-700" aria-hidden="true" />
-                Super admins aren’t tied to a warehouse. They pick a store in the console and can create other users.
+                Super admins aren’t tied to a warehouse. They pick a store in the console and can add other staff.
               </div>
             )}
           </section>
@@ -374,14 +374,14 @@ const StaffNewPage = () => {
           )}
 
           <div className="flex flex-wrap justify-end gap-2.5">
-            <Link to="/dashboard/staff" className={secondaryButtonClass}>Cancel</Link>
+            <Link to="/admin/staff" className={secondaryButtonClass}>Cancel</Link>
             {isEdit ? (
               <button type="submit" disabled={updateMutation.isPending} className={primaryButtonClass}>
                 {updateMutation.isPending ? "Saving…" : "Save changes"}
               </button>
             ) : (
               <button type="submit" disabled={createMutation.isPending || (form.password_method === "set" && score < 3)} className={primaryButtonClass}>
-                {createMutation.isPending ? "Creating…" : form.password_method === "set" && score < 3 ? "Use a stronger password" : "Create user"}
+                {createMutation.isPending ? "Creating…" : form.password_method === "set" && score < 3 ? "Use a stronger password" : "Add staff"}
               </button>
             )}
           </div>
@@ -390,7 +390,7 @@ const StaffNewPage = () => {
         <aside className="flex w-full shrink-0 flex-col gap-4 lg:w-80">
           <section className={cardClass}>
             <h2 className="font-display text-base font-bold text-foreground">Access summary</h2>
-            <p className="text-sm font-semibold text-foreground">{name === "—" ? "This user" : name} · {ROLE_LABELS[form.role]}</p>
+            <p className="text-sm font-semibold text-foreground">{name === "—" ? "This person" : name} · {ROLE_LABELS[form.role]}</p>
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm text-foreground">
               {ROLE_ACCESS[form.role].map((item) => (
                 <li key={item} className="flex gap-2.5">
@@ -413,4 +413,4 @@ const StaffNewPage = () => {
   );
 };
 
-export default StaffNewPage;
+export default StaffFormPage;

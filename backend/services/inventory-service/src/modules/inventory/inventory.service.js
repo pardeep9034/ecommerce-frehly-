@@ -7,15 +7,22 @@ import { initializeTopology } from "../../messaging/index.js";
 import {env} from "../../config/env.js";
 import inventoryRepository from "../repository/inventory.repository.js";
 import logger from "../../utils/Logger.js";
-try {
-  await initializeTopology();
-  await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name, async (event) => {
-    logger.debug("event consumed");
-  });
-  logger.info("✅ Inventory Service: RabbitMQ topology initialized");
-} catch (err) {
-  logger.error(`❌ Failed to initialize RabbitMQ topology: ${err.message}`);
-}
+// The API must not wait for the broker: retry until it is up. Once consuming, a lost connection exits and the
+// restart brings the consumer back (design D10).
+void (async () => {
+  for (;;) {
+    try {
+      await initializeTopology();
+      await consumer.subscribe(queues.INVENTORY_ORDER_QUEUE.name, async (event) => {
+        logger.debug("event consumed");
+      });
+      return logger.info("✅ Inventory Service: RabbitMQ topology initialized");
+    } catch (err) {
+      logger.warn(`Inventory Service: RabbitMQ not ready (${err.message}), retrying in 5 s`);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+})();
 
 const fetchVariantDetails = async (variantId) => {
   try {
@@ -76,6 +83,11 @@ class InventoryServices {
       if (error instanceof AppError) throw error;
       throw new AppError(`Failed to fetch inventory: ${error.message}`, 500);
     }
+  }
+
+  // { total, low, out, reserved } for the Overview card and the Inventory page stat cards.
+  async getStockSummary(warehouseId) {
+    return await InventoryRepository.stockSummary(warehouseId);
   }
 
   async getInventoryById(id) {

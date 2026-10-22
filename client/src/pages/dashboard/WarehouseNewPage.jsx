@@ -73,7 +73,7 @@ const WarehouseNewPage = () => {
       { label: "Map pin inside a delivery zone", done: locationOk },
       { label: "Store hours and racks", done: Boolean(form.store_open_time && form.store_close_time && form.racks.length) },
       { label: "A store manager assigned", done: Boolean(managerId) },
-      { label: "Stock added in Inventory", done: false, link: "/dashboard/inventory" },
+      { label: "Stock added in Inventory", done: false, link: "/admin/inventory" },
     ];
   }, [form, managerId]);
 
@@ -140,7 +140,7 @@ const WarehouseNewPage = () => {
         warehouseId = response?.data?.id;
       }
       if (warehouseId) await saveExtras(warehouseId, live);
-      navigate(live && warehouseId ? `/dashboard/warehouses/${warehouseId}` : "/dashboard/warehouses");
+      navigate(live && warehouseId ? `/admin/warehouses/${warehouseId}` : "/admin/warehouses");
     } catch {
       // The mutation's onError already showed the reason.
     } finally {
@@ -154,7 +154,7 @@ const WarehouseNewPage = () => {
   return (
     <div className="space-y-4">
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link to="/dashboard/warehouses" className="font-medium hover:text-foreground">
+        <Link to="/admin/warehouses" className="font-medium hover:text-foreground">
           Warehouses
         </Link>
         <span className="mx-2" aria-hidden="true">/</span>
@@ -304,8 +304,8 @@ const WarehouseNewPage = () => {
                 <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
                   Team {staffIsDemo && <DemoBadge title="These people are sample users until the staff API exists." />}
                 </h2>
-                <Link to="/dashboard/staff/new" className="text-sm font-semibold text-primary hover:text-primary/80">
-                  + Create new user
+                <Link to="/admin/staff/new" className="text-sm font-semibold text-primary hover:text-primary/80">
+                  + Add new staff
                 </Link>
               </div>
               <FormField id="team-manager" label="Admin · store manager (required)" error={errors.managerId}>

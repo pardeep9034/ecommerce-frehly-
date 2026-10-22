@@ -34,7 +34,8 @@ class WarehouseController {
 
   async updateWarehouse(req, res, next) {
     try {
-      const result = await WarehouseService.updateWarehouse(req.params.id, req.body);
+      // req.user is unset for a service call (x-internal-key), so changedBy is null then.
+      const result = await WarehouseService.updateWarehouse(req.params.id, req.body, req.user?.user_id ?? null);
       return ResponseUtil.success(res, result, "Warehouse updated successfully");
     } catch (error) {
       next(error);

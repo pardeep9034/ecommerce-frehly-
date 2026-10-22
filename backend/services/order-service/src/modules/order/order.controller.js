@@ -70,7 +70,7 @@ class OrderController {
         return ResponseUtil.error(res, "Invalid order ID", 400);
       }
 
-      const result = await orderService.getOrderDetails(orderId, req.user);
+      const result = await orderService.getOrderDetails(orderId, req.user, { withStaffNames: true });
       return ResponseUtil.success(res, result, "Order details fetched successfully");
     } catch (error) {
       return next(error);

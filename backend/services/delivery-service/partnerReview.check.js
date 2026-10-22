@@ -9,7 +9,7 @@ import jwt from "jsonwebtoken";
 import { env } from "./src/config/env.js";
 import initializeModels from "./src/models/index.js";
 import { normalizePlate, reapplyDate, todayIST } from "./src/modules/partnerApplication/partnerApplicationRules.js";
-import { sms } from "./src/utils/notify.js";
+import { publishEvent } from "./src/utils/notificationClient.js";
 
 assert.notEqual(env.NODE_ENV, "production", "dev only");
 
@@ -917,7 +917,7 @@ try {
   assert.equal((await approve(ids[19], await approval(ids[19]), ADMIN2)).status, 201);
 
   // a failed text never fails the request that asked for it (F4)
-  await sms("not-a-number", "no-such-template", {});
+  await publishEvent("no.such.event", {});
 
   // A5: a decision and an upload at the same instant. Both wait on the application row, so exactly one wins; the loser is
   // refused, and a refused upload leaves no file on disk. (Which one goes first is up to Postgres, so both orders pass.)

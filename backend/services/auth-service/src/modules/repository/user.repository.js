@@ -76,7 +76,7 @@ class UserRepository extends BaseRepository {
 
     return await Model.findAndCountAll({
       where,
-      attributes: ["id", "first_name", "last_name", "email", "phone", "is_active", "created_at", "last_login_at"],
+      attributes: ["id", "first_name", "last_name", "email", "phone", "role", "warehouse_id", "is_active", "created_at", "last_login_at"],
       include: [{
         association: "addresses",
         separate: true,
@@ -89,6 +89,26 @@ class UserRepository extends BaseRepository {
       limit,
       offset
     });
+  }
+
+  // Every live staff account, newest first. The staff service filters and pages them.
+  async findAllStaff(roles, attributes) {
+    const Model = await this.getModel();
+    return await Model.findAll({ where: { role: roles, deleted_at: null }, attributes, order: [["created_at", "DESC"], ["id", "DESC"]] });
+  }
+
+  // Names only, for other services that show who did something. Removed accounts are included: history keeps their name.
+  async findNamesByIds(ids, roles) {
+    const Model = await this.getModel();
+    return await Model.findAll({ where: { id: ids, role: roles }, attributes: ["id", "first_name", "last_name"] });
+  }
+
+  // Contact details for notification-service: live (active, not removed) accounts only, by id or by role.
+  // ponytail: no limit, so roles ["CUSTOMER"] returns every customer. Page it if a bulk send ever needs that.
+  async findContacts({ ids, roles }) {
+    const Model = await this.getModel();
+    const where = { is_active: true, deleted_at: null, ...(ids ? { id: ids } : { role: roles }) };
+    return await Model.findAll({ where, attributes: ["id", "role", "first_name", "phone", "email", "warehouse_id"], order: [["id", "ASC"]] });
   }
 
   // Numbers for the Customers stat cards (all customers, not just the page).

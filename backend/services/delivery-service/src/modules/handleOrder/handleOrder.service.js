@@ -5,7 +5,7 @@ import DeliveryStatusHistoryRepository from "../repository/deliveryStatusHistory
 import DeliveryAttemptRepository from "../repository/deliveryAttempt.repository.js";
 import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.js";
 import DeliverySlotRepository from "../repository/deliverySlot.repository.js";
-import DeliveryHandoverRepository from "../repository/deliveryHandover.repository.js";
+import DeliveryHandoverRepository, { OPEN_HANDOVER } from "../repository/deliveryHandover.repository.js";
 import deliveryPartnerServices from "../deliveryPartner/deliveryPartner.service.js";
 import { calculateDistance } from "../../utils/helper.js";
 import AppError from "../../utils/AppError.js";
@@ -13,6 +13,8 @@ import { env } from "../../config/env.js";
 import { Op, Sequelize } from "sequelize";
 import initializeModels from "../../models/index.js";
 import logger from "../../utils/Logger.js";
+import { publishEvent } from "../../utils/notificationClient.js";
+import { MAX_DELIVERY_ATTEMPTS } from "../../constants/deliveryFailure.js";
 
 // DeliveryAssignment.status is a narrow lifecycle enum
 // (ACTIVE/TRANSFERRED/COMPLETED/CANCELLED/FAILED) — it doesn't share the
@@ -30,6 +32,19 @@ const TERMINAL_HISTORY_ACTION = {
 
 class HandleOrderService {
   async assignOrder(data, user, authorization) {
+    // A failed drop ends its assignment, so the order can be assigned again, up to MAX_DELIVERY_ATTEMPTS failures.
+    const existingAssignment =
+      await DeliveryAssignmentRepository.getDeliveryAssignmentByOrderId(
+        data.order_id,
+      );
+    if (existingAssignment && existingAssignment.status !== "FAILED") {
+      throw new AppError("Order already assigned", 409);
+    }
+    const failedAttempts = (await DeliveryAttemptRepository.getAttemptsByOrderId(data.order_id)).length;
+    if (failedAttempts >= MAX_DELIVERY_ATTEMPTS) {
+      throw new AppError(`Delivery failed ${failedAttempts} times; cancel or return this order instead`, 409);
+    }
+
     const [orderResponse, warehouseResponse, slot] = await Promise.all([
       fetch(`${env.ORDER_SERVICE_URL}/${data.order_id}`, { headers: { Authorization: authorization } }),
       fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}/${data.warehouse_id}`),
@@ -51,13 +66,6 @@ class HandleOrderService {
       throw new AppError("Delivery slot not found", 404);
     }
 
-    const existingAssignment =
-      await DeliveryAssignmentRepository.getDeliveryAssignmentByOrderId(
-        data.order_id,
-      );
-    if (existingAssignment) {
-      throw new AppError("Order already assigned", 409);
-    }
     const deliveryPartner =await DeliveryPartnerRepository.findOne({
       id: data.delivery_partner_id,
       status: "ACTIVE",
@@ -264,14 +272,16 @@ class HandleOrderService {
       throw new AppError(error.message, 500);
     }
   }
-  async handOver(data, assignmentId, user, authorizationHeader) {
-    //check assingment exist or not
+  // `partner` is the caller's row when a DELIVERY_PARTNER is calling (staff pass nothing). A partner only acts on their own
+  // open work, and their calls reach the order service as SYSTEM: its role list has no DELIVERY_PARTNER.
+  async handOver(data, assignmentId, user, authorizationHeader, partner) {
     const assignment =  await DeliveryAssignmentRepository.findById(assignmentId);
-    if (!assignment) {
+    if (!assignment || (partner && (assignment.delivery_partner_id !== partner.id || assignment.status !== "ACTIVE"))) {
       throw new AppError("Assignment not found", 404);
     }
+    const authorization = partner ? this.buildSystemAuthorization() : authorizationHeader;
 
-    const orderResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}`, { headers: { Authorization: authorizationHeader } });
+    const orderResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}`, { headers: { Authorization: authorization } });
     if (!orderResponse.ok) {
       throw new AppError("order not found", 404);
     }
@@ -280,7 +290,7 @@ class HandleOrderService {
 throw new AppError("order is not found",404)
     }
     if (order.data.status !== "PICKED_UP") {
-      throw new AppError("order is not eligible for handover");
+      throw new AppError("order is not eligible for handover", 409);
     }
     const deliveryPartner = await  DeliveryPartnerRepository.findOne({
       id: data.new_delivery_partner_id,
@@ -291,7 +301,7 @@ throw new AppError("order is not found",404)
       },
     });
     if (!deliveryPartner) {
-      throw new AppError("delivery partner is not capable of accepting order");
+      throw new AppError("delivery partner is not capable of accepting order", 409);
     }
     if (
     assignment.delivery_partner_id === data.new_delivery_partner_id
@@ -308,7 +318,7 @@ throw new AppError("order is not found",404)
 
       const handoverInfo = {
         assignment_id: assignmentId,
-        order_id: data.order_id,
+        order_id: assignment.order_id,
         old_delivery_partner_id: assignment.delivery_partner_id,
         new_delivery_partner_id: data.new_delivery_partner_id,
         reason: data.reason,
@@ -323,7 +333,7 @@ throw new AppError("order is not found",404)
 
       const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`, {
         method: "PATCH",
-        headers: { Authorization: authorizationHeader, "Content-Type": "application/json" },
+        headers: { Authorization: authorization, "Content-Type": "application/json" },
         body: JSON.stringify({ status: "HANDOVER_IN_PROGRESS" })
       });
       if (!statusResponse.ok) {
@@ -331,6 +341,8 @@ throw new AppError("order is not found",404)
       }
       //notify old and new delivery partners
       await transaction.commit();
+      // The order is leaving this partner: a pending simulated step must not move it on underneath the handover.
+      this.cancelAutoProgression(assignmentId);
       return handover;
     } catch (error) {
       await transaction.rollback();
@@ -338,104 +350,165 @@ throw new AppError("order is not found",404)
       throw new AppError(error.message, 500);
     }
   }
-  async confirmHandover(handoverId, data) {
-    //check handover exist or not
+  // Step 2: the first partner says the order has been passed on (staff can do it for them). Only once: the one conditional
+  // UPDATE is the whole transition, so a double tap cannot confirm twice. Coordinates sent at request time are kept unless
+  // new ones come with this call.
+  async confirmHandover(handoverId, data, partner) {
     const handover = await DeliveryHandoverRepository.findById(handoverId);
-    if (!handover) {
+    if (!handover || (partner && handover.old_delivery_partner_id !== partner.id)) {
       throw new AppError("handover not found", 404);
     }
-     const db = await initializeModels();
-      const transaction = db.sequelize.transaction();
-    try {
-     
-      const updatedHandover = await DeliveryHandoverRepository.updateById(
-        handoverId,
-        {
-          old_partner_confirmed_at: new Date(),
-          status: "OLD_PARTNER_CONFIRMED",
-          handover_latitude: data.handover_latitude,
-          handover_longitude: data.handover_longitude,
-        },
-        { transaction },
-      );
-      await transaction.commit();
-      return updatedHandover;
-    } catch (error) {
-      await transaction.rollback();
-      if (error instanceof AppError) throw error;
-      throw new AppError(error.message, 500);
-    }
+    const db = await initializeModels();
+    const [moved] = await db.DeliveryHandover.update(
+      {
+        old_partner_confirmed_at: new Date(),
+        status: "OLD_PARTNER_CONFIRMED",
+        handover_latitude: data.handover_latitude,
+        handover_longitude: data.handover_longitude,
+      },
+      { where: { id: handoverId, status: "PENDING" } },
+    );
+    if (!moved) throw new AppError("handover is not waiting for the first partner", 409);
+    return DeliveryHandoverRepository.findById(handoverId);
   }
-  async confirmReciept(handoverId, data, user, authorizationHeader) {
+  // Step 3: the second partner has the order. In one transaction: the handover completes, the first assignment is
+  // TRANSFERRED, the second partner gets a new one that starts at OUT_FOR_DELIVERY (they are holding the order), and both
+  // partners' open counts move. The first UPDATE is the claim: only one confirm of an OLD_PARTNER_CONFIRMED handover wins.
+  async confirmReciept(handoverId, data, user, authorizationHeader, partner) {
     const handover = await DeliveryHandoverRepository.findById(handoverId);
-    if (!handover) {
+    if (!handover || (partner && handover.new_delivery_partner_id !== partner.id)) {
       throw new AppError("handover not found", 404);
     }
+    const authorization = partner ? this.buildSystemAuthorization() : authorizationHeader;
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
     try {
-      const db = await initializeModels();
-      const transaction = await db.sequelize.transaction();
-      const updatedHandover = await DeliveryHandoverRepository.updateById(
-        handoverId,
-        {
-          status: data.status,
-        },
-        { transaction },
+      const [claimed] = await db.DeliveryHandover.update(
+        { status: "COMPLETED", receipt_confirmed_at: new Date() },
+        { where: { id: handoverId, status: "OLD_PARTNER_CONFIRMED" }, transaction },
       );
+      if (!claimed) throw new AppError("handover is not waiting for the second partner", 409);
 
-      const assignment = await DeliveryAssignmentRepository.updateById(
-        handover.assignment_id,
+      const old = await DeliveryAssignmentRepository.findById(handover.assignment_id, { transaction });
+      // Still open? The first partner may have carried on and finished it while the handover sat there.
+      const [closed] = await db.DeliveryAssignment.update(
         { status: "TRANSFERRED" },
+        { where: { id: old.id, status: "ACTIVE" }, transaction },
+      );
+      if (!closed) throw new AppError("this delivery is no longer open", 409);
+
+      // Everything about the delivery carries over; only the partner, the source and the pickup point change.
+      const { id, created_at, updated_at, ...carried } = old.get({ plain: true });
+      const next = await DeliveryAssignmentRepository.create(
+        {
+          ...carried,
+          delivery_partner_id: handover.new_delivery_partner_id,
+          assignment_source: "MANUAL",
+          assigned_by: user?.user_id ?? null,
+          assigned_at: new Date(),
+          status: "ACTIVE",
+          pickup_latitude: handover.handover_latitude ?? carried.pickup_latitude,
+          pickup_longitude: handover.handover_longitude ?? carried.pickup_longitude,
+        },
         { transaction },
       );
-      const newAssignment = await DeliveryAssignmentRepository.create({
-        order_id: assignment.order_id,
-        warehouse_id: assignment.warehouse_id,
-        delivery_partner_id: handover.new_delivery_partner_id,
-        delivery_slot_id: assignment.delivery_slot_id,
-        assignment_source: "MANUAL",
-        assigned_by: user.user_id,
-        assigned_at: new Date(),
-        pickup_latitude: handover.handover_latitude,
-        pickup_longitude: handover.handover_longitude,
-        customer_name: assignment.customer_name,
-        customer_phone: assignment.customer_phone,
-        delivery_address: assignment.delivery_address,
-        delivery_latitude: assignment.delivery_latitude,
-        delivery_longitude: assignment.delivery_longitude,
-        status: "ACTIVE",
-      });
-      const updatedOrder = await fetch(
-        `${env.ORDER_SERVICE_URL}/${assignment.order_id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: authorizationHeader,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            status: "OUT_FOR_DELIVERY",
-          }),
-        },
+      // The partner app reads the current step from this timeline; without a row the new partner would start at ASSIGNED.
+      await DeliveryStatusHistoryRepository.createStatusHistory(
+        { order_id: old.order_id, delivery_partner_id: handover.new_delivery_partner_id, status: "OUT_FOR_DELIVERY", remarks: "Received by handover" },
+        { transaction },
       );
-      //create Assignment history
-      const AssignmentHistory =
-        DeliveryAssignmentHistoryRepository.createAssignmentHistory({
-          order_id: assignment.order_id,
-          assignment_id: assignment.id,
+      await DeliveryAssignmentHistoryRepository.createAssignmentHistory(
+        {
+          order_id: old.order_id,
+          assignment_id: next.id,
           action: "REASSIGNED",
           old_delivery_partner_id: handover.old_delivery_partner_id,
           new_delivery_partner_id: handover.new_delivery_partner_id,
-          reason: data.reason,
-          changed_by: user.user_id,
+          reason: data.reason ?? handover.reason,
+          changed_by: user?.user_id ?? null,
           changed_at: new Date(),
-        });
+        },
+        { transaction },
+      );
+      await DeliveryPartnerRepository.updateDeliveryPartner(
+        handover.old_delivery_partner_id,
+        { current_active_orders: Sequelize.literal("GREATEST(current_active_orders - 1, 0)") },
+        { transaction },
+      );
+      await DeliveryPartnerRepository.updateDeliveryPartner(
+        handover.new_delivery_partner_id,
+        { current_active_orders: Sequelize.literal("current_active_orders + 1") },
+        { transaction },
+      );
+
+      const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${old.order_id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: authorization, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "OUT_FOR_DELIVERY" }),
+      });
+      if (!statusResponse.ok) {
+        throw new AppError("Failed to update order status to OUT_FOR_DELIVERY", statusResponse.status || 500);
+      }
       await transaction.commit();
+      return next;
     } catch (error) {
       await transaction.rollback();
       if (error instanceof AppError) throw error;
       throw new AppError(error.message, 500);
     }
   }
+  // Call it off before the receipt: the receiver declines or the giver withdraws (staff can do either). The order stays
+  // with the first partner and goes back to PICKED_UP, their current step. The conditional UPDATE is the claim, so a
+  // decline cannot cross a receipt confirmed at the same moment.
+  async cancelHandover(handoverId, user, authorizationHeader, partner) {
+    const handover = await DeliveryHandoverRepository.findById(handoverId);
+    if (!handover || (partner && ![handover.old_delivery_partner_id, handover.new_delivery_partner_id].includes(partner.id))) {
+      throw new AppError("handover not found", 404);
+    }
+    const authorization = partner ? this.buildSystemAuthorization() : authorizationHeader;
+    const db = await initializeModels();
+    const transaction = await db.sequelize.transaction();
+    try {
+      const [claimed] = await db.DeliveryHandover.update(
+        { status: "CANCELLED", cancelled_at: new Date(), cancelled_by: partner?.id ?? null },
+        { where: { id: handoverId, status: OPEN_HANDOVER }, transaction },
+      );
+      if (!claimed) throw new AppError("handover is already finished", 409);
+
+      const statusResponse = await fetch(`${env.ORDER_SERVICE_URL}/${handover.order_id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: authorization, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PICKED_UP", remarks: "Handover called off", changed_by: partner ? Number(user.user_id) : undefined }),
+      });
+      if (!statusResponse.ok) {
+        throw new AppError("Failed to update order status to PICKED_UP", statusResponse.status || 500);
+      }
+      await transaction.commit();
+      return DeliveryHandoverRepository.findById(handoverId);
+    } catch (error) {
+      await transaction.rollback();
+      if (error instanceof AppError) throw error;
+      throw new AppError(error.message, 500);
+    }
+  }
+  // Who is delivering an order, for the admin order page. The newest assignment wins, so a handed-over order shows the
+  // partner holding it now. null when the order was never assigned.
+  async getAssignmentByOrder(orderId) {
+    const assignment = await DeliveryAssignmentRepository.getDeliveryAssignmentByOrderId(orderId);
+    if (!assignment) return null;
+
+    // The partner included with the assignment has name and phone hidden (default scope). This route is staff-only, so read them unscoped.
+    const partner = await DeliveryPartnerRepository.findWithZone(assignment.delivery_partner_id);
+    const slot = assignment.deliverySlot;
+    return {
+      assignment_id: assignment.id,
+      status: assignment.status,
+      assigned_at: assignment.assigned_at,
+      partner: partner ? { id: partner.id, name: partner.name, phone: partner.phone } : null,
+      slot: slot ? { name: slot.name, start_time: slot.start_time, end_time: slot.end_time } : null,
+    };
+  }
+
   // `user` is the caller; the auto-progression timers pass null, so only real updates cancel the timers.
   // `data.reason` is the failure reason on DELIVERY_FAILED. `actorId` is who to record on the order for a caller whose
   // own token is not forwarded (the partner app's updates go to the order service as SYSTEM).
@@ -456,6 +529,7 @@ throw new AppError("order is not found",404)
     // update assignment
     const db = await initializeModels();
     const transaction = await db.sequelize.transaction();
+    let attemptNumber;
     try {
       const terminalAssignmentStatus = TERMINAL_ASSIGNMENT_STATUS[data.status];
 
@@ -492,10 +566,11 @@ throw new AppError("order is not found",404)
 
       if (data.status === "DELIVERY_FAILED") {
         const earlier = await DeliveryAttemptRepository.getAttemptsByOrderId(assignment.order_id, { transaction });
+        attemptNumber = earlier.length + 1;
         await DeliveryAttemptRepository.createDeliveryAttempt({
           order_id: assignment.order_id,
           delivery_partner_id: assignment.delivery_partner_id,
-          attempt_number: earlier.length + 1,
+          attempt_number: attemptNumber,
           failure_reason: data.reason ?? null,
           attempted_at: new Date(),
         }, { transaction });
@@ -521,6 +596,17 @@ throw new AppError("order is not found",404)
       await transaction.rollback();
       if (error instanceof AppError) throw error;
       throw new AppError(error.message, 500);
+    }
+
+    // Tell the store (the pickup contact on the assignment) so it can reassign or cancel. Best effort, after the commit.
+    if (attemptNumber && assignment.pickup_contact_phone) {
+      void publishEvent("delivery.attempt.failed", {
+        orderId: assignment.order_id,
+        phone: assignment.pickup_contact_phone,
+        attempt: attemptNumber,
+        maxAttempts: MAX_DELIVERY_ATTEMPTS,
+        reason: data.reason ?? "no reason given",
+      });
     }
   }
 }

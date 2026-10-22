@@ -5,8 +5,8 @@ import useProduct from "@/hooks/use-product";
 import ShopProductCard from './ShopProductCard';
 
 export const PopularProducts = () => {
-    const { products: productsData, isLoading, error,productsByType } = useProduct(1, 8,"POPULAR");
-    
+    const { productsByType } = useProduct({ page: 1, limit: 8, type: "POPULAR" });
+    const { isLoading, error } = productsByType;
     const products = productsByType?.data?.data?.products || [];
 
     if (isLoading) {

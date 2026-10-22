@@ -15,6 +15,16 @@ const DeliveryApi = {
     const response = await api.get(`/delivery-partners/${partnerId}/onboarding`);
     return response.data.data;
   },
+  // A partner's 7-day stats and open jobs (staff only): { stats, active }.
+  async fetchPartnerWork(partnerId) {
+    const response = await api.get(`/delivery-partners/${partnerId}/work`);
+    return response.data.data;
+  },
+  // Who is delivering an order (staff only): { assignment_id, status, assigned_at, partner, slot }, or null when never assigned.
+  async fetchOrderAssignment(orderId) {
+    const response = await api.get(`/handle-orders/assignments/by-order/${orderId}`);
+    return response.data.data;
+  },
   async fetchDeliverySlots() {
     const response = await api.get("/delivery-slots");
     return response.data;

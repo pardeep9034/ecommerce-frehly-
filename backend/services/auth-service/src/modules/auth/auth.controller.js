@@ -120,6 +120,24 @@ class AuthController {
     }
   }
 
+  async updateProfile(req, res, next) {
+    try {
+      const result = await AuthService.updateProfile(req.user.id, req.body);
+      return ResponseUtil.success(res, result.data, result.message, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async requestPhoneChange(req, res, next) {
+    try {
+      const result = await AuthService.requestPhoneChange(req.user.id, req.body.phone);
+      return ResponseUtil.success(res, result.data, result.message, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async logout(req, res, next) {
     try {
       const accessToken = req.headers.authorization?.split(" ")[1] || null;
@@ -135,14 +153,31 @@ class AuthController {
       next(error);
     }
   }
-  async logoutFromAllDevices(req,re,next){
-    try{
-      const userId=req.user?.id;
-      const result=await AuthService.logoutFromAllDevices(userId);
+  async logoutFromAllDevices(req, res, next) {
+    try {
+      const result = await AuthService.logoutFromAllDevices(req.user.id);
+      res.clearCookie("refreshToken", COOKIE_OPTIONS); // this device's token is revoked too
       return ResponseUtil.success(res, result.data, result.message, 200);
+    } catch (error) {
+      next(error);
     }
-    catch(error){
-      next(error)
+  }
+
+  async logoutOtherDevices(req, res, next) {
+    try {
+      const result = await AuthService.logoutOtherDevices(req.user.id, req.cookies?.refreshToken);
+      return ResponseUtil.success(res, result.data, result.message, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req, res, next) {
+    try {
+      const result = await AuthService.changePassword(req.user.id, req.body, req.cookies?.refreshToken);
+      return ResponseUtil.success(res, result.data, result.message, 200);
+    } catch (error) {
+      next(error);
     }
   }
 }

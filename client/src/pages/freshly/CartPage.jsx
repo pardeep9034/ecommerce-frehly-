@@ -24,6 +24,7 @@ import { getProfile } from '@/apis/authApi';
 import {increaseQuantityMutation, decreaseQuantityMutation} from "@/hooks/use-addToCart"; 
 import useOrder from "@/hooks/use-order";
 import { openRazorpayCheckout } from "@/lib/razorpay";
+import useDeliveryLocation from "@/hooks/use-deliveryLocation";
 
 
 const CartPage = () => {
@@ -37,6 +38,16 @@ const CartPage = () => {
   const increaseQuantity = increaseQuantityMutation();
   const decreaseQuantity = decreaseQuantityMutation();
   const token = localStorage.getItem("token");
+  const { location, choose: chooseLocation } = useDeliveryLocation();
+  // Until the customer picks one, checkout starts at the address their delivery location came from.
+  const activeAddress = selectedAddress ?? addresses?.find((address) => address.id === location?.address_id) ?? null;
+  // The order goes to the store serving its address, so picking an address moves the delivery location there.
+  const selectAddress = (address) => {
+    setSelectedAddress(address);
+    if (address.id !== location?.address_id) chooseLocation.mutate({ address });
+  };
+  const addressNotServed = activeAddress && location?.address_id === activeAddress.id && !location.serviceable;
+  const canUseAddress = activeAddress && !addressNotServed && !chooseLocation.isPending;
 
     const { data: profile, isLoading } = useQuery({
       queryKey: ["profile"],
@@ -78,7 +89,7 @@ const CartPage = () => {
 
   const createOrder = () => {
     placeOrder.mutate(
-      { cart_id: cartItems[0].cart_id, address_id: selectedAddress.id },
+      { cart_id: cartItems[0].cart_id, address_id: activeAddress.id },
       {
         onSuccess: (result) => {
           const { order, payment_session } = result.data;
@@ -254,8 +265,8 @@ const CartPage = () => {
                     addresses.map(address => (
                       <div 
                         key={address.id} 
-                        onClick={() => setSelectedAddress(address)}
-                        className={`cursor-pointer transition-all ${selectedAddress?.id === address.id ? "scale-[1.02]" : ""}`}
+                        onClick={() => selectAddress(address)}
+                        className={`cursor-pointer transition-all ${activeAddress?.id === address.id ? "scale-[1.02]" : ""}`}
                       >
                          <AddressCard 
                             type={address.address_type} 
@@ -266,7 +277,7 @@ const CartPage = () => {
                             state={address.state}
                             pincode={address.postal_code}
                             phone={address.phone}
-                            isSelected={selectedAddress?.id === address.id}
+                            isSelected={activeAddress?.id === address.id}
                         />
                       </div>
                     ))
@@ -276,6 +287,11 @@ const CartPage = () => {
                     </div>
                   )}
                 </div>
+                {addressNotServed && (
+                  <p role="alert" className="rounded-2xl bg-orange-50 px-4 py-3 text-left text-sm font-bold text-orange-700">
+                    We don't deliver to this address yet. Pick another address.
+                  </p>
+                )}
               </div>
             )}
 
@@ -292,7 +308,7 @@ const CartPage = () => {
                     <div className="h-8 w-12 rounded skeleton-shimmer" style={{ animationDelay: "240ms" }} />
                  </div>
                    <button
-                      disabled={!selectedAddress || placeOrder.isPending}
+                      disabled={!canUseAddress || placeOrder.isPending}
                       onClick={createOrder}
                       className="w-full flex h-14 items-center justify-center gap-3 rounded-full bg-primary px-8 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-success/20 transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
@@ -359,7 +375,7 @@ const CartPage = () => {
                   
                   {step === 2 && (
                     <button 
-                      disabled={!selectedAddress}
+                      disabled={!canUseAddress}
                       onClick={() => setStep(3)}
                       className="w-full flex h-14 items-center justify-center gap-3 rounded-full bg-primary px-8 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-success/20 transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
@@ -394,6 +410,8 @@ const CartPage = () => {
         isOpen={addressModalOpen}
         onClose={() => setAddressModalOpen(false)}
         initialData={null} // No initial data for new address
+        prefill={location?.pincode ? { postal_code: location.pincode } : undefined}
+        onSaved={(address) => address?.id && selectAddress(address)}
         onSuccess={() => {
           setAddressModalOpen(false);
           // Optionally, you can refetch addresses here if needed

@@ -24,6 +24,10 @@ class UserAddressController {
     const address = await UserAddressService.updateAddress(req.user.id, req.params.id, req.body);
     return ResponseUtil.success(res, address, "Address updated");
   }
+  async setDefaultAddress(req, res) {
+    const address = await UserAddressService.setDefaultAddress(req.user.id, req.params.id);
+    return ResponseUtil.success(res, address, "Default address set");
+  }
 
   async deleteAddress(req, res) {
     await UserAddressService.deleteAddress(req.user.id, req.params.id);

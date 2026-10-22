@@ -1,12 +1,11 @@
 import api from "./axiosInstance";
 
-// Not /auth/admin/users: that path is already the customers list (adminUser module, used by customerApi.js).
-// Until the backend ships these routes every call 404s and the Staff pages show their demo data.
-const BASE = "/auth/admin/staff";
+// Shares /auth/admin/users with the customers list (customerApi.js); the staff list is GET /staff.
+const BASE = "/auth/admin/users";
 
 const StaffApi = {
   async getAllStaff(page, limit, params = {}) {
-    const response = await api.get(BASE, { params: { page, limit, ...params } });
+    const response = await api.get(`${BASE}/staff`, { params: { page, limit, ...params } });
     return response.data;
   },
   async getStaffById(id) {

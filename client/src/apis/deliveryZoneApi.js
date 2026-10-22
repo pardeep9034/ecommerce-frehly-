@@ -8,6 +8,12 @@ const deliveryZoneApi = {
     return response.data;
   },
 
+  // { pincode } and/or { lat, lng } -> { serviceable, warehouse_id, area, city, estimated_delivery_time, ... }
+  async checkServiceability(params) {
+    const response = await api.get("/delivery-zones/serviceability", { params });
+    return response.data.data;
+  },
+
   async fetchDeliveryZoneById(id) {
     const response = await api.get(`/delivery-zones/${id}`);
     return response.data;

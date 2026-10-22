@@ -1,6 +1,9 @@
 import WarehouseRepository from "../repository/warehouse.repository.js";
 import AppError from "../../utils/AppError.js";
 import {env} from "../../config/env.js";
+import { publisher } from "../../messaging/index.js";
+import InventoryEvents from "../../messaging/events/inventory.events.js";
+import logger from "../../utils/Logger.js";
 
 class WarehouseService {
   async getAllWarehouses(limit, offset) {
@@ -41,12 +44,22 @@ class WarehouseService {
     return await WarehouseRepository.createWarehouse(data);
   }
 
-  async updateWarehouse(id, data) {
+  async updateWarehouse(id, data, changedBy = null) {
     const warehouse = await this.getWarehouseById(id);
     if (!warehouse) {
       throw new AppError("Warehouse not found", 404);
     }
-    return await WarehouseRepository.updateWarehouse(id, data);
+    const result = await WarehouseRepository.updateWarehouse(id, data);
+    // After the update, not awaited: a broker problem must never fail or slow the request.
+    const oldStatus = warehouse.operational_status;
+    if (data.operational_status && data.operational_status !== oldStatus) {
+      publisher
+        .publish(InventoryEvents.WAREHOUSE_STATUS_CHANGED, {
+          warehouseId: warehouse.id, name: data.name ?? warehouse.name, oldStatus, newStatus: data.operational_status, changedBy,
+        })
+        .catch(() => logger.error(`Failed to publish warehouse.status.changed for warehouse ${warehouse.id}`));
+    }
+    return result;
   }
 
   async deleteWarehouse(id) {

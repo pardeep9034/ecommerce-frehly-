@@ -13,5 +13,8 @@ router.patch("/online", validate("partnerOnlineSchema"), PartnerMeController.set
 router.get("/assignments", validate("partnerAssignmentsQuerySchema", "query"), PartnerMeController.listAssignments);
 router.get("/assignments/:id", uuidParam(), PartnerMeController.getAssignment);
 router.patch("/assignments/:id/status", uuidParam(), validate("partnerAssignmentStatusSchema"), PartnerMeController.updateAssignmentStatus);
+// The Handover screen. Starting, confirming and declining live in handleOrder (/handle-orders), shared with staff.
+router.get("/handovers", validate("partnerHandoversQuerySchema", "query"), PartnerMeController.listHandovers);
+router.get("/handovers/candidates", validate("handoverCandidatesQuerySchema", "query"), PartnerMeController.handoverCandidates);
 
 export default router;

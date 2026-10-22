@@ -69,7 +69,7 @@ const ProductTypePage=()=>{
               <PageHeader
                 title="Product Types"
                 description="Group products by type for easier browsing."
-                backTo="/dashboard/products"
+                backTo="/admin/products"
                 backLabel="Back to Products"
                 action={
                   <button

@@ -37,7 +37,7 @@ const DuplicateWarnings = ({ warnings }) => {
         {duplicates.map((w) => (
           <li key={`${w.type}-${w.other.application_id}`}>
             {duplicateText(w)}{" "}
-            <Link to={`/dashboard/delivery-partners/applications/${w.other.application_id}`} className="font-semibold text-primary hover:underline">
+            <Link to={`/admin/delivery-partners/applications/${w.other.application_id}`} className="font-semibold text-primary hover:underline">
               Open it
             </Link>
           </li>
@@ -198,7 +198,7 @@ const Review = ({ detail, action, refetch, profile }) => {
       <PageHeader
         title="Review application"
         description="Check documents and the screening list, then decide."
-        backTo="/dashboard/delivery-partners"
+        backTo="/admin/delivery-partners"
         backLabel="Applications"
       />
 
@@ -364,7 +364,7 @@ const Review = ({ detail, action, refetch, profile }) => {
               {detail.status === "REJECTED" && <p className="text-muted-foreground">{REASON_LABEL[detail.decision?.reason_code]}</p>}
               {detail.decision?.note && <p className="whitespace-pre-wrap text-muted-foreground">{detail.decision.note}</p>}
               {detail.status === "APPROVED" && detail.decision?.partner_id && (
-                <Link to={`/dashboard/delivery-partners/${detail.decision.partner_id}`} className="font-semibold text-primary hover:underline">View partner</Link>
+                <Link to={`/admin/delivery-partners/${detail.decision.partner_id}`} className="font-semibold text-primary hover:underline">View partner</Link>
               )}
             </div>
           ) : (
@@ -539,7 +539,7 @@ const DraftFill = ({ detail, action, profile }) => {
       <PageHeader
         title="Draft application"
         description={detail.can_upload ? "Add the documents you were given, then submit for review." : "The applicant is filling this in."}
-        backTo="/dashboard/delivery-partners"
+        backTo="/admin/delivery-partners"
         backLabel="Applications"
       />
 
@@ -664,7 +664,7 @@ const PartnerApplicationReview = () => {
   if (detail) return <Review detail={detail} action={action} refetch={refetch} profile={profile} />;
   return (
     <div className="space-y-5">
-      <PageHeader title="Review application" backTo="/dashboard/delivery-partners" backLabel="Applications" />
+      <PageHeader title="Review application" backTo="/admin/delivery-partners" backLabel="Applications" />
       <p className="text-sm text-muted-foreground">
         {isLoading ? "Loading…" : error?.response?.status === 404 ? "This application does not exist." : "Could not load this application. Try again in a moment."}
       </p>

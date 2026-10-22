@@ -61,7 +61,7 @@ const DeliveryZonePanel = ({ zone, onCancel, onSave }) => {
   }, [zone, form]);
 
   const onSubmit = (values) => {
-    onSave(isEditMode ? { ...values, id: zone.id } : values);
+    onSave(values);
   };
 
   return (

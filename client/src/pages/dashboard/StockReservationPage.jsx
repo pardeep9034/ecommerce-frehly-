@@ -107,7 +107,7 @@ const StockReservationPage = () => {
       <PageHeader
         title="Stock Reservations"
         description="Track stock held against pending or confirmed orders."
-        backTo="/dashboard/inventory"
+        backTo="/admin/inventory"
         backLabel="Back to Inventory"
         action={
           <button

@@ -2,7 +2,6 @@ import {
   generateOtp,
   hashOtp,
   getOtpExpiry,
-  decodeOtp,
 } from "../../helpers/otp.js";
 
 import UserRepository from "../repository/user.repository.js";
@@ -136,7 +135,7 @@ async resendOtp(phone,type) {
           success: true,
           statusCode: 200,
           message: "If an OTP request exists, a new OTP has been sent",
-          data:otp,
+          data: env.NODE_ENV === "development" ? { otp } : {}, // the code itself only in development, like signup and login
         };
 
       } else {

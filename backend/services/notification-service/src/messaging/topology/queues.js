@@ -1,0 +1,37 @@
+import exchanges from './exchanges.js';
+
+/**
+ * queues.js
+ *
+ * Single source of truth for every queue in the system.
+ *
+ * Every queue below is wired with:
+ *  - x-dead-letter-exchange: where a message goes after it's rejected
+ *    (nack'd without requeue) or expires — this is what makes the DLQ work.
+ *  - x-dead-letter-routing-key: the routing key used when re-publishing
+ *    to the dead letter exchange (helps identify which queue it came from).
+ *  - x-message-ttl: optional, used by retry queues (see retry/ folder) to
+ *    auto-expire a message after N ms, which triggers dead-lettering —
+ *    this is the trick RabbitMQ uses to fake "delayed retry" since it has
+ *    no native delay/scheduling feature.
+ */
+export default {
+  // Every event notification-service turns into messages (intake.js).
+  NOTIFICATION_QUEUE: {
+    name: 'notification_queue',
+    options: {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': exchanges.DEAD_LETTER.name,
+        'x-dead-letter-routing-key': 'notification_queue.dead',
+      },
+    },
+  },
+
+  // The actual DLQ — where dead-lettered messages end up for inspection.
+  // Not consumed automatically; a human or a reprocessing job checks this.
+  DEAD_LETTER_QUEUE: {
+    name: 'dead_letter_queue',
+    options: { durable: true },
+  },
+};

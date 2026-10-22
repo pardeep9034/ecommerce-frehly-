@@ -6,6 +6,11 @@ class SettingRepository {
     return await Setting.findAll({ raw: true });
   }
 
+  async findByKey(key) {
+    const { Setting } = await initializeModels();
+    return await Setting.findByPk(key, { raw: true });
+  }
+
   // Shallow-merges `patch` into the group's stored value in one statement, so two
   // admins saving different fields of the same group can't overwrite each other.
   async mergeValue(key, patch, updatedBy) {

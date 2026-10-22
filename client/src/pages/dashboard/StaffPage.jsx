@@ -89,9 +89,9 @@ const StaffPage = () => {
         <p className="flex-1 text-sm text-muted-foreground">
           Everyone who can sign in to the admin dashboard or the store app and console.
         </p>
-        <Link to="/dashboard/staff/new" className={primaryButtonClass}>
+        <Link to="/admin/staff/new" className={primaryButtonClass}>
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Add user
+          Add staff
         </Link>
       </div>
 
@@ -147,7 +147,7 @@ const StaffPage = () => {
         <StaffTable
           staff={staff}
           isLoading={isLoading}
-          onEdit={(user) => navigate(`/dashboard/staff/new?edit=${user.id}`)}
+          onEdit={(user) => navigate(`/admin/staff/new?edit=${user.id}`)}
           onResetPassword={guard((user) => setResetting({ user, password: generatePassword(), show: true, mustChange: true }))}
           onResendInvite={guard((user) =>
             resendInviteMutation.mutate(user.id, { onSuccess: () => notify.success(`Login details sent to ${user.phone}`) })

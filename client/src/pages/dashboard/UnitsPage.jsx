@@ -69,7 +69,7 @@ const UnitsPage = () => {
       <PageHeader
         title="Units"
         description="Define measurement units used across product variants."
-        backTo="/dashboard/products"
+        backTo="/admin/products"
         backLabel="Back to Products"
         action={
           <button

@@ -12,15 +12,16 @@ export const usePartnerMe = () => {
 
 // status: "ACTIVE" (open work), "HISTORY" (anything finished) or one finished status ("COMPLETED", "FAILED", ...).
 // date: optional "today" filter on finished work, used for the "delivered today" counts.
-export const usePartnerAssignments = (status, { date, page = 1, limit = 20 } = {}) => {
+export const usePartnerAssignments = (status, { date, from, to, search, page = 1, limit = 20 } = {}) => {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["partner-assignments", status, date, page, limit],
-    queryFn: () => PartnerApi.getAssignments({ status, date, page, limit }),
+    queryKey: ["partner-assignments", status, date, from, to, search, page, limit],
+    queryFn: () => PartnerApi.getAssignments({ status, date, from, to, search, page, limit }),
   });
 
   return {
     assignments: data?.data?.items || [],
     total: data?.data?.total || 0,
+    counts: data?.data?.counts || {},
     isLoading,
     error,
   };
@@ -48,6 +49,52 @@ export const useUpdateAssignmentStatus = () => {
       Promise.all(
         ["partner-assignments", "partner-assignment", "partner-me"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
+  });
+};
+
+// Polled: nothing else tells a partner that someone wants to hand them an order.
+export const usePartnerHandovers = (dir) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["partner-handovers", dir],
+    queryFn: () => PartnerApi.getHandovers(dir),
+    refetchInterval: 15000,
+  });
+
+  return { handovers: data?.data || [], isLoading, error };
+};
+
+export const useHandoverCandidates = (assignmentId) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["partner-handover-candidates", assignmentId],
+    queryFn: () => PartnerApi.getHandoverCandidates(assignmentId),
+    enabled: Boolean(assignmentId),
+  });
+
+  return { candidates: data?.data || [], isLoading, error };
+};
+
+// A handover moves the order between partners, so every partner list and count is refreshed.
+const refreshAfterHandover = (queryClient) =>
+  Promise.all(
+    ["partner-handovers", "partner-assignments", "partner-assignment", "partner-me"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+  );
+
+export const useRequestHandover = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ assignmentId, ...payload }) => PartnerApi.requestHandover(assignmentId, payload),
+    onSuccess: () => refreshAfterHandover(queryClient),
+  });
+};
+
+// { handoverId, step }: see PartnerApi.handoverStep.
+export const useHandoverStep = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ handoverId, step }) => PartnerApi.handoverStep(handoverId, step),
+    onSuccess: () => refreshAfterHandover(queryClient),
   });
 };
 

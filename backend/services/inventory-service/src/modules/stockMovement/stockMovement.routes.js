@@ -1,6 +1,6 @@
 import express from "express";
 import StockMovementController from "./stockMovement.controller.js";
-import { authenticateToken } from "../../middleware/auth.js";
+import { staffOrService } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 
 const router = express.Router();
@@ -10,7 +10,7 @@ router.get("/variant/:variantId", StockMovementController.getStockMovementsByVar
 router.get("/:id", StockMovementController.getStockMovementById);
 router.post(
   "/",
-  authenticateToken,
+  staffOrService,
   validate("createStockMovementSchema"),
   StockMovementController.createStockMovement,
 );

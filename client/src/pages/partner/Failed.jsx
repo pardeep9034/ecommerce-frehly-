@@ -4,16 +4,15 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
 import { Card, LoadNote, StatusPill } from "@/components/partner/PartnerBits";
 import { usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
-import { STEP_LABEL, timeOf } from "@/lib/assignmentStatus";
+import { FAILED_REASONS, STEP_LABEL, timeOf } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
-import { FAILED_REASONS } from "@/lib/partnerDemoData";
 
 const Failed = () => {
   const { assignmentId } = useParams();
   const navigate = useNavigate();
   const { assignment: a, error } = usePartnerAssignment(assignmentId);
   const update = useUpdateAssignmentStatus();
-  const [reason, setReason] = useState(FAILED_REASONS[0]);
+  const [reason, setReason] = useState(FAILED_REASONS[0].code);
   const [remarks, setRemarks] = useState("");
 
   if (!a) {
@@ -29,18 +28,18 @@ const Failed = () => {
   const submit = async (event) => {
     event.preventDefault();
     const note = remarks.trim();
-    if (reason === "Other" && note.length < 3) {
+    if (reason === "OTHER" && note.length < 3) {
       notify.error("Add a remark for “Other”");
       return;
     }
     // mutateAsync, not mutate's callbacks: the guard above unmounts this screen as soon as the refetch shows the job
     // finished, and mutate's own callbacks do not run after that.
-    // The server keeps one reason text (3–255 characters); the remark rides along after the picked reason.
     try {
       await update.mutateAsync({
         assignmentId: a.id,
         status: "DELIVERY_FAILED",
-        reason: reason === "Other" ? note : note ? `${reason} — ${note}` : reason,
+        reason_code: reason,
+        ...(note ? { note } : {}),
       });
       notify.success("Failed attempt reported");
       navigate("/partner/home", { replace: true });
@@ -72,13 +71,13 @@ const Failed = () => {
             <legend className="mb-2 text-sm font-semibold text-foreground">Select a reason</legend>
             {FAILED_REASONS.map((r) => (
               <label
-                key={r}
+                key={r.code}
                 className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-[1.5px] px-3.5 text-sm ${
-                  reason === r ? "border-destructive bg-destructive/10 font-semibold" : "border-border bg-white"
+                  reason === r.code ? "border-destructive bg-destructive/10 font-semibold" : "border-border bg-white"
                 }`}
               >
-                <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} className="h-4 w-4 accent-destructive" />
-                {r}
+                <input type="radio" name="reason" checked={reason === r.code} onChange={() => setReason(r.code)} className="h-4 w-4 accent-destructive" />
+                {r.label}
               </label>
             ))}
           </fieldset>

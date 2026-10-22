@@ -64,7 +64,7 @@ const AddDeliveryPartner = () => {
           if (draft.invite_sent) notify.success(`Invite sent to ${spaced(draft.phone)}. Now add their documents.`);
           // Someone with a working account needs no sign-up link; they just have to log in to the partner app.
           else notify.info(`${spaced(draft.phone)} already has an account, so no invite was sent. Ask them to log in to the partner app.`);
-          navigate(`/dashboard/delivery-partners/applications/${draft.id}`);
+          navigate(`/admin/delivery-partners/applications/${draft.id}`);
         },
         onError: (error) => notify.apiError(error),
       }
@@ -76,7 +76,7 @@ const AddDeliveryPartner = () => {
       <PageHeader
         title="Add delivery partner"
         description="Start an application on the partner's behalf. It still goes through review."
-        backTo="/dashboard/delivery-partners"
+        backTo="/admin/delivery-partners"
         backLabel="Delivery partners"
       />
 
@@ -121,7 +121,7 @@ const AddDeliveryPartner = () => {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Link to="/dashboard/delivery-partners" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-semibold hover:bg-muted">
+            <Link to="/admin/delivery-partners" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-semibold hover:bg-muted">
               Cancel
             </Link>
             <button

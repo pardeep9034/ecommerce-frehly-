@@ -32,7 +32,9 @@ const limiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Service-to-service calls share a few container IPs: not counted, never blocked. /i because Express routes ignore case.
+  skip: (req) => /^\/internal(\/|$)/i.test(req.path)
 });
 app.use(limiter);
 

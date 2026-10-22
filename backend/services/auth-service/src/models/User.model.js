@@ -73,6 +73,13 @@ export default (sequelize) => {
                 defaultValue: "CUSTOMER"
             },
 
+            // The warehouse this staff user works in. Warehouses belong to inventory-service, so no foreign key.
+            warehouse_id: {
+                type: DataTypes.BIGINT,
+                allowNull: true,
+                defaultValue: null
+            },
+
             phone_verified: {
                 type: DataTypes.BOOLEAN,
                 defaultValue: false
@@ -84,6 +91,13 @@ export default (sequelize) => {
             },
             profile_complete: {
                 type: DataTypes.BOOLEAN,
+                defaultValue: false
+            },
+
+            // Staff created or reset by an admin sign in with a temporary password. Cleared when they set their own.
+            must_change_password: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
                 defaultValue: false
             },
 

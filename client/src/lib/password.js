@@ -1,4 +1,4 @@
-// Temporary passwords for new users and resets (Add user, Staff list "Reset password").
+// Temporary passwords for new users and resets (Add staff, Staff list "Reset password").
 
 export const PASSWORD_RULES = [
   { label: "8+ characters", test: (value) => value.length >= 8 },

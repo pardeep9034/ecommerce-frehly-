@@ -82,6 +82,10 @@ export default (sequelize) => {
         type: DataTypes.BIGINT,
         allowNull: true // owned by inventory-service, so no FK
       },
+      picked_by: {
+        type: DataTypes.BIGINT,
+        allowNull: true // the staff user who finalized the items; owned by auth-service, so no FK
+      },
       placed_at: {
         type: DataTypes.DATE
       }

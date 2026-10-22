@@ -58,14 +58,14 @@ const WarehousesTable = ({ rows = [], isLoading }) => {
               <td className="px-4 py-3.5 text-right">
                 {status === "DRAFT" ? (
                   <Link
-                    to={`/dashboard/warehouses/new?draft=${warehouse.id}`}
+                    to={`/admin/warehouses/new?draft=${warehouse.id}`}
                     className="inline-flex h-9 items-center whitespace-nowrap rounded-xl bg-primary px-[18px] text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     Continue setup
                   </Link>
                 ) : (
                   <Link
-                    to={`/dashboard/warehouses/${warehouse.id}`}
+                    to={`/admin/warehouses/${warehouse.id}`}
                     aria-label={`View ${warehouse.name}`}
                     className="inline-flex h-9 items-center whitespace-nowrap rounded-xl border border-border bg-white px-[18px] text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                   >

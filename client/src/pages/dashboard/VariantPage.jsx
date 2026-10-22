@@ -71,7 +71,7 @@ const VariantPage=()=>{
               <PageHeader
                 title="Variants"
                 description="Manage per-product variants and their stock."
-                backTo="/dashboard/products"
+                backTo="/admin/products"
                 backLabel="Back to Products"
                 action={
                   <button

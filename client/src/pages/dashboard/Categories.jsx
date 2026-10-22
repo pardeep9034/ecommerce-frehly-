@@ -14,7 +14,7 @@ const STATUS_OPTIONS = ["All", "Active", "Inactive"];
 
 const Categories = () => {
   const location = useLocation();
-  const isProductSubRoute = location.pathname === "/dashboard/products/category";
+  const isProductSubRoute = location.pathname === "/admin/products/category";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [editingCategory, setEditingCategory] = useState(null);
@@ -93,7 +93,7 @@ const Categories = () => {
       <PageHeader
         title="Categories"
         description="Organize products into browsable categories."
-        backTo={isProductSubRoute ? "/dashboard/products" : undefined}
+        backTo={isProductSubRoute ? "/admin/products" : undefined}
         backLabel="Back to Products"
         action={
           <button

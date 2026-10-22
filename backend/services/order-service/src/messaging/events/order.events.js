@@ -91,4 +91,18 @@ export default {
       });
     },
   },
+
+  // One per order_status_history row (recordStatusChange in order.service.js). notification-service keys its
+  // text on historyId, so a republish never texts twice.
+  ORDER_STATUS_CHANGED: {
+    routingKey: 'order.status.changed',
+    exchange: EXCHANGE,
+    version: 1,
+    buildPayload(data) {
+      if (!data?.historyId || !data?.orderId) {
+        throw new Error('OrderStatusChanged payload requires historyId and orderId');
+      }
+      return buildEnvelope('order.status.changed', 1, data);
+    },
+  },
 };

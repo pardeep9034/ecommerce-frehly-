@@ -7,7 +7,7 @@ import { useAddPromotionItemMutation, useAllPromotionItemsQuery } from "../../ho
 const MasterAssignModal = ({ isOpen, onClose }) => {
     // Queries
     const { promotions: promotionsData, isLoading: isLoadingPromos } = usePromotion(1, 100);
-    const { products: productsData, isLoading: isLoadingProducts } = useProduct(1, 100);
+    const { products: productsData, isLoading: isLoadingProducts } = useProduct({ page: 1, limit: 100 });
     const { refetch } = useAllPromotionItemsQuery();
 
     const [selectedPromotionId, setSelectedPromotionId] = useState("");

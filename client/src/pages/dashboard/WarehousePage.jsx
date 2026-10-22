@@ -70,7 +70,7 @@ const WarehousePage = () => {
           Stores that pick, pack and hand orders to riders. Each belongs to one delivery zone.
         </p>
         <Link
-          to="/dashboard/warehouses/new"
+          to="/admin/warehouses/new"
           className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-[18px] text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />

@@ -14,6 +14,7 @@ import redisManager from "../../config/redis.js";
 import UserSessionRepository from "../repository/userSession.repository.js";
 import bcrypt from "bcryptjs"
 import { v4 as uuidv4 } from "uuid";
+import { Op } from "sequelize";
 import refreshTokenRepository from "../repository/refreshToken.repository.js";
 import {publisher} from "../../messaging/index.js";
 import userEvent from "../../messaging/events/user.events.js";
@@ -557,7 +558,9 @@ class AuthService {
       }
       //emit event
       logger.debug("USER_LOGGED_IN event", { user_id: user.id, guest_cart, warehouse_id: warehouseId });
+      // A broker outage must not block sign-in; the guest cart is then not merged.
       await publisher.publish(userEvent.USER_LOGGED_IN, {user_id: user.id, guest_cart,warehouse_id:warehouseId})
+        .catch((err) => logger.warn(`USER_LOGGED_IN not published for user ${user.id}: ${err.message}`));
       
       
 
@@ -598,10 +601,104 @@ class AuthService {
         last_name: user.last_name,
         email: user.email,
         role: user.role,
+        warehouse_id: user.warehouse_id, // staff's store; the store panel reads it
         phone_verified: user.phone_verified,
         email_verified: user.email_verified,
       },
     };
+  }
+
+  /* ================= UPDATE OWN PROFILE ================= */
+
+  // Step 1 of a mobile change: a code goes to the NEW number, so only its owner can finish the change.
+  async requestPhoneChange(userId, phone) {
+    const user = await UserRepository.findById(userId);
+    if (!user) throw new AppError("User not found", 404);
+    if (phone === user.phone) throw new AppError("This is already your mobile number", 400);
+    if (await UserRepository.findByPhone(phone)) throw new AppError("This mobile number is already in use", 409);
+    if (OtpService.tooSoon(await OtpRepository.findLatestOtp(user.id, "PHONE_CHANGE"))) {
+      throw new AppError("Please wait before requesting another OTP", 429);
+    }
+
+    const otpPayload = OtpService.createOtp();
+    await OtpRepository.revokePendingOtps(user.id, "PHONE_CHANGE");
+    await OtpRepository.create({
+      user_id: user.id,
+      type: "PHONE_CHANGE",
+      channel: "SMS",
+      sent_to: phone,
+      code_hash: otpPayload.hash,
+      expires_at: otpPayload.expiry,
+    });
+    await sendOtp({ phone, otp: otpPayload.otp });
+
+    return {
+      message: "OTP sent to the new mobile number",
+      data: env.NODE_ENV === "development" ? { otp: otpPayload.otp } : {},
+    };
+  }
+
+  // Name and email change at once. A different phone also needs `otp` from requestPhoneChange.
+  async updateProfile(userId, body) {
+    const user = await UserRepository.findById(userId);
+    if (!user) throw new AppError("User not found", 404);
+
+    const changes = {};
+    if (body.first_name !== undefined) changes.first_name = body.first_name.trim();
+    if (body.last_name !== undefined) changes.last_name = body.last_name?.trim() || null;
+    if (body.email !== undefined) {
+      const email = body.email?.trim().toLowerCase() || null;
+      if (email !== user.email) {
+        const owner = email && await UserRepository.findByEmail(email);
+        if (owner && owner.id !== user.id) throw new AppError("This email is already in use", 409);
+        changes.email = email;
+        changes.email_verified = false;
+      }
+    }
+
+    let otpRecord;
+    if (body.phone !== undefined && body.phone !== user.phone) {
+      if (!body.otp) throw new AppError("Enter the OTP sent to your new mobile number", 400);
+      otpRecord = await OtpRepository.findLatestOtp(user.id, "PHONE_CHANGE");
+      // The code is only good for the number it was sent to.
+      if (!otpRecord || otpRecord.status !== "PENDING" || otpRecord.sent_to !== body.phone) {
+        throw new AppError("Request an OTP for this number first", 400);
+      }
+      if (new Date(otpRecord.expires_at) < new Date()) throw new AppError("OTP has expired", 400);
+      if (otpRecord.attempt_count >= OtpService.MAX_ATTEMPTS) {
+        throw new AppError("Too many wrong attempts. Request a new code.", 429);
+      }
+      if (!OtpService.compareOtp(body.otp, otpRecord.code_hash)) {
+        await OtpRepository.incrementAttempts(otpRecord.id);
+        throw new AppError("Invalid OTP", 400);
+      }
+      changes.phone = body.phone;
+    }
+
+    // Only fields that really change count, so a plain "Save" writes nothing.
+    const changed = Object.keys(changes).filter((key) => changes[key] !== user[key] && key !== "email_verified");
+    if (changed.length) {
+      const db = await initializeModels();
+      try {
+        await db.sequelize.transaction(async (transaction) => {
+          await user.update(changes, { transaction });
+          if (otpRecord) await OtpRepository.markUsed(otpRecord.id, { transaction });
+          await AuditRepository.logEvent({
+            user_id: user.id,
+            event_type: "PROFILE_UPDATED",
+            status: "SUCCESS",
+            details: { fields: changed },
+          }, { transaction });
+        });
+      } catch (error) {
+        // Two people claiming the same number / email at the same moment.
+        if (error.name === "SequelizeUniqueConstraintError") throw new AppError("This mobile number or email is already in use", 409);
+        throw error;
+      }
+    }
+
+    const profile = await this.getProfile(user.id);
+    return { message: changed.length ? "Profile updated" : "Nothing to change", data: profile.data };
   }
 
   /* ================= REFRESH TOKEN ================= */
@@ -716,38 +813,109 @@ class AuthService {
       message: "Logged out successfully",
     };
   }
-  async logoutFromAllDevices(userId){
-    //revoke refresh_token
-    const db = await initializeModels();
-    const transaction = await db.sequelize.transaction();
-    await RefreshTokenRepository.update(
-    {
-        user_id: userId,
-        is_revoked: false
-    },
-    {
-        is_revoked: true,
-        revoked_at: new Date(),
-        revoke_reason: "LOGOUT_ALL"
-    },{transaction}
-);
-await UserSessionRepository.update(
-    {
-        user_id: userId,
-        status: "ACTIVE"
-    },
-    {
-        status: "REVOKED",
-        revoked_at: new Date()
-    },{transaction}
-);
-await transaction.commit();
-return {
-  success: true,
-  statusCode: 200,
-  message: "Logged out from all devices successfully",
-};
+  // The refresh-token family behind this request's cookie ("this device"), or null when the cookie is
+  // missing, already rotated or revoked, or belongs to someone else.
+  async currentFamily(userId, rawRefreshToken) {
+    if (!rawRefreshToken) return null;
+    const token = await RefreshTokenRepository.findByToken(TokenService.hashRefreshToken(rawRefreshToken));
+    return token && !token.is_revoked && String(token.user_id) === String(userId) ? token.family_id : null;
+  }
 
+  // Ends the user's refresh tokens and sessions, except the `keepFamily` one (null ends all).
+  // Returns how many sessions ended. Access tokens already issued still work until they expire (15 min).
+  async revokeSessions(userId, keepFamily, reason, { transaction } = {}) {
+    const now = new Date();
+    await RefreshTokenRepository.update(
+      { user_id: userId, is_revoked: false, ...(keepFamily && { family_id: { [Op.ne]: keepFamily } }) },
+      { is_revoked: true, revoked_at: now, revoke_reason: reason },
+      { transaction }
+    );
+    const [ended] = await UserSessionRepository.update(
+      { user_id: userId, status: "ACTIVE", ...(keepFamily && { refresh_family_id: { [Op.ne]: keepFamily } }) },
+      { status: "REVOKED", revoked_at: now },
+      { transaction }
+    );
+    return ended;
+  }
+
+  async logoutFromAllDevices(userId) {
+    const db = await initializeModels();
+    const ended = await db.sequelize.transaction(async (transaction) => {
+      const count = await this.revokeSessions(userId, null, "LOGOUT_ALL", { transaction });
+      await AuditRepository.logEvent({
+        user_id: userId, event_type: "LOGOUT_ALL", status: "SUCCESS", details: { sessions_ended: count },
+      }, { transaction });
+      return count;
+    });
+    return { message: "Logged out from all devices successfully", data: { signed_out_sessions: ended } };
+  }
+
+  // "Sign out everywhere else": keeps the session behind this request's refresh cookie.
+  async logoutOtherDevices(userId, rawRefreshToken) {
+    const keep = await this.currentFamily(userId, rawRefreshToken);
+    // No valid cookie means no "this device" to keep; refuse rather than sign this device out too.
+    if (!keep) throw new AppError("Can't tell which session is this one. Sign in again and retry.", 400);
+
+    const db = await initializeModels();
+    const ended = await db.sequelize.transaction(async (transaction) => {
+      const count = await this.revokeSessions(userId, keep, "LOGOUT_OTHERS", { transaction });
+      await AuditRepository.logEvent({
+        user_id: userId, event_type: "LOGOUT_ALL", status: "SUCCESS", details: { sessions_ended: count, kept_current: true },
+      }, { transaction });
+      return count;
+    });
+    return {
+      message: ended ? `Signed out of ${ended} other session${ended === 1 ? "" : "s"}` : "No other sessions were signed in",
+      data: { signed_out_sessions: ended },
+    };
+  }
+
+  /* ================= CHANGE PASSWORD (signed in) ================= */
+
+  // Needs the current password. A wrong one counts toward the login lock, so a stolen session can't be used
+  // to guess it. Other devices are signed out; this one (the refresh cookie's family) stays signed in.
+  async changePassword(userId, { current_password, new_password }, rawRefreshToken) {
+    const user = await UserRepository.findById(userId);
+    if (!user) throw new AppError("User not found", 404);
+    if (!user.password_hash) throw new AppError("This account has no password yet. Use Forgot password to set one.", 400);
+    if (user.account_locked_until && new Date(user.account_locked_until) > new Date()) {
+      throw new AppError("Account is temporarily locked. Try again later.", 423);
+    }
+
+    if (!(await bcrypt.compare(current_password, user.password_hash))) {
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      const locked = attempts >= (env.MAX_LOGIN_ATTEMPTS || 5);
+      await UserRepository.updateById(user.id, {
+        failed_login_attempts: attempts,
+        ...(locked && { account_locked_until: new Date(Date.now() + (env.LOCK_TIME || 900000)) }),
+      });
+      await AuditRepository.logEvent({
+        user_id: user.id, event_type: "PASSWORD_CHANGE", status: "FAILURE",
+        error_message: "Wrong current password", details: { attempt: attempts },
+      });
+      // 400, not 401: a 401 makes the client try a token refresh and sign out.
+      if (locked) throw new AppError("Account is temporarily locked. Try again later.", 423);
+      throw new AppError("Current password is wrong", 400);
+    }
+    if (await bcrypt.compare(new_password, user.password_hash)) {
+      throw new AppError("The new password must be different from the current one", 400);
+    }
+
+    const keep = await this.currentFamily(user.id, rawRefreshToken);
+    const db = await initializeModels();
+    const ended = await db.sequelize.transaction(async (transaction) => {
+      // The model hook hashes password_hash. Choosing their own password also ends an admin-issued temporary one.
+      user.set({ password_hash: new_password, failed_login_attempts: 0, account_locked_until: null, must_change_password: false });
+      await user.save({ transaction });
+      const count = await this.revokeSessions(user.id, keep, "PASSWORD_CHANGE", { transaction });
+      await AuditRepository.logEvent({
+        user_id: user.id, event_type: "PASSWORD_CHANGE", status: "SUCCESS",
+        details: { sessions_ended: count, kept_current: !!keep },
+      }, { transaction });
+      return count;
+    });
+
+    return { message: "Password changed", data: { signed_out_sessions: ended } };
   }
 
   /* ================= FORGOT PASSWORD ================= */
@@ -842,7 +1010,8 @@ return {
 
     try {
       // A reset also lifts the 5-wrong-passwords lock, or the next sign-in would still say "temporarily locked".
-      user.set({ password_hash: newPassword, failed_login_attempts: 0, account_locked_until: null });
+      // Choosing their own password also ends an admin-issued temporary one.
+      user.set({ password_hash: newPassword, failed_login_attempts: 0, account_locked_until: null, must_change_password: false });
       await user.save({ transaction });
 
       // Revoke all refresh tokens

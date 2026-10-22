@@ -29,7 +29,7 @@ const AdminLogin = () => {
 
       setToken(accessToken, rememberMe);
       dispatch(loginSuccess({ token: accessToken, user: response?.data?.user }));
-      window.location.replace("/dashboard");
+      window.location.replace("/admin");
     },
     onError: (requestError) => {
       setError(requestError?.response?.data?.message || "Invalid email/mobile number or password.");

@@ -1,5 +1,8 @@
 import { Edit2, Trash2, Package } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { stockLevel } from "@/lib/stockLevel";
+
+const STOCK_LABEL = { OK: "In Stock", LOW: "Low Stock", OUT: "Out of Stock" };
 
 const formatVariant = (variant) => {
     if (!variant) return "Unknown Variant";
@@ -59,16 +62,16 @@ const InventoryTable = ({ inventory, onEdit, onDelete, highlightTerm }) => {
                                 <td className="px-5 py-4 sm:px-6 font-medium text-foreground">{item.current_stock}</td>
                                 <td className="px-5 py-4 text-muted-foreground sm:px-6">{item.reserved_stock}</td>
                                 <td className="px-5 py-4 sm:px-6">
-                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.current_stock <= item.low_stock_threshold ? "bg-destructive text-destructive" : "bg-blue-50 text-blue-600"}`}>
+                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${stockLevel(item) !== "OK" ? "bg-destructive/10 text-destructive" : "bg-blue-50 text-blue-600"}`}>
                                         {item.low_stock_threshold}
                                     </span>
                                 </td>
                                 <td className="px-5 py-4 sm:px-6">
                                     <span
-                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${item.current_stock > item.low_stock_threshold ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${stockLevel(item) === "OK" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                                             }`}
                                     >
-                                        {item.current_stock > item.low_stock_threshold ? "In Stock" : item.current_stock > 0 ? "Low Stock" : "Out of Stock"}
+                                        {STOCK_LABEL[stockLevel(item)]}
                                     </span>
                                 </td>
                                 <td className="px-5 py-4 sm:px-6">

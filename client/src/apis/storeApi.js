@@ -1,19 +1,13 @@
 import api from "./axiosInstance";
 
-// None of these endpoints exist yet — see STORE_OPERATIONS_MODULE.md for the
-// full contract. Every call resolves "me"/"my warehouse" server-side from the
+// Except getOrder, none of these endpoints exist yet — see STORE_OPERATIONS_MODULE.md
+// for the full contract. Every call resolves "me"/"my warehouse" server-side from the
 // caller's JWT, never from a client-supplied warehouse or staff id.
 const StoreApi = {
-  async getMe() {
-    const response = await api.get("/store/me");
-    return response.data;
-  },
-  async getQueue({ stage, search } = {}) {
-    const response = await api.get("/store/me/queue", { params: { stage, search } });
-    return response.data;
-  },
+  // ponytail: the existing GET /orders/:id. Only ADMIN gets in (OPS_STAFF is 403) and it is
+  // not limited to the caller's warehouse; move to /store/me/orders/:id when that exists.
   async getOrder(orderId) {
-    const response = await api.get(`/store/me/orders/${orderId}`);
+    const response = await api.get(`/orders/${orderId}`);
     return response.data;
   },
   // Item-level pick status reuses the same shape as the existing admin

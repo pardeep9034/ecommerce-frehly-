@@ -3,7 +3,29 @@
 // because none of those mean the order is confirmed: the actual
 // confirmation comes later from the backend's signature-verified webhook.
 // This just moves the UI on to where that result will show up.
-export function openRazorpayCheckout({ paymentSession, profile, onDone }) {
+
+// checkout.js is loaded here instead of in index.html: there it blocked every
+// page for seconds and pulled ~65 Razorpay requests. Only the cart and order
+// pages import this module, and the load starts as soon as they do.
+let scriptPromise;
+const loadRazorpay = () =>
+  (scriptPromise ??= new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = resolve;
+    script.onerror = () => {
+      scriptPromise = null; // allow a retry on the next checkout
+      resolve();
+    };
+    document.head.appendChild(script);
+  }));
+loadRazorpay();
+
+export function openRazorpayCheckout(options) {
+  loadRazorpay().then(() => openCheckout(options));
+}
+
+function openCheckout({ paymentSession, profile, onDone }) {
   if (!window.Razorpay) {
     onDone();
     return;

@@ -35,6 +35,10 @@ const envSchema = Joi.object({
     .default("http://localhost:3005"),
     AUTH_SERVICE_URL:Joi.string().uri().default("http://localhost:3000"),
   API_GATEWAY_URL:Joi.string().uri().optional(),
+  // Saved order rules (payment window); read with INTERNAL_API_KEY.
+  CONFIG_SERVICE_URL: Joi.string().uri().default("http://config-service:3007"),
+  // Same value as inventory-service: reserving / releasing stock for a customer's order needs it.
+  INTERNAL_API_KEY: Joi.string().min(32).optional(),
 
   PAYMENT_GATEWAY: Joi.string().default("mock"),
   PAYMENT_WEBHOOK_SECRET: Joi.string().optional(),

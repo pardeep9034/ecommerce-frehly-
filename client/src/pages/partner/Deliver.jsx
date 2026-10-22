@@ -70,13 +70,16 @@ const Deliver = () => {
             <Navigation className="h-4 w-4" /> {NEXT_LABEL[a.status]}
           </button>
         )}
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* Only a picked-up order can be handed over: once out for delivery, the backend refuses. */}
+        <div className={`grid gap-2.5 ${a.status === "PICKED_UP" ? "grid-cols-2" : ""}`}>
           <Link to={`/partner/orders/${a.id}/failed`} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">
             <XCircle className="h-4 w-4" /> Couldn’t deliver
           </Link>
-          <Link to="/partner/handover?tab=out" className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-foreground">
-            <ArrowLeftRight className="h-4 w-4" /> Hand over
-          </Link>
+          {a.status === "PICKED_UP" && (
+            <Link to={`/partner/handover?tab=out&assignment=${a.id}`} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-foreground">
+              <ArrowLeftRight className="h-4 w-4" /> Hand over
+            </Link>
+          )}
         </div>
       </div>
     </MobileShell>

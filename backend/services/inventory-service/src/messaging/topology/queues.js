@@ -27,28 +27,6 @@ export default {
     },
   },
 
-  EMAIL_ORDER_QUEUE: {
-    name: 'email_order_queue',
-    options: {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': exchanges.DEAD_LETTER.name,
-        'x-dead-letter-routing-key': 'email_order_queue.dead',
-      },
-    },
-  },
-
-  PAYMENT_QUEUE: {
-    name: 'payment_queue',
-    options: {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': exchanges.DEAD_LETTER.name,
-        'x-dead-letter-routing-key': 'payment_queue.dead',
-      },
-    },
-  },
-
   // The actual DLQ — where dead-lettered messages end up for inspection.
   // Not consumed automatically; a human or a reprocessing job checks this.
   DEAD_LETTER_QUEUE: {

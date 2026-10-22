@@ -72,7 +72,7 @@ const ProductAttributePage=()=>{
               <PageHeader
                 title="Product Attributes"
                 description="Define custom attributes available to your products."
-                backTo="/dashboard/products"
+                backTo="/admin/products"
                 backLabel="Back to Products"
                 action={
                   <button

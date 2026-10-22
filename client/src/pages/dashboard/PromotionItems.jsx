@@ -57,7 +57,7 @@ const PromotionItems = () => {
     if (!promotion) {
         return (
             <div className="p-8">
-                <PageHeader title="Promotion not found" backTo="/dashboard/promotions" backLabel="Back to Promotions" />
+                <PageHeader title="Promotion not found" backTo="/admin/promotions" backLabel="Back to Promotions" />
             </div>
         );
     }
@@ -79,7 +79,7 @@ const PromotionItems = () => {
                 <PageHeader
                     title={promotion.title}
                     description="Manage products included in this promotion."
-                    backTo="/dashboard/promotions"
+                    backTo="/admin/promotions"
                     backLabel="Back to Promotions"
                     action={
                         <button

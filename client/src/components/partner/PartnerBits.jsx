@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { DELIVERY_STEPS, STATUS_STYLE } from "@/lib/partnerDemoData";
+import { DELIVERY_STEPS, STATUS_STYLE } from "@/lib/assignmentStatus";
 
 export const StatusPill = ({ status, className = "" }) => (
   <span
