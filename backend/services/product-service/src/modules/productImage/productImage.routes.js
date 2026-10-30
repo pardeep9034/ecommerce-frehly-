@@ -1,6 +1,6 @@
 import express from "express";
 import productImageController from "./productImage.controller.js";
-import { authenticateToken } from "../../middleware/auth.js";
+import { superAdminOnly } from "../../middleware/auth.js";
 import validate from "../../middleware/validate.js";
 
 const router = express.Router();
@@ -17,18 +17,18 @@ router.get("/:id", productImageController.getImageById);
 
 /* ---- POST ---- */
 // Add a new image to a product
-router.post("/", authenticateToken, validate("addProductImageSchema"), productImageController.addImage);
+router.post("/", superAdminOnly, validate("addProductImageSchema"), productImageController.addImage);
 
 /* ---- PATCH ---- */
 // Set an image as primary
-router.patch("/:id/set-primary", authenticateToken, productImageController.setPrimaryImage);
+router.patch("/:id/set-primary", superAdminOnly, productImageController.setPrimaryImage);
 
 /* ---- PUT ---- */
 // Update image metadata
-router.put("/:id", authenticateToken, validate("updateProductImageSchema"), productImageController.updateImage);
+router.put("/:id", superAdminOnly, validate("updateProductImageSchema"), productImageController.updateImage);
 
 /* ---- DELETE ---- */
 // Delete an image
-router.delete("/:id", authenticateToken, validate("deleteProductImageSchema"), productImageController.deleteImage);
+router.delete("/:id", superAdminOnly, validate("deleteProductImageSchema"), productImageController.deleteImage);
 
 export default router;

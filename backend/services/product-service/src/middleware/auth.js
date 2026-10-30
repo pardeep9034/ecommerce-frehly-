@@ -104,4 +104,8 @@ const requireRole = (roles) => {
 
 };
 
-export { authenticateToken, requireRole };
+// The catalog (products, variants, images, attributes, brands, categories, types, units, promotions) is written by the
+// super admin only (agreed 2026-10-29, Task 200); stores pick from it in inventory-service.
+const superAdminOnly = [authenticateToken, requireRole(["SUPER_ADMIN"])];
+
+export { authenticateToken, requireRole, superAdminOnly };

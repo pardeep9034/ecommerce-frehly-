@@ -57,4 +57,27 @@ export default class IPaymentGateway {
   async refund(params) {
     throw new Error("IPaymentGateway.refund() must be implemented");
   }
+
+  /**
+   * A single-use, fixed-amount UPI QR the rider shows at the door (pay on delivery).
+   * @param {{ orderId: string|number, orderNumber: string, amount: number, closeBy: Date }} params
+   * @returns {Promise<{ qrId: string, imageUrl: string, raw: object }>}
+   */
+  async createDoorQr(params) {
+    throw new Error("IPaymentGateway.createDoorQr() must be implemented");
+  }
+
+  /**
+   * Whether a door QR has been paid, and by which payment (the status-poll fallback for a missed webhook).
+   * @param {string} qrId
+   * @returns {Promise<{ paid: boolean, paymentId: string|null, amount: number }>}
+   */
+  async getDoorQr(qrId) {
+    throw new Error("IPaymentGateway.getDoorQr() must be implemented");
+  }
+
+  /** Stop a door QR taking payments (Retry QR, Switch to cash). Closing an already closed one is not an error. */
+  async closeDoorQr(qrId) {
+    throw new Error("IPaymentGateway.closeDoorQr() must be implemented");
+  }
 }

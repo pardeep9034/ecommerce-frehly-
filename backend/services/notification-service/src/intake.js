@@ -4,7 +4,7 @@ import { env } from "./config/env.js";
 import { sequelize, selectOne } from "./db.js";
 import templates from "./templates.js";
 import { optedInAdmins } from "./preferences.js";
-import { contacts } from "./clients.js";
+import { contacts, staffNames } from "./clients.js";
 import { kick } from "./dispatcher.js";
 import AppError from "./utils/AppError.js";
 
@@ -16,6 +16,23 @@ const ist = (iso) =>
   new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
 const STATUS_WORDS = { PAUSED: "paused", MAINTENANCE: "under maintenance" };
 const statusWord = (status) => STATUS_WORDS[status] ?? String(status).toLowerCase();
+
+// Warehouse alerts go to super admins only: a store manager sees their own store, not the others (Task 193).
+const SUPER_ADMINS = ["SUPER_ADMIN"];
+const ROLE_WORDS = { SUPER_ADMIN: "super admin", ADMIN: "store manager", OPS_STAFF: "ops staff" };
+const LOCATION_WORDS = { address: "Address", city: "City", state: "State", country: "Country", latitude: "Latitude", longitude: "Longitude", pincode: "Pincode" };
+
+// "Pardeep Sahani (store manager)". A failed name lookup falls back to the id rather than losing the alert.
+async function changedByText({ changedBy, changedByRole }) {
+  if (!changedBy) return "the system";
+  const name = await staffNames([changedBy]).then((names) => names.get(String(changedBy))).catch(() => null);
+  const role = ROLE_WORDS[changedByRole];
+  return `${name || `staff #${changedBy}`}${role ? ` (${role})` : ""}`;
+}
+const WHO = {
+  changedBy: Joi.alternatives(Joi.number(), Joi.string().max(40)).allow(null),
+  changedByRole: Joi.string().max(30).allow(null),
+};
 
 const toAdmins = (admins, envelope, template, vars, subjectId) =>
   admins.map((admin) => ({ key: `${envelope.eventId}:${template}:EMAIL:u${admin.id}`, template, recipient: admin, vars, subjectId }));
@@ -52,6 +69,46 @@ export const ORDER_TEXTS = {
   DELIVERY_FAILED: "order.delivery_failed",
 };
 
+// A step of a customer's return (order-service's history row with returnStep): one text to the customer, worded
+// here, and on a new ask one to the store. Each value fits the 30 characters a variable may use.
+const rupees = (value) => {
+  const amount = Number(value ?? 0);
+  return `Rs ${amount.toLocaleString("en-IN", Number.isInteger(amount) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+export const RETURN_WORDS = {
+  REQUESTED: () => "request received",
+  APPROVED: () => "approved",
+  REJECTED: () => "doesn't meet our return terms",
+  PICKUP_ASSIGNED: () => "a rider will collect it",
+  REFUND_SENT: (amount) => `${rupees(amount)} refunded`,
+  REFUND_DUE: (amount) => `refund of ${rupees(amount)} due`,
+};
+
+async function returnTexts(data) {
+  const words = RETURN_WORDS[data.returnStep];
+  if (!words) return [];
+  const [customer] = await contacts({ ids: [data.userId] });
+  const requests = [{
+    key: `osh:${data.historyId}:order.return_update:SMS:u${data.userId}`,
+    template: "order.return_update",
+    recipient: customer ?? { id: data.userId },
+    vars: { orderNumber: data.orderNumber, update: words(data.returnAmount) },
+    subjectId: String(data.orderId),
+  }];
+  // The store's contact is free text in inventory-service: one that isn't a mobile gets no text.
+  const store = data.returnStep === "REQUESTED" && data.storePhone ? PHONE.validate(data.storePhone) : null;
+  if (store && !store.error) {
+    requests.push({
+      key: `osh:${data.historyId}:store.return_requested:SMS:h${hashDestination(store.value).slice(0, 12)}`,
+      template: "store.return_requested",
+      recipient: { phone: store.value },
+      vars: { order: data.orderNumber },
+      subjectId: String(data.orderId),
+    });
+  }
+  return requests;
+}
+
 // The applicant's texts from delivery-service's review steps: one event type each, the same shape.
 const applicantText = (template, vars) => ({
   schema: Joi.object({ applicationId: Joi.string().max(64).required(), userId: ID.required(), ref: ID.required(), ...vars }).unknown(true),
@@ -72,6 +129,7 @@ const handlers = {
       totalAmount: Joi.alternatives(Joi.number(), Joi.string().max(20)).allow(null),
     }).unknown(true),
     async run({ data }) {
+      if (data.returnStep) return returnTexts(data);
       const template = ORDER_TEXTS[data.newStatus];
       if (!template) return [];
       if (data.newStatus === "CANCELLED" && String(data.changedBy) === String(data.userId)) return []; // they cancelled it themselves
@@ -114,26 +172,66 @@ const handlers = {
     },
   },
 
+  // To the store's pickup contact, once, when a partner has held goods owed back to the store past the limit.
+  "delivery.return.overdue": {
+    schema: Joi.object({
+      orderId: ID.required(),
+      phone: PHONE.required(),
+      partnerName: Joi.string().max(120).allow("", null),
+      partnerPhone: Joi.string().max(20).allow("", null),
+    }).unknown(true),
+    async run(envelope) {
+      const { data } = envelope;
+      const vars = { order: data.orderId, partner: data.partnerName || "The partner", partnerPhone: data.partnerPhone || "-" };
+      return [{ ...toPhone(envelope, "store.return_overdue", data.phone, String(data.orderId)), vars }];
+    },
+  },
+
   "warehouse.status.changed": {
     schema: Joi.object({
       warehouseId: Joi.number().integer().positive().required(),
       name: Joi.string().max(120).required(),
       oldStatus: Joi.string().max(30).allow(null),
       newStatus: Joi.string().max(30).required(),
-      changedBy: Joi.alternatives(Joi.number(), Joi.string().max(40)).allow(null),
+      ...WHO,
     }).unknown(true),
     async run(envelope) {
       const { data } = envelope;
-      if (!STATUS_WORDS[data.newStatus]) return []; // only pauses and maintenance are alerts
+      // Pauses and maintenance are alerts, and so is reopening after one (a manager may reopen whoever closed it).
+      // Going live from setup is not.
+      const reopened = data.newStatus === "OPEN" && Boolean(STATUS_WORDS[data.oldStatus]);
+      if (!STATUS_WORDS[data.newStatus] && !reopened) return [];
       const vars = {
         warehouseId: data.warehouseId,
         warehouseName: data.name,
         status: statusWord(data.newStatus),
         oldStatus: data.oldStatus ? statusWord(data.oldStatus) : "unknown",
-        changedBy: data.changedBy ? `staff #${data.changedBy}` : "the system",
+        changedBy: await changedByText(data),
         when: ist(envelope.occurredAt),
       };
-      return toAdmins(await optedInAdmins("warehousePauses"), envelope, "alert.warehouse_status", vars, String(data.warehouseId));
+      return toAdmins(await optedInAdmins("warehousePauses", SUPER_ADMINS), envelope, "alert.warehouse_status", vars, String(data.warehouseId));
+    },
+  },
+
+  // Only a store manager's change raises it (inventory-service skips the super admin's own edits).
+  "warehouse.location.changed": {
+    schema: Joi.object({
+      warehouseId: Joi.number().integer().positive().required(),
+      name: Joi.string().max(120).required(),
+      changes: Joi.array().items(Joi.object({ field: Joi.string().max(30).required(), from: Joi.any(), to: Joi.any() })).min(1).max(10).required(),
+      ...WHO,
+    }).unknown(true),
+    async run(envelope) {
+      const { data } = envelope;
+      const value = (v) => (v === null || v === undefined || v === "" ? "(empty)" : String(v).slice(0, 120));
+      const vars = {
+        warehouseId: data.warehouseId,
+        warehouseName: data.name,
+        changes: data.changes.map(({ field, from, to }) => `${LOCATION_WORDS[field] ?? field}: ${value(from)} -> ${value(to)}`).join("\n"),
+        changedBy: await changedByText(data),
+        when: ist(envelope.occurredAt),
+      };
+      return toAdmins(await optedInAdmins("warehousePauses", SUPER_ADMINS), envelope, "alert.warehouse_location", vars, String(data.warehouseId));
     },
   },
 

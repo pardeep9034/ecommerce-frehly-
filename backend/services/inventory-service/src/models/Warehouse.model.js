@@ -64,6 +64,15 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: "OPEN",
       },
+      pincode: { type: DataTypes.STRING(6), allowNull: true },
+      // Unset = open all day. A close time before the open time runs past midnight.
+      store_open_time: { type: DataTypes.TIME, allowNull: true },
+      store_close_time: { type: DataTypes.TIME, allowNull: true },
+      pack_by_minutes: { type: DataTypes.INTEGER, allowNull: true },
+      // While PAUSED: customers see the reason; past paused_until the store counts as open again (null = until reopened).
+      pause_reason: { type: DataTypes.STRING(255), allowNull: true },
+      paused_until: { type: DataTypes.DATE, allowNull: true },
+      maintenance_message: { type: DataTypes.STRING(255), allowNull: true },
     },
     {
       tableName: "warehouses",

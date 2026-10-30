@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { getProfile } from "@/apis/authApi";
-import ConfirmationModal from "@/components/common/ConfirmationModal";
 import OnboardingTimeline from "@/components/dashboard/OnboardingTimeline";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { Avatar, Card, StatusPill } from "@/components/partner/PartnerBits";
-import { usePartnerOnboarding, usePartnerWork } from "@/hooks/use-delivery";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { usePartnerOnboarding, usePartnerWork, useUpdatePartner } from "@/hooks/use-delivery";
+import useDeliveryZone from "@/hooks/use-deliveryZone";
 import { STEP_LABEL } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
 import { DOC_LABEL, DOC_ORDER, DOC_STATUS, PARTNER_STATUS, SOURCE_LABEL, VEHICLE_LABEL, whenIST } from "@/lib/partnerReview";
@@ -30,13 +31,156 @@ const Notice = ({ backTo, children }) => (
 
 const BACK = "/admin/delivery-partners?tab=partners";
 
+const INPUT = "mt-1 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary";
+const GHOST = "h-9 rounded-lg border border-border px-4 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
+const SOLID = "h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-border disabled:text-muted-foreground";
+const DANGER = "h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50";
+
+const Field = ({ label, error, children }) => (
+  <label className="block text-sm font-medium text-foreground">
+    {label}
+    {children}
+    {error && <span className="mt-1 block text-xs font-normal text-destructive">{error}</span>}
+  </label>
+);
+
+// Mounted only while open, so every open starts from the partner as saved. Same rules as Add partner.
+const EditPartnerDialog = ({ partner, update, onClose }) => {
+  const [form, setForm] = useState({
+    name: partner.name ?? "",
+    vehicle_type: partner.vehicle_type ?? "BIKE",
+    vehicle_number: partner.vehicle_number ?? "",
+    max_active_orders: String(partner.max_active_orders ?? 1),
+  });
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const cycle = form.vehicle_type === "CYCLE";
+  const max = Number(form.max_active_orders);
+  const errors = {
+    name: form.name.trim().length < 2 ? "Enter the partner's name" : "",
+    vehicle_number: !cycle && form.vehicle_number.trim().length < 4 ? "Enter the vehicle number" : "",
+    max_active_orders: Number.isInteger(max) && max >= 1 ? "" : "Enter a whole number, 1 or more",
+  };
+  const invalid = Object.values(errors).some(Boolean);
+
+  const save = (event) => {
+    event.preventDefault();
+    if (invalid) return;
+    const next = {
+      name: form.name.trim(),
+      vehicle_type: form.vehicle_type,
+      // The route refuses an empty number, so a cycle keeps whatever number is saved.
+      vehicle_number: cycle ? undefined : form.vehicle_number.trim(),
+      max_active_orders: max,
+    };
+    const changed = Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== undefined && value !== partner[key]));
+    if (!Object.keys(changed).length) return onClose();
+    update.mutate(changed, {
+      onSuccess: () => {
+        notify.success("Partner details saved");
+        onClose();
+      },
+      onError: (error) => notify.apiError(error, "Could not save the changes"),
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <form onSubmit={save} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Edit details</DialogTitle>
+            <DialogDescription>The phone number is the partner's login, so it can't be changed here.</DialogDescription>
+          </DialogHeader>
+          <Field label="Full name" error={errors.name}>
+            <input value={form.name} onChange={set("name")} maxLength={150} className={INPUT} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Vehicle type">
+              <select value={form.vehicle_type} onChange={set("vehicle_type")} className={INPUT}>
+                {Object.entries(VEHICLE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </Field>
+            {!cycle && (
+              <Field label="Vehicle number" error={errors.vehicle_number}>
+                <input value={form.vehicle_number} onChange={set("vehicle_number")} maxLength={20} placeholder="PB 70 C 1203" autoComplete="off" className={INPUT} />
+              </Field>
+            )}
+          </div>
+          <Field label="Max active orders" error={errors.max_active_orders}>
+            <input type="number" inputMode="numeric" min={1} step={1} value={form.max_active_orders} onChange={set("max_active_orders")} className={INPUT} />
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">How many open jobs this partner can hold at once.</span>
+          </Field>
+          <DialogFooter className="gap-2">
+            <button type="button" onClick={onClose} className={GHOST}>Cancel</button>
+            <button type="submit" disabled={invalid || update.isPending} className={SOLID}>{update.isPending ? "Saving…" : "Save"}</button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// A partner works one zone: it decides which orders they are offered and who they can hand over to.
+const ZoneDialog = ({ partner, openJobs, update, onClose }) => {
+  const { deliveryZonesData, isLoading } = useDeliveryZone(1, 100);
+  const zones = (deliveryZonesData?.data?.deliveryZones ?? []).filter((z) => z.is_active !== false);
+  const current = partner.zone?.id ? String(partner.zone.id) : "";
+  const [zone, setZone] = useState(current);
+
+  const save = (event) => {
+    event.preventDefault();
+    if (!zone || zone === current) return onClose();
+    const name = zones.find((z) => String(z.id) === zone)?.name;
+    update.mutate(
+      { zone_id: Number(zone) },
+      {
+        onSuccess: () => {
+          notify.success(`Zone changed to ${name}`);
+          onClose();
+        },
+        onError: (error) => notify.apiError(error, "Could not change the zone"),
+      }
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <form onSubmit={save} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Change zone</DialogTitle>
+            <DialogDescription>
+              The partner is offered orders from this zone only.
+              {openJobs > 0 && ` Their ${openJobs} open ${openJobs === 1 ? "job stays" : "jobs stay"} with them.`}
+            </DialogDescription>
+          </DialogHeader>
+          <Field label="Zone">
+            <select value={zone} onChange={(e) => setZone(e.target.value)} disabled={isLoading} className={INPUT}>
+              {!current && <option value="">Choose a zone</option>}
+              {zones.map((z) => <option key={z.id} value={String(z.id)}>{z.name}</option>)}
+            </select>
+          </Field>
+          <DialogFooter className="gap-2">
+            <button type="button" onClick={onClose} className={GHOST}>Cancel</button>
+            <button type="submit" disabled={!zone || zone === current || update.isPending} className={SOLID}>{update.isPending ? "Saving…" : "Save"}</button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const DeliveryPartnerDetail = () => {
   const { partnerId } = useParams();
   const { onboarding, isLoading, error } = usePartnerOnboarding(partnerId);
   const { work, error: workError } = usePartnerWork(partnerId);
   const { stats, active } = work ?? {};
   const { data: profile } = useQuery({ queryKey: ["auth-profile"], queryFn: getProfile });
+  const { update, setSuspended } = useUpdatePartner(partnerId);
   const [suspendOpen, setSuspendOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [zoneOpen, setZoneOpen] = useState(false);
 
   if (isLoading) return <Notice backTo={BACK}>Loading partner…</Notice>;
   if (error || !onboarding) {
@@ -47,6 +191,23 @@ const DeliveryPartnerDetail = () => {
   const suspended = partner.status === "SUSPENDED";
   const name = partner.name || "Unnamed partner";
   const byType = Object.fromEntries(documents.map((d) => [d.type, d]));
+
+  // A suspended partner is refused by the partner app and by every assign, so open jobs stay with them until reactivated.
+  const openJobs = active?.length ?? 0;
+  const statusNote = suspended
+    ? "They can use the partner app and get new orders again."
+    : openJobs > 0
+      ? `They can't use the partner app or get new orders. They still hold ${openJobs} open ${openJobs === 1 ? "job" : "jobs"}, which can't move until you reactivate them.`
+      : "They can't use the partner app or get new orders until you reactivate them.";
+
+  const toggleStatus = () =>
+    setSuspended.mutate(!suspended, {
+      onSuccess: () => {
+        notify.success(suspended ? `${name} is active again` : `${name} is suspended`);
+        setSuspendOpen(false);
+      },
+      onError: (error) => notify.apiError(error, suspended ? "Could not reactivate this partner" : "Could not suspend this partner"),
+    });
 
   return (
     <div className="space-y-5">
@@ -64,7 +225,7 @@ const DeliveryPartnerDetail = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => notify.notWired("Editing partner details")} className="h-9 rounded-lg border border-border px-4 text-sm font-semibold hover:bg-muted">
+          <button type="button" onClick={() => setEditOpen(true)} className="h-9 rounded-lg border border-border px-4 text-sm font-semibold hover:bg-muted">
             Edit details
           </button>
           <button
@@ -121,8 +282,8 @@ const DeliveryPartnerDetail = () => {
             <Card>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-display text-base font-semibold text-foreground">Zone</h2>
-                <button type="button" onClick={() => notify.notWired("Managing partner zones")} className="text-sm font-semibold text-primary hover:underline">
-                  Manage
+                <button type="button" onClick={() => setZoneOpen(true)} className="text-sm font-semibold text-primary hover:underline">
+                  Change
                 </button>
               </div>
               <p className="text-sm text-foreground">{partner.zone?.name ?? "No zone assigned"}</p>
@@ -179,17 +340,23 @@ const DeliveryPartnerDetail = () => {
         </div>
       </div>
 
-      <ConfirmationModal
-        open={suspendOpen}
-        onClose={() => setSuspendOpen(false)}
-        onSuccess={() => {
-          setSuspendOpen(false);
-          notify.notWired(suspended ? "Reactivating from this page" : "Suspending from this page");
-        }}
-        title={`${suspended ? "Reactivate" : "Suspend"} ${name}?`}
-        cancelBtnName="Cancel"
-        proceedBtnName={suspended ? "Reactivate" : "Suspend"}
-      />
+      {editOpen && <EditPartnerDialog partner={partner} update={update} onClose={() => setEditOpen(false)} />}
+      {zoneOpen && <ZoneDialog partner={partner} openJobs={openJobs} update={update} onClose={() => setZoneOpen(false)} />}
+
+      <Dialog open={suspendOpen} onOpenChange={(open) => !open && setSuspendOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{suspended ? "Reactivate" : "Suspend"} {name}?</DialogTitle>
+            <DialogDescription>{statusNote}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button type="button" onClick={() => setSuspendOpen(false)} className={GHOST}>Cancel</button>
+            <button type="button" disabled={setSuspended.isPending} onClick={toggleStatus} className={suspended ? SOLID : DANGER}>
+              {suspended ? "Reactivate" : "Suspend"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

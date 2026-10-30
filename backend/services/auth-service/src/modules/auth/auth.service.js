@@ -354,6 +354,7 @@ class AuthService {
         user_id: existingUser.id,
         phone: existingUser.phone,
         role: existingUser.role,
+        warehouse_id: existingUser.warehouse_id, // store staff's store; order-service scopes OPS_STAFF by it
       });
 
       const rawRefresh = TokenService.generateRefreshToken();
@@ -510,6 +511,7 @@ class AuthService {
         user_id: user.id,
         phone: user.phone,
         role: user.role,
+        warehouse_id: user.warehouse_id,
       });
 
       const rawRefresh = TokenService.generateRefreshToken();
@@ -735,6 +737,7 @@ class AuthService {
         user_id: user.id,
         phone: user.phone,
         role: user.role,
+        warehouse_id: user.warehouse_id,
       });
 
       const newRawRefresh = TokenService.generateRefreshToken();

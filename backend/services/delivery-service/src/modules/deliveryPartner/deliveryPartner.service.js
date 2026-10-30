@@ -2,10 +2,13 @@ import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.
 import DeliveryPartnerZoneRepository from "../repository/deliveryPartnerZone.repository.js";
 import PartnerApplicationRepository from "../repository/partnerApplication.repository.js";
 import DeliveryAssignmentRepository from "../repository/deliveryAssignment.repository.js";
+import initializeModels from "../../models/index.js";
+import { assertZone } from "../partnerApplication/partnerApplication.service.js";
 import { Op, Sequelize } from "sequelize";
 import AppError from "../../utils/AppError.js";
 import { env } from "../../config/env.js";
 import { calculateDistance, maskPhone } from "../../utils/helper.js";
+import { notHoldingReturns } from "../../utils/returnHold.js";
 import { literal } from "sequelize";
 
 const PARTNER_STATUSES = ["ACTIVE", "SUSPENDED", "INACTIVE"];
@@ -43,6 +46,7 @@ class DeliveryPartnerService {
     });
   }
 
+  // Riders free to take an order: a rider still holding goods owed to a store isn't (notHoldingReturns).
   async getAllDeliveryPartnersByZoneId(zone_id) {
     return await DeliveryPartnerRepository.findAll({
       status: "ACTIVE",
@@ -50,34 +54,37 @@ class DeliveryPartnerService {
       zone_id,
       current_active_orders: {
         [Op.lt]: Sequelize.col("max_active_orders")
-      }
+      },
+      ...notHoldingReturns()
     }, {
       order: [["current_active_orders", "ASC"]]
     });
   }
 
   async getAvalableDeliveryPartners(warehouseId) {
+    // Store accounts always arrive with their store (ownStore); only the super admin can leave it out.
+    if (!warehouseId) {
+      throw new AppError("Choose a store (x-warehouse-id) to list its riders", 400);
+    }
     const response = await fetch(`${env.INVENTORY_SERVICE_WAREHOUSE_URL}/${warehouseId}`);
     if (!response.ok) {
       throw new AppError("Warehouse not found", 404);
     }
     const warehouse = await response.json();
 
+    // No one free is an empty list, not an error: the store panel and the admin dropdown both show "no riders".
     const partners = await this.getAllDeliveryPartnersByZoneId(warehouse.data.zone_id);
-    if (!partners || partners.length === 0) {
-      throw new AppError("No active delivery partners available in the zone", 404);
-    }
+    const names = new Map((await DeliveryPartnerRepository.findContacts(partners.map((partner) => partner.id))).map((row) => [row.id, row.name]));
 
+    // A rider who never sent a location has no distance (not one measured from 0,0) and goes last.
     const riderWithDistance = partners.map((partner) => {
-      const distance = calculateDistance(
-        warehouse.data.latitude,
-        warehouse.data.longitude,
-        partner.current_latitude,
-        partner.current_longitude
-      );
-      return { ...partner.toJSON(), distance };
+      const located = partner.current_latitude != null && partner.current_longitude != null;
+      const distance = located
+        ? calculateDistance(warehouse.data.latitude, warehouse.data.longitude, partner.current_latitude, partner.current_longitude)
+        : null;
+      return { ...partner.toJSON(), name: names.get(partner.id) ?? null, distance };
     });
-    return riderWithDistance.sort((a, b) => a.distance - b.distance);
+    return riderWithDistance.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
   }
 
   // Partner list for the dashboard: search + zone + status + online + pagination.
@@ -221,7 +228,19 @@ class DeliveryPartnerService {
       }
     }
 
-    await DeliveryPartnerRepository.updateDeliveryPartner(id, updateData);
+    // zone_id decides which orders the partner is offered (and who they can hand over to). delivery_partner_zones mirrors
+    // it for the partner app's Profile, so both change together. Open jobs keep their own zone.
+    const zoneChanged = data.zone_id !== undefined && data.zone_id !== partner.zone_id;
+    if (zoneChanged) {
+      await assertZone(data.zone_id);
+      updateData.zone_id = data.zone_id;
+    }
+
+    const db = await initializeModels();
+    await db.sequelize.transaction(async (transaction) => {
+      await DeliveryPartnerRepository.updateDeliveryPartner(id, updateData, { transaction });
+      if (zoneChanged) await DeliveryPartnerZoneRepository.replaceForPartner(id, data.zone_id, { transaction });
+    });
     return await this.getDeliveryPartnerById(id);
   }
 

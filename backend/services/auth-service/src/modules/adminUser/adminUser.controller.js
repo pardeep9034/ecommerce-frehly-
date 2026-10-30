@@ -21,7 +21,7 @@ class AdminUserController {
     (req) => adminUserService.setStatus(req.params.id, req.body?.is_active, req.user)
   );
 
-  listStaff = handle("Users fetched successfully", (req) => staffService.listStaff(req.query));
+  listStaff = handle("Users fetched successfully", (req) => staffService.listStaff(req.query, req.user));
   getStaff = handle("User fetched successfully", (req) => staffService.getStaff(req.params.id));
   createStaff = handle("User created", (req) => staffService.createStaff(req.body, req.user.id), 201);
   updateStaff = handle("User updated", (req) => staffService.updateStaff(req.params.id, req.body, req.user.id));

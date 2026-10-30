@@ -53,6 +53,11 @@ const envSchema = Joi.object({
     .min(32)
     .optional(),
 
+  // Other services are reached through the gateway (a warehouse's contact follows its store manager).
+  API_GATEWAY_URL: Joi.string()
+    .uri()
+    .default("http://api-gateway:4000"),
+
   // Where staff sign in; added to the "your login is ready" SMS when set.
   ADMIN_APP_URL: Joi.string()
     .uri()

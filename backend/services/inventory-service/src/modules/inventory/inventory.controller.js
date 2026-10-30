@@ -1,10 +1,13 @@
 import InventoryServices from "./inventory.service.js";
 import ResponseUtil from "../../utils/response.js";
 import inventoryServices from "./inventory.service.js";
+import { ownStore, assertOwnStore, assertEveryStore, assertManagesStock, isSuperAdmin } from "../warehouse/warehouse.access.js";
+import AppError from "../../utils/AppError.js";
 
 class InventoryController {
   async getAllInventory(req, res, next) {
     try {
+      assertEveryStore(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
@@ -23,6 +26,7 @@ class InventoryController {
   async getInventoryById(req, res, next) {
     try {
       const result = await InventoryServices.getInventoryById(req.params.id);
+      assertOwnStore(req, result.warehouse_id);
 
       return ResponseUtil.success(
         res,
@@ -61,7 +65,7 @@ class InventoryController {
   }
   async getStockSummary(req, res, next) {
     try {
-      const warehouseId = req.query.warehouse_id ? Number(req.query.warehouse_id) : undefined;
+      const warehouseId = ownStore(req) ?? (req.query.warehouse_id ? Number(req.query.warehouse_id) : undefined);
       const result = await InventoryServices.getStockSummary(warehouseId);
       return ResponseUtil.success(res, result, "Stock summary fetched successfully");
     } catch (error) {
@@ -71,6 +75,7 @@ class InventoryController {
   async getInventoryByWarehouseId(req, res, next) {
     try {
       const { warehouseId } = req.params;
+      assertOwnStore(req, warehouseId);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
@@ -114,9 +119,21 @@ class InventoryController {
     }
   }
 
+  async getStoreStock(req, res, next) {
+    try {
+      const warehouseId = Number(req.headers["x-warehouse-id"]);
+      if (!Number.isInteger(warehouseId) || warehouseId <= 0) throw new AppError("Choose a delivery location first", 400);
+      const result = await inventoryServices.getStoreStock(req.body.variantIds, warehouseId);
+      return ResponseUtil.success(res, result, "Store stock fetched", 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createInventory(req, res, next) {
     try {
-      const result = await InventoryServices.createInventory(req.body);
+      assertManagesStock(req, req.body.warehouse_id);
+      const result = await InventoryServices.createInventory(req.body, req.user?.user_id);
 
       return ResponseUtil.success(
         res,
@@ -131,10 +148,11 @@ class InventoryController {
 
   async updateInventory(req, res, next) {
     try {
-      const result = await InventoryServices.updateInventory(
-        req.params.id,
-        req.body,
-      );
+      const inventory = await InventoryServices.getInventoryById(req.params.id);
+      assertManagesStock(req, inventory.warehouse_id);
+      const result = await InventoryServices.updateInventory(req.params.id, {
+        low_stock_threshold: req.body.low_stock_threshold,
+      });
 
       return ResponseUtil.success(
         res,
@@ -147,8 +165,10 @@ class InventoryController {
     }
   }
 
+  // Stores never remove an item (they take its stock to 0); only the super admin can delete a row.
   async deleteInventory(req, res, next) {
     try {
+      if (!req.service && !isSuperAdmin(req.user)) throw new AppError("Only the super admin can remove an item from a store", 403);
       const result = await InventoryServices.deleteInventory(req.params.id);
 
       return ResponseUtil.success(

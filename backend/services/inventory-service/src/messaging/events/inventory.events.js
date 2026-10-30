@@ -57,7 +57,7 @@ export default {
     exchange: EXCHANGE,
     version: 1,
     /**
-     * @param {{ warehouseId: string|number, name: string, oldStatus: string, newStatus: string, changedBy: string|number|null }} change
+     * @param {{ warehouseId: string|number, name: string, oldStatus: string, newStatus: string, changedBy: string|number|null, changedByRole: string|null }} change
      */
     buildPayload(change) {
       if (!change?.warehouseId) {
@@ -69,6 +69,29 @@ export default {
         oldStatus: change.oldStatus,
         newStatus: change.newStatus,
         changedBy: change.changedBy ?? null,
+        changedByRole: change.changedByRole ?? null,
+      });
+    },
+  },
+
+  // A store manager moved their store (pin, pincode or address). Super admin changes don't raise it.
+  WAREHOUSE_LOCATION_CHANGED: {
+    routingKey: 'warehouse.location.changed',
+    exchange: EXCHANGE,
+    version: 1,
+    /**
+     * @param {{ warehouseId: string|number, name: string, changes: Array<{ field: string, from: any, to: any }>, changedBy: string|number|null, changedByRole: string|null }} change
+     */
+    buildPayload(change) {
+      if (!change?.warehouseId) {
+        throw new Error('WarehouseLocationChanged payload requires warehouseId');
+      }
+      return buildEnvelope('warehouse.location.changed', 1, {
+        warehouseId: change.warehouseId,
+        name: change.name,
+        changes: change.changes,
+        changedBy: change.changedBy ?? null,
+        changedByRole: change.changedByRole ?? null,
       });
     },
   },

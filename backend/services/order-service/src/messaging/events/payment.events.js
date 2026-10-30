@@ -64,9 +64,12 @@ export default {
       if (!payment?.orderId || !payment?.transactionId) {
         throw new Error('PaymentRefunded payload requires orderId and transactionId');
       }
+      // amount/refundId: set on a partial refund (returns); a full refund leaves them out.
       return buildEnvelope('payment.refunded', 1, {
         orderId: payment.orderId,
         transactionId: payment.transactionId,
+        amount: payment.amount ?? null,
+        refundId: payment.refundId ?? null,
       });
     },
   },

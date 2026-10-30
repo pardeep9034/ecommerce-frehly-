@@ -60,6 +60,13 @@ class DeliveryPartnerZoneRepository extends BaseRepository {
     );
   }
 
+  // The partner's own zone_id is the one that counts; this table keeps it as their single, primary row.
+  async replaceForPartner(deliveryPartnerId, zoneId, options = {}) {
+    const Model = await this.getModel();
+    await Model.destroy({ where: { delivery_partner_id: deliveryPartnerId }, ...options });
+    return await Model.create({ delivery_partner_id: deliveryPartnerId, zone_id: zoneId, is_primary: true }, options);
+  }
+
   async updateDeliveryPartnerZone(id, data, options = {}) {
     return await this.updateById(id, data, options);
   }

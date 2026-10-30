@@ -1,6 +1,7 @@
 import ResponseUtil from "../../utils/response.js";
 import orderService from "./order.service.js";
 import logger from "../../utils/Logger.js";
+import AppError from "../../utils/AppError.js";
 
 const parsePositiveInt = (value) => {
   const parsed = Number.parseInt(value, 10);
@@ -38,7 +39,7 @@ class OrderController {
 
   async getAllOrders(req, res, next) {
     try {
-      const result = await orderService.getAllOrders(req.query);
+      const result = await orderService.getAllOrders(req.query, req.user);
       return ResponseUtil.success(res, result, "Orders fetched successfully");
     } catch (error) {
       return next(error);
@@ -47,7 +48,7 @@ class OrderController {
 
   async getOrderStats(req, res, next) {
     try {
-      const result = await orderService.getOrderStats(req.query);
+      const result = await orderService.getOrderStats(req.query, req.user);
       return ResponseUtil.success(res, result, "Order stats fetched successfully");
     } catch (error) {
       return next(error);
@@ -56,7 +57,7 @@ class OrderController {
 
   async getCustomerStats(req, res, next) {
     try {
-      const result = await orderService.getCustomerStats(req.query);
+      const result = await orderService.getCustomerStats(req.query, req.user);
       return ResponseUtil.success(res, result, "Customer stats fetched successfully");
     } catch (error) {
       return next(error);
@@ -134,6 +135,20 @@ class OrderController {
 
       const result = await orderService.finalizeOrderItems(orderId, req.user, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order items finalized successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async packOrder(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      if (!orderId) {
+        return ResponseUtil.error(res, "Invalid order ID", 400);
+      }
+
+      const result = await orderService.packOrder(orderId, req.body, req.user);
+      return ResponseUtil.success(res, result, "Order packed");
     } catch (error) {
       return next(error);
     }
@@ -238,6 +253,69 @@ class OrderController {
       return next(error);
     }
   }
+
+  async listReturns(req, res, next) {
+    try {
+      const result = await orderService.listReturns(req.query, req.user);
+      return ResponseUtil.success(res, result, "Returns fetched successfully");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async getReturnPhoto(req, res, next) {
+    try {
+      const orderId = parsePositiveInt(req.params.orderId);
+      const returnId = parsePositiveInt(req.params.returnId);
+      if (!orderId || !returnId) {
+        return ResponseUtil.error(res, "Invalid order or return ID", 400);
+      }
+      const { bytes, mime } = await orderService.getReturnPhoto(orderId, returnId, req.user);
+      res.set({ "Content-Type": mime, "Cache-Control": "private, no-store" });
+      return res.send(bytes);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
-export default new OrderController();
+// The return's id from /:orderId/returns/:returnId routes.
+const returnIdOf = (req) => {
+  const returnId = parsePositiveInt(req.params.returnId);
+  if (!returnId) {
+    throw new AppError("Invalid return ID", 400);
+  }
+  return returnId;
+};
+
+// The door and returns endpoints: each takes /:orderId and hands the body (and caller) to one service method.
+const orderAction = (event, message, run) => async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    if (!orderId) {
+      return ResponseUtil.error(res, "Invalid order ID", 400);
+    }
+
+    const result = await run(orderId, req);
+    logger.info(event, { ...actorContext(req), orderId });
+    return ResponseUtil.success(res, result, message);
+  } catch (error) {
+    logger.error(`${event}_failed`, { ...actorContext(req), orderId: req.params.orderId, error: error.message });
+    return next(error);
+  }
+};
+
+const controller = new OrderController();
+Object.assign(controller, {
+  deliverAtDoor: orderAction("order.door.delivered", "Order delivered", (orderId, req) => orderService.deliverAtDoor(orderId, req.body, req.user)),
+  createDoorQr: orderAction("order.door_qr.requested", "QR ready", (orderId, req) => orderService.createDoorQr(orderId, req.body)),
+  getDoorPayment: orderAction("order.door_qr.checked", "Door payment fetched", (orderId) => orderService.getDoorPayment(orderId)),
+  closeDoorQr: orderAction("order.door_qr.closed", "QR closed", (orderId) => orderService.closeDoorQr(orderId)),
+  returnArrived: orderAction("order.return.arrived", "Return received", (orderId, req) => orderService.returnArrived(orderId, req.body, req.user)),
+  inspectReturns: orderAction("order.return.inspected", "Returns inspected", (orderId, req) => orderService.inspectReturns(orderId, req.body, req.user, req.headers.authorization)),
+  requestReturn: orderAction("order.return.requested", "Return requested", (orderId, req) => orderService.requestReturn(orderId, req.body, req.user)),
+  reviewReturn: orderAction("order.return.reviewed", "Return reviewed", (orderId, req) => orderService.reviewReturn(orderId, returnIdOf(req), req.body, req.user, req.headers.authorization)),
+  returnPickup: orderAction("order.return.pickup", "Pickup recorded", (orderId, req) => orderService.returnPickup(orderId, req.body))
+});
+
+export default controller;

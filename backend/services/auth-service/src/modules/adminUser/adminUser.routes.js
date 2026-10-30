@@ -10,9 +10,10 @@ router.get("/", authenticateToken, requireRole(...ADMIN_ROLES), adminUserControl
 // Customers (any admin) and staff accounts (super admins only, checked in the service).
 router.patch("/:id/status", authenticateToken, requireRole(...ADMIN_ROLES), adminUserController.setStatus);
 
-// Admin and ops-staff accounts: super admins only.
+// Admin and ops-staff accounts: super admins only, except the list, which a store manager or store staff may read for
+// their own store's Team tab (the service limits it to their store).
 const superAdmin = [authenticateToken, requireRole("SUPER_ADMIN")];
-router.get("/staff", ...superAdmin, adminUserController.listStaff); // above /:id
+router.get("/staff", authenticateToken, requireRole("SUPER_ADMIN", "ADMIN", "OPS_STAFF"), adminUserController.listStaff); // above /:id
 router.post("/", ...superAdmin, adminUserController.createStaff);
 router.get("/:id", ...superAdmin, adminUserController.getStaff);
 router.put("/:id", ...superAdmin, adminUserController.updateStaff);

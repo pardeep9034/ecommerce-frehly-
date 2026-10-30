@@ -54,7 +54,8 @@ for (const route of protectedRoutes) {
     assert.equal(await status(route, sign({ user_id: 1, role })), 403, `${at}: ${role} must be blocked`);
   }
   for (const role of STAFF_ROLES) {
-    const s = await status(route, sign({ user_id: 1, role }));
+    // Store accounts with no store are refused (403) by design, so give each staff token one.
+    const s = await status(route, sign({ user_id: 1, role, warehouse_id: 1 }));
     if (SUPER_ADMIN_ONLY.has(`${route.method} ${new URL(route.url).pathname}`) && role !== ROLES.SUPER_ADMIN) {
       assert.equal(s, 403, `${at}: ${role} must be blocked (SUPER_ADMIN only)`);
     } else {

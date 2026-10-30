@@ -112,9 +112,10 @@ class ProductServices {
         }
     }
 
-    async getProductById(id) {
+    async getProductById(id, { storefront } = {}) {
         try{
-            const product = await  ProductRepository.getProductById(id);
+            const product = await  ProductRepository.getProductById(id, { storefront });
+            if (storefront && !product) throw new AppError("Product not found", 404);
             return product;
         }catch(error){
             if (error instanceof AppError) throw error;

@@ -1,5 +1,8 @@
 // Form state + payload shaping shared by the Add warehouse steps and the detail page.
 
+// Used when a warehouse has no pack_by_minutes saved.
+export const DEFAULT_PACK_BY_MINUTES = 10;
+
 export const EMPTY_WAREHOUSE_FORM = {
   name: "",
   code: "",
@@ -15,21 +18,22 @@ export const EMPTY_WAREHOUSE_FORM = {
   longitude: "",
   store_open_time: "06:00",
   store_close_time: "22:00",
-  pack_by_minutes: "10",
-  max_orders_per_slot: "40",
-  racks: [],
-  auto_assign_riders: false,
+  pack_by_minutes: String(DEFAULT_PACK_BY_MINUTES),
 };
 
 const str = (value) => (value === null || value === undefined ? "" : String(value));
 
+// A saved warehouse with no hours is open all day, so its form shows empty times, not the new-store defaults.
+// The API returns TIME as "06:00:00"; the time inputs take "06:00".
 export const formFromWarehouse = (warehouse) => ({
   ...EMPTY_WAREHOUSE_FORM,
   ...Object.fromEntries(
     Object.keys(EMPTY_WAREHOUSE_FORM)
       .filter((key) => warehouse?.[key] !== null && warehouse?.[key] !== undefined)
-      .map((key) => [key, Array.isArray(warehouse[key]) || typeof warehouse[key] === "boolean" ? warehouse[key] : str(warehouse[key])])
+      .map((key) => [key, str(warehouse[key])])
   ),
+  store_open_time: str(warehouse?.store_open_time).slice(0, 5),
+  store_close_time: str(warehouse?.store_close_time).slice(0, 5),
 });
 
 const isCoordinate = (value, max) => value !== "" && Number.isFinite(Number(value)) && Math.abs(Number(value)) <= max;
@@ -56,11 +60,11 @@ export const validateLocation = (form) => {
 
 export const validateOperations = (form) => {
   const errors = {};
-  if (form.store_open_time && form.store_close_time && form.store_open_time >= form.store_close_time) {
-    errors.store_hours = "Closing time must be after opening time";
-  }
-  if (form.pack_by_minutes && !(Number(form.pack_by_minutes) > 0)) errors.pack_by_minutes = "Enter minutes above 0";
-  if (form.max_orders_per_slot && !(Number(form.max_orders_per_slot) > 0)) errors.max_orders_per_slot = "Enter a number above 0";
+  // A close time before the open time runs past midnight; both empty = open all day.
+  if (Boolean(form.store_open_time) !== Boolean(form.store_close_time)) errors.store_hours = "Set both times, or leave both empty";
+  else if (form.store_open_time && form.store_open_time === form.store_close_time) errors.store_hours = "Opening and closing times are the same";
+  const packBy = Number(form.pack_by_minutes);
+  if (form.pack_by_minutes && !(Number.isInteger(packBy) && packBy >= 1 && packBy <= 240)) errors.pack_by_minutes = "Enter whole minutes, 1 to 240";
   return errors;
 };
 
@@ -85,18 +89,13 @@ export const warehousePayload = (form) =>
     longitude: form.longitude === "" ? undefined : String(form.longitude).trim(),
   });
 
-// Fields for PATCH /warehouses/:id/settings, which doesn't exist yet
-// (ADMIN_WAREHOUSES_STAFF_MODULE.md, backend change #5).
-export const settingsPayload = (form) =>
-  compact({
-    pincode: form.pincode.trim(),
-    store_open_time: form.store_open_time,
-    store_close_time: form.store_close_time,
-    pack_by_minutes: form.pack_by_minutes ? Number(form.pack_by_minutes) : undefined,
-    max_orders_per_slot: form.max_orders_per_slot ? Number(form.max_orders_per_slot) : undefined,
-    racks: form.racks,
-    auto_assign_riders: form.auto_assign_riders,
-  });
+// Store hours and pack-by, for PUT /warehouses/:id only (the create schema doesn't take them). Unlike
+// warehousePayload, empty sends null so a cleared field is cleared.
+export const settingsPayload = (form) => ({
+  store_open_time: form.store_open_time || null,
+  store_close_time: form.store_close_time || null,
+  pack_by_minutes: form.pack_by_minutes ? Number(form.pack_by_minutes) : null,
+});
 
 export const formatStoreHours = (open, close) => {
   if (!open || !close) return "Not set";

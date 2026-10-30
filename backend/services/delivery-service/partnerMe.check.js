@@ -10,6 +10,7 @@ import { env } from "./src/config/env.js";
 import initializeModels from "./src/models/index.js";
 import HandleOrderService from "./src/modules/handleOrder/handleOrder.service.js";
 import DeliveryPartnerService from "./src/modules/deliveryPartner/deliveryPartner.service.js";
+import { pickupCode } from "./src/utils/pickupCode.js";
 
 assert.notEqual(env.NODE_ENV, "production", "dev only");
 
@@ -170,6 +171,9 @@ try {
   assert.equal(detail.body.data.customer_phone, "9990000002");
   assert.deepEqual(detail.body.data.status_history.map((h) => h.status), ["ASSIGNED"]);
   assert.equal((await call("GET", `/assignments/${done.id}`, tokenA)).body.data.customer_phone, null, "no phone once finished");
+  assert.equal(detail.body.data.pickup_code, pickupCode(a1.id), "the app shows the code the store asks for");
+  assert.match(detail.body.data.pickup_code, /^\d{4}$/);
+  assert.equal((await call("GET", `/assignments/${done.id}`, tokenA)).body.data.pickup_code, null, "no code once finished");
   assert.equal((await call("GET", `/assignments/${b1.id}`, tokenA)).status, 404, "someone else's");
   assert.equal((await call("GET", `/assignments/${NO_ID}`, tokenA)).status, 404);
   assert.equal((await call("GET", "/assignments/not-a-uuid", tokenA)).status, 404);
@@ -178,16 +182,34 @@ try {
   const move = (assignment, token, json) => call("PATCH", `/assignments/${assignment.id}/status`, token, json);
   assert.equal((await move(a1, tokenA, { status: "OUT_FOR_DELIVERY" })).status, 409, "no skipping the pickup");
   assert.equal((await move(a1, tokenA, { status: "ASSIGNED" })).status, 400, "not a partner move");
-  assert.equal((await move(a1, tokenA, { status: "DELIVERED" })).status, 409);
+  const deliveryCode = (orderId) => pickupCode(orderId, "delivery");
+  assert.equal((await move(a1, tokenA, { status: "DELIVERED" })).status, 400, "delivered needs the customer's code");
+  assert.equal((await move(a1, tokenA, { status: "DELIVERED", delivery_code: deliveryCode(order1) })).status, 409);
   assert.equal((await move(a1, tokenB, { status: "PICKED_UP" })).status, 404, "not B's assignment");
-  assert.equal((await move(done, tokenA, { status: "DELIVERED" })).status, 409, "already finished");
+  assert.equal((await move(done, tokenA, { status: "DELIVERED", delivery_code: deliveryCode(990001) })).status, 409, "already finished");
 
-  const picked = await move(a1, tokenA, { status: "PICKED_UP" });
+  // Pickup is the store's step (the dispatcher route), with the code the rider's app shows; the rider can't do it.
+  const STAFF_USER = 992999;
+  const storeHandover = async (assignment, code = pickupCode(assignment.id)) => {
+    const res = await fetch(`http://localhost:${env.PORT}/handle-orders/assignments/${assignment.id}/update-status`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${tokenFor(STAFF_USER, "ADMIN")}`, "content-type": "application/json" },
+      body: JSON.stringify({ status: "PICKED_UP", pickup_code: code }),
+    });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  };
+  const selfPickup = await move(a1, tokenA, { status: "PICKED_UP" });
+  assert.deepEqual([selfPickup.status, /pickup code/.test(selfPickup.body.message)], [409, true], "the rider can't pick up by themselves");
+  const wrongCode = String((Number(pickupCode(a1.id)) + 1) % 10000).padStart(4, "0");
+  assert.equal((await storeHandover(a1, wrongCode)).status, 400, "wrong code");
+  assert.equal((await storeHandover(a1, null)).status, 400, "no code");
+  assert.equal(await orderStatus(order1), "ASSIGNED", "a refused handover moves nothing");
+
+  const picked = await storeHandover(a1);
   assert.equal(picked.status, 200, JSON.stringify(picked.body));
-  assert.equal(picked.body.data.status, "PICKED_UP");
   assert.equal(await orderStatus(order1), "PICKED_UP");
   const [{ changed_by }] = await sql("SELECT changed_by FROM order_status_history WHERE order_id = :id ORDER BY id DESC LIMIT 1", { id: order1 });
-  assert.equal(Number(changed_by), A_USER, "the order records the partner who made the change");
+  assert.equal(Number(changed_by), STAFF_USER, "the order records the staff member who handed it over");
   assert.equal((await move(a1, tokenA, { status: "PICKED_UP" })).status, 409, "same move twice");
   assert.equal((await call("GET", "/assignments", tokenA)).body.data.items.find((i) => i.id === a1.id).status, "PICKED_UP");
 
@@ -205,6 +227,11 @@ try {
   const attempts = await sql("SELECT attempt_number, failure_reason FROM delivery_attempts WHERE order_id = :id", { id: order1 });
   assert.deepEqual(attempts, [{ attempt_number: 1, failure_reason: "Customer not reachable — Called twice" }]);
   assert.equal((await a.reload()).current_active_orders, 1, "the failed drop frees a slot");
+  // The rider now owes the store the goods, which keeps them from new orders. returns.check.js covers taking them back
+  // with the return code; here they are just marked back, so the checks below can offer and hand over to A.
+  const [{ return_due_at }] = await sql("SELECT return_due_at FROM delivery_assignments WHERE id = :id", { id: a1.id });
+  assert.ok(return_due_at, "a failed drop leaves the goods owed to the store");
+  await sql("UPDATE delivery_assignments SET returned_at = now() WHERE id = :id", { id: a1.id });
   assert.deepEqual((await call("GET", `/assignments/${a1.id}`, tokenA)).body.data.status_history.map((h) => h.status),
     ["ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY", "DELIVERY_FAILED"]);
   assert.equal((await move(a1, tokenA, { status: "PICKED_UP" })).status, 409, "finished stays finished");
@@ -218,10 +245,13 @@ try {
   assert.deepEqual([capped.statusCode, /failed 3 times/.test(capped.message)], [409, true], "no fourth attempt");
   await sql("DELETE FROM delivery_attempts WHERE order_id = :id AND attempt_number > 1", { id: order1 });
 
-  for (const status of ["PICKED_UP", "OUT_FOR_DELIVERY", "DELIVERED"]) {
-    const step = await move(a2, tokenA, { status });
-    assert.equal(step.status, 200, JSON.stringify(step.body));
-  }
+  assert.equal((await storeHandover(a2)).status, 200);
+  assert.equal((await move(a2, tokenA, { status: "OUT_FOR_DELIVERY" })).status, 200);
+  const wrongDelivery = String((Number(deliveryCode(order2)) + 1) % 10000).padStart(4, "0");
+  const refusedDrop = await move(a2, tokenA, { status: "DELIVERED", delivery_code: wrongDelivery });
+  assert.deepEqual([refusedDrop.status, /Delivery code/.test(refusedDrop.body.message)], [400, true], "a wrong delivery code");
+  const step = await move(a2, tokenA, { status: "DELIVERED", delivery_code: deliveryCode(order2) });
+  assert.equal(step.status, 200, JSON.stringify(step.body));
   assert.equal(await orderStatus(order2), "DELIVERED");
   const [{ completed_at }] = await sql("SELECT completed_at FROM delivery_assignments WHERE id = :id", { id: a2.id });
   assert.ok(Date.now() - new Date(completed_at) < 60000, "the trigger stamps completed_at when the job closes");
@@ -229,26 +259,21 @@ try {
   assert.equal((await a.reload()).current_active_orders, 0);
 
   /* ---------- auto-progression timers ---------- */
-  // Only a real update (one that carries a user) cancels the simulated steps; the timers' own calls pass no user.
+  // The store's handover starts the simulated steps (pickup itself is never simulated). Only a real update (one that
+  // carries a user) cancels them; the timers' own calls pass no user.
   const timers = HandleOrderService.autoProgressionTimers;
   const sys = HandleOrderService.buildSystemAuthorization();
   const c = await makeAssignment(a, await makeOrder(4));
-  HandleOrderService.scheduleAutoProgression(c.id);
-  assert.equal(timers.get(c.id).length, 3);
-  await HandleOrderService.updateStatus(c.id, { status: "PICKED_UP" }, null, sys);
-  assert.equal(timers.get(c.id)?.length, 3, "a simulated step keeps the rest");
+  await HandleOrderService.updateStatus(c.id, { status: "PICKED_UP", pickup_code: pickupCode(c.id) }, null, sys);
+  assert.deepEqual(timers.get(c.id)?.length, 2, "out for delivery, then delivered");
   await HandleOrderService.updateStatus(c.id, { status: "OUT_FOR_DELIVERY" }, { user_id: A_USER, role: "DELIVERY_PARTNER" }, sys, A_USER);
   assert.equal(timers.has(c.id), false, "a real update cancels them");
 
   /* ---------- the dispatcher route shares the same function ---------- */
   const order5 = await makeOrder(5);
   const d = await makeAssignment(b, order5);
-  const staff = await fetch(`http://localhost:${env.PORT}/handle-orders/assignments/${d.id}/update-status`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${tokenFor(992999, "ADMIN")}`, "content-type": "application/json" },
-    body: JSON.stringify({ status: "PICKED_UP" }),
-  });
-  assert.equal(staff.status, 200, await staff.text());
+  const staff = await storeHandover(d);
+  assert.equal(staff.status, 200, JSON.stringify(staff.body));
   assert.equal(await orderStatus(order5), "PICKED_UP");
   assert.deepEqual((await call("GET", `/assignments/${d.id}`, tokenB)).body.data.status_history.map((h) => h.status), ["ASSIGNED", "PICKED_UP"]);
 
@@ -362,10 +387,8 @@ try {
   // staff can run the same steps on any partner's work
   const order6 = await makeOrder(6);
   const e = await makeAssignment(b, order6);
-  const pickedUp = await fetch(`http://localhost:${env.PORT}/handle-orders/assignments/${e.id}/update-status`, {
-    method: "POST", headers: { authorization: `Bearer ${tokenAdmin}`, "content-type": "application/json" }, body: JSON.stringify({ status: "PICKED_UP" }),
-  });
-  assert.equal(pickedUp.status, 200, await pickedUp.text());
+  const pickedUp = await storeHandover(e);
+  assert.equal(pickedUp.status, 200, JSON.stringify(pickedUp.body));
   const byStaff = await requestHandover(tokenAdmin, e, a);
   assert.equal(byStaff.status, 201, JSON.stringify(byStaff.body));
   assert.equal((await hand(`/partner/handover/${byStaff.body.data.id}/confirm-handover`, tokenAdmin)).status, 200, "staff confirm for the first partner");
@@ -396,6 +419,46 @@ try {
   assert.equal(await orderStatus(order6), "PICKED_UP");
   const moved = await call("PATCH", `/assignments/${e.id}/status`, tokenB, { status: "OUT_FOR_DELIVERY" });
   assert.equal(moved.status, 200, `the giver carries on once nothing is open: ${JSON.stringify(moved.body)}`);
+
+  /* ---------- half-saved steps: order-service saved, our commit didn't; the retry finishes, nothing twice ---------- */
+  const orderAhead = (id, status) => sql("UPDATE orders SET status = :status WHERE id = :id", { id, status });
+  const stepsOf = async (assignment) => (await call("GET", `/assignments/${assignment.id}`, tokenB)).body.data.status_history.map((h) => h.status);
+  await orderAhead(order6, "DELIVERED");
+  await b.update({ current_active_orders: 2 }); // makeAssignment doesn't count its jobs
+  const countBefore = 2;
+  const retried = await move(e, tokenB, { status: "DELIVERED", delivery_code: deliveryCode(order6) });
+  assert.equal(retried.status, 200, `a retried "Delivered" finishes the job: ${JSON.stringify(retried.body)}`);
+  assert.equal(retried.body.data.assignment_status, "COMPLETED");
+  assert.equal((await b.reload()).current_active_orders, countBefore - 1, "the slot frees once");
+  assert.equal((await HandleOrderService.updateStatus(e.id, { status: "DELIVERED" }, null, sys).catch((err) => err)).statusCode, 409, "a stale timer can't finish it twice");
+
+  const order7 = await makeOrder(7);
+  const f = await makeAssignment(b, order7);
+  assert.equal((await storeHandover(f)).status, 200);
+  const twice = await storeHandover(f);
+  assert.deepEqual([twice.status, twice.body.message], [409, "This order is already picked up"], "the store's double tap");
+  assert.deepEqual(await stepsOf(f), ["ASSIGNED", "PICKED_UP"]);
+
+  await orderAhead(order7, "HANDOVER_IN_PROGRESS");
+  const reRequested = await requestHandover(tokenB, f, a);
+  assert.equal(reRequested.status, 201, `a retried handover request goes through: ${JSON.stringify(reRequested.body)}`);
+  assert.equal((await handovers(f.id)).length, 1);
+  assert.equal((await requestHandover(tokenB, f, a)).status, 409, "but only while none is open");
+  await orderAhead(order7, "PICKED_UP");
+  assert.equal((await cancel(reRequested.body.data.id, tokenB)).status, 200, "a retried withdrawal goes through");
+  assert.equal((await handovers(f.id))[0].status, "CANCELLED");
+
+  await orderAhead(order7, "OUT_FOR_DELIVERY");
+  const started = await move(f, tokenB, { status: "OUT_FOR_DELIVERY" });
+  assert.equal(started.status, 200, `a retried "Start delivery" goes through: ${JSON.stringify(started.body)}`);
+  assert.equal(started.body.data.status, "OUT_FOR_DELIVERY");
+  const again2 = await HandleOrderService.updateStatus(f.id, { status: "OUT_FOR_DELIVERY" }, { user_id: B_USER }, sys).catch((err) => err);
+  assert.deepEqual([again2.statusCode, again2.message], [409, "This order is already out for delivery"]);
+  assert.deepEqual(await stepsOf(f), ["ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY"], "each step once");
+  await orderAhead(order7, "PICKED_UP");
+  const elsewhere = await move(f, tokenB, { status: "DELIVERED", delivery_code: deliveryCode(order7) });
+  assert.ok(elsewhere.status >= 400, "an order somewhere else is still refused");
+  assert.deepEqual(await stepsOf(f), ["ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY"], "and nothing saved");
 
   console.log("partnerMe.check.js: all checks passed");
 } catch (error) {

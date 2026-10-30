@@ -5,6 +5,7 @@ import OrderItemModel from "./OrderItem.model.js";
 import OrderAddressModel from "./OrderAddress.model.js";
 import OrderStatusHistoryModel from "./OrderStatusHistory.model.js";
 import PaymentModel from "./Payment.model.js";
+import OrderReturnModel from "./OrderReturn.model.js";
 import logger from "../utils/Logger.js";
 
 let sequelize;
@@ -22,7 +23,8 @@ async function initializeModels() {
         OrderItem: OrderItemModel(sequelize),
         OrderAddress: OrderAddressModel(sequelize),
         OrderStatusHistory: OrderStatusHistoryModel(sequelize),
-        Payment: PaymentModel(sequelize)
+        Payment: PaymentModel(sequelize),
+        OrderReturn: OrderReturnModel(sequelize)
       };
 
       Object.keys(db).forEach((modelName) => {

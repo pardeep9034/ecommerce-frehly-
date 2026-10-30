@@ -1,16 +1,16 @@
 // Store status shown on the Warehouses list, detail header and Settings tab.
-// `operational_status` is not on the Warehouse model yet (see
-// ADMIN_WAREHOUSES_STAFF_MODULE.md, backend change #5). Until it ships, an active
-// warehouse reads as OPEN and an inactive one as DRAFT ("Setting up").
+// An inactive store is a draft while it is still SETTING_UP (the manager or super admin can finish setup) and
+// deactivated otherwise (only the super admin can turn it back on).
 export const WAREHOUSE_STATUS = {
   OPEN: { label: "Open", badge: "bg-success/10 text-success", dot: "bg-success" },
   PAUSED: { label: "Paused", badge: "bg-warning/15 text-warning", dot: "bg-warning" },
   MAINTENANCE: { label: "Maintenance", badge: "bg-destructive/10 text-destructive", dot: "bg-destructive" },
   DRAFT: { label: "Setting up", badge: "bg-blue-50 text-blue-700", dot: "bg-blue-700" },
+  DEACTIVATED: { label: "Deactivated", badge: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" },
 };
 
 export const warehouseStatus = (warehouse) => {
-  if (!warehouse?.is_active) return "DRAFT";
+  if (!warehouse?.is_active) return warehouse?.operational_status === "SETTING_UP" ? "DRAFT" : "DEACTIVATED";
   return WAREHOUSE_STATUS[warehouse.operational_status] ? warehouse.operational_status : "OPEN";
 };
 

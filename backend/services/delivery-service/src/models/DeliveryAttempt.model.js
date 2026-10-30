@@ -21,6 +21,10 @@ export default (sequelize) => {
       failure_reason: {
         type: DataTypes.STRING
       },
+      // FAILURE_REASONS key; REFUSED ends retries. Null on attempts recorded before it existed.
+      reason_code: {
+        type: DataTypes.STRING(30)
+      },
       remarks: {
         type: DataTypes.TEXT
       },

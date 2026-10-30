@@ -13,11 +13,19 @@ class DeliveryZoneController {
 
   async getAllDeliveryZones(req, res, next) {
     try {
-      const page = Number.parseInt(req.query.page, 10) || 1;
-      const limit = Number.parseInt(req.query.limit, 10) || 10;
+      const { page, limit, city, search } = req.filters;
       const offset = (page - 1) * limit;
-      const result = await DeliveryZoneService.getAllDeliveryZones(limit, offset);
+      const result = await DeliveryZoneService.getAllDeliveryZones(limit, offset, { city, search });
       return ResponseUtil.success(res, result, "Delivery zones fetched");
+    } catch (error) {
+       next(error);
+    }
+  }
+
+  async getCities(req, res, next) {
+    try {
+      const result = await DeliveryZoneService.getCities();
+      return ResponseUtil.success(res, result, "Delivery zone cities fetched");
     } catch (error) {
        next(error);
     }

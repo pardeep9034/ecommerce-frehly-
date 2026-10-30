@@ -129,7 +129,8 @@ const schema={
     createVariantSchema:joi.object({
         product_id:joi.number().required(),
         sku:joi.string().optional(),
-        barcode:joi.string().optional(),
+        // null = no barcode (the column is nullable; "" would clash on its unique index).
+        barcode:joi.string().allow(null).optional(),
         quantity:joi.number().required(),
         measurement_unit_id:joi.number().required(),
         price:joi.number().required(),
@@ -140,7 +141,7 @@ const schema={
     updateVariantSchema:joi.object({
         product_id:joi.number().optional(),
         sku:joi.string().optional(),
-        barcode:joi.string().optional(),
+        barcode:joi.string().allow(null).optional(),
         quantity:joi.number().optional(),
         measurement_unit_id:joi.number().optional(),
         price:joi.number().optional(),

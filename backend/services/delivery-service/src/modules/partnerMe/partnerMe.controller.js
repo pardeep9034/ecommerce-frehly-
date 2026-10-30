@@ -64,6 +64,51 @@ class PartnerMeController {
       return next(error);
     }
   }
+
+  async finishPickup(req, res, next) {
+    try {
+      const result = await PartnerMeService.finishPickup(req.partner, req.user, req.params.id, req.body.collected);
+      return ResponseUtil.success(res, result, req.body.collected ? "Return collected" : "Pickup closed");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async uploadDoorPhoto(req, res, next) {
+    try {
+      const result = await PartnerMeService.uploadDoorPhoto(req.partner, req.params.id, req.file);
+      return ResponseUtil.success(res, result, "Photo saved");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async createDoorQr(req, res, next) {
+    try {
+      const result = await PartnerMeService.doorQr(req.partner, req.params.id, "POST", req.body);
+      return ResponseUtil.success(res, result, "QR ready");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async getDoorQr(req, res, next) {
+    try {
+      const result = await PartnerMeService.doorQr(req.partner, req.params.id, "GET");
+      return ResponseUtil.success(res, result, "QR checked");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async closeDoorQr(req, res, next) {
+    try {
+      const result = await PartnerMeService.doorQr(req.partner, req.params.id, "DELETE");
+      return ResponseUtil.success(res, result, "QR closed");
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export default new PartnerMeController();

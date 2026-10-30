@@ -107,18 +107,27 @@ try {
   assert.equal((await post("/internal/notifications/events", envelope("order.nope", {}), key)).status, 400, "unknown type");
   assert.equal((await post("/internal/notifications/events", envelope("partner.application.submitted", { refNo: 1 }), key)).status, 400, "missing fields");
 
-  // Through the queue: a pause makes an alert; a status that is not an alert makes nothing.
-  const pause = envelope("warehouse.status.changed", { warehouseId: "1", name: "Check Hub", oldStatus: "OPEN", newStatus: "PAUSED", changedBy: "7" });
-  const open = envelope("warehouse.status.changed", { warehouseId: "1", name: "Check Hub", oldStatus: "PAUSED", newStatus: "OPEN", changedBy: null });
-  publish("inventory_events", "warehouse.status.changed", open);
+  // Through the queue: a pause, a reopen and a manager's move make an alert for each opted-in super admin; going live
+  // from setup makes nothing.
+  const pause = envelope("warehouse.status.changed", { warehouseId: "1", name: "Check Hub", oldStatus: "OPEN", newStatus: "PAUSED", changedBy: "7", changedByRole: "ADMIN" });
+  const reopen = envelope("warehouse.status.changed", { warehouseId: "1", name: "Check Hub", oldStatus: "PAUSED", newStatus: "OPEN", changedBy: null });
+  const live = envelope("warehouse.status.changed", { warehouseId: "1", name: "Check Hub", oldStatus: "SETTING_UP", newStatus: "OPEN", changedBy: null });
+  const moved = envelope("warehouse.location.changed", { warehouseId: "1", name: "Check Hub", changes: [{ field: "pincode", from: null, to: "160055" }], changedBy: "7", changedByRole: "ADMIN" });
+  publish("inventory_events", "warehouse.status.changed", live);
+  publish("inventory_events", "warehouse.status.changed", reopen);
   publish("inventory_events", "warehouse.status.changed", pause);
-  const pauseExpected = (await optedInAdmins("warehousePauses")).length;
-  const pauseRows = await waitFor("warehouse alert rows", async () => {
-    const rows = await rowsFor(pause.eventId);
-    return rows.length === pauseExpected && rows;
+  publish("inventory_events", "warehouse.location.changed", moved);
+  const warehouseExpected = (await optedInAdmins("warehousePauses", ["SUPER_ADMIN"])).length;
+  const alertRows = (event, label) => waitFor(label, async () => {
+    const rows = await rowsFor(event.eventId);
+    return rows.length === warehouseExpected && rows;
   });
+  const pauseRows = await alertRows(pause, "pause alert rows");
   assert.equal(pauseRows[0].vars.status, "paused");
-  assert.equal((await rowsFor(open.eventId)).length, 0, "OPEN is not an alert");
+  assert.match(pauseRows[0].vars.changedBy, /\(store manager\)$/, "names the role");
+  assert.equal((await alertRows(reopen, "reopen alert rows"))[0].vars.status, "open");
+  assert.equal((await alertRows(moved, "location alert rows"))[0].vars.changes, "Pincode: (empty) -> 160055");
+  assert.equal((await rowsFor(live.eventId)).length, 0, "going live is not an alert");
 
   // Failed payments through the queue: 5 make nothing, the 6th one alert per opted-in admin, the 7th nothing (cooldown).
   const pre = await selectOne("SELECT count(*)::int AS n FROM notification_alert_hits WHERE alert_key = 'payment_failures' AND occurred_at > now() - interval '60 minutes'");

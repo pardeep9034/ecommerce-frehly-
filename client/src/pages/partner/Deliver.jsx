@@ -1,15 +1,15 @@
 import { ArrowLeftRight, Check, MapPin, Navigation, Phone, XCircle } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
-import { Avatar, Card, LoadNote, RoundLink, Stepper, StatusPill } from "@/components/partner/PartnerBits";
-import { usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
+import { Avatar, Card, LoadNote, RoundLink, SavingNote, Stepper, StatusPill } from "@/components/partner/PartnerBits";
+import { useJobAction, usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
 import { NEXT_LABEL, NEXT_STATUS, STEP_INDEX, STEP_LABEL, initialsOf, mapsUrl, timeOf } from "@/lib/assignmentStatus";
-import { notify } from "@/lib/notify";
 
 const Deliver = () => {
   const { assignmentId } = useParams();
   const { assignment: a, error } = usePartnerAssignment(assignmentId);
   const update = useUpdateAssignmentStatus();
+  const job = useJobAction(a);
 
   if (!a) {
     return (
@@ -20,11 +20,11 @@ const Deliver = () => {
   }
   // A stale link (back button, old tab): send the partner to where this job is now.
   if (a.assignment_status !== "ACTIVE") return <Navigate to="/partner/home" replace />;
+  if (a.kind === "RETURN_PICKUP") return <Navigate to={`/partner/orders/${a.id}/collect`} replace />;
   if (a.status === "ASSIGNED") return <Navigate to={`/partner/orders/${a.id}/pickup`} replace />;
 
   // PICKED_UP -> OUT_FOR_DELIVERY is one tap here; OUT_FOR_DELIVERY -> DELIVERED goes through the code screen.
-  const startDelivery = () =>
-    update.mutate({ assignmentId: a.id, status: NEXT_STATUS[a.status] }, { onError: (e) => notify.apiError(e) });
+  const startDelivery = () => job.run(() => update.mutateAsync({ assignmentId: a.id, status: NEXT_STATUS[a.status] }));
 
   return (
     <MobileShell
@@ -63,13 +63,14 @@ const Deliver = () => {
         ) : (
           <button
             type="button"
-            disabled={update.isPending}
+            disabled={job.busy}
             onClick={startDelivery}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60"
           >
             <Navigation className="h-4 w-4" /> {NEXT_LABEL[a.status]}
           </button>
         )}
+        <SavingNote phase={job.phase} />
         {/* Only a picked-up order can be handed over: once out for delivery, the backend refuses. */}
         <div className={`grid gap-2.5 ${a.status === "PICKED_UP" ? "grid-cols-2" : ""}`}>
           <Link to={`/partner/orders/${a.id}/failed`} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-semibold text-destructive">

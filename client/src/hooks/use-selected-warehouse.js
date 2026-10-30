@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { currentStaff } from "@/lib/warehouseAccess";
 
 // The admin must work inside one warehouse at a time (the orders API refuses "all warehouses").
 // The choice lives in localStorage so it survives refresh and is shared by every admin page.
@@ -22,8 +23,9 @@ const subscribe = (callback) => {
   };
 };
 
+// A store manager or store staff is locked to the store on their token (`locked`); the services only answer for it.
 export const useSelectedWarehouse = () => {
-  const warehouseId = useSyncExternalStore(subscribe, read, () => "");
+  const stored = useSyncExternalStore(subscribe, read, () => "");
 
   const setWarehouseId = useCallback((id) => {
     try {
@@ -34,5 +36,7 @@ export const useSelectedWarehouse = () => {
     listeners.forEach((callback) => callback());
   }, []);
 
-  return { warehouseId, setWarehouseId };
+  const { isSuperAdmin, ownWarehouseId } = currentStaff();
+  if (!isSuperAdmin) return { warehouseId: ownWarehouseId ?? "", setWarehouseId: () => {}, locked: true };
+  return { warehouseId: stored, setWarehouseId, locked: false };
 };

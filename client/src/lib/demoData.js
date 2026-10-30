@@ -33,37 +33,6 @@ export const DEMO_STAFF = [
   { id: -15, first_name: "Manish", last_name: "Rawat", phone: "+91 99888 20145", role: "OPS_STAFF", warehouse_slot: null, is_active: true, last_login_at: null },
 ];
 
-// Per-store live numbers (orders, pick/pack time, riders). No service aggregates these yet.
-const DEMO_ORDERS_TODAY = [142, 96, 58, 0];
-
-export const demoOrdersToday = (warehouse, index) =>
-  warehouse?.is_active ? DEMO_ORDERS_TODAY[index % DEMO_ORDERS_TODAY.length] : null;
-
-export const DEMO_WAREHOUSE_METRICS = {
-  ordersToday: 142,
-  slotNote: "Slot 7–9 AM: 14",
-  avgPickPack: "9 min",
-  pickPackTarget: "Target 10 min",
-  lateToPack: 3,
-  ridersOnline: 18,
-  pipeline: [
-    { label: "New", count: 3 },
-    { label: "Picking", count: 2 },
-    { label: "Waiting", count: 1 },
-    { label: "Packing", count: 2 },
-    { label: "Ready", count: 1 },
-    { label: "Rider assigned", count: 2 },
-  ],
-  openOrders: 14,
-  attention: [
-    "#10495 cancelled after picking · 6 items to put back",
-    "2 products low on stock · 1 out of stock",
-    "Pooja Saini hasn’t logged in for 2 days",
-  ],
-};
-
-export const DEMO_LABEL_PRINTER = "Bluetooth · connected";
-
 export const SHIFT_OPTIONS = [
   { value: "MORNING", label: "Morning · 6 AM – 2 PM" },
   { value: "EVENING", label: "Evening · 2 PM – 10 PM" },

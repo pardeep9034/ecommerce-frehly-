@@ -47,10 +47,12 @@ const StaffFormPage = lazy(() => import("./pages/dashboard/StaffFormPage"));
 const StockMovementPage = lazy(() => import("./pages/dashboard/StockMovementPage"));
 const StockReservationPage = lazy(() => import("./pages/dashboard/StockReservationPage"));
 const Zones = lazy(() => import("./pages/dashboard/Zones"));
+const DeliverySlots = lazy(() => import("./pages/dashboard/DeliverySlots"));
 const Customers = lazy(() => import("./pages/dashboard/Customers"));
 const Settings = lazy(() => import("./pages/dashboard/Settings"));
 const Orders = lazy(() => import("./pages/dashboard/Orders"));
 const AdminOrderDetail = lazy(() => import("./pages/dashboard/AdminOrderDetail"));
+const Returns = lazy(() => import("./pages/dashboard/Returns"));
 const DeliveryPartners = lazy(() => import("./pages/dashboard/DeliveryPartners"));
 const DeliveryPartnerDetail = lazy(() => import("./pages/dashboard/DeliveryPartnerDetail"));
 const AddDeliveryPartner = lazy(() => import("./pages/dashboard/AddDeliveryPartner"));
@@ -62,6 +64,7 @@ const StoreLogin = lazy(() => import("./pages/store/StoreLogin"));
 const StoreBoard = lazy(() => import("./pages/store/StoreBoard"));
 const StoreOrderDetail = lazy(() => import("./pages/store/StoreOrderDetail"));
 const StoreHandover = lazy(() => import("./pages/store/StoreHandover"));
+const StoreReturns = lazy(() => import("./pages/store/StoreReturns"));
 const StoreStock = lazy(() => import("./pages/store/StoreStock"));
 const StoreSettings = lazy(() => import("./pages/store/StoreSettings"));
 // Delivery-partner app: phone screens only, at /partner/*. Guarded by RequirePartner; Home and the delivery screens still run on demo data.
@@ -72,6 +75,7 @@ const PartnerPickup = lazy(() => import("./pages/partner/Pickup"));
 const PartnerDeliver = lazy(() => import("./pages/partner/Deliver"));
 const PartnerConfirm = lazy(() => import("./pages/partner/Confirm"));
 const PartnerFailed = lazy(() => import("./pages/partner/Failed"));
+const PartnerCollect = lazy(() => import("./pages/partner/Collect"));
 const PartnerHandover = lazy(() => import("./pages/partner/Handover"));
 const PartnerHistory = lazy(() => import("./pages/partner/History"));
 const PartnerProfile = lazy(() => import("./pages/partner/Profile"));
@@ -83,7 +87,7 @@ const PageLoader = () => (
   <div className="flex h-screen items-center justify-center bg-muted text-sm text-muted-foreground">Loading…</div>
 );
 
-const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "OPS_STAFF"];
+const ADMIN_ROLES = ["SUPER_ADMIN"];
 
 const hasAdminAccess = () => ADMIN_ROLES.includes(getTokenRole(getToken()));
 const hasStoreAccess = () => STORE_ROLES.includes(getTokenRole(getToken()));
@@ -165,8 +169,10 @@ function App() {
           <Route path="stock-movement" element={<StockMovementPage />} />
           <Route path="stock-reservation" element={<StockReservationPage />} />
           <Route path="delivery-zones" element={<Zones />} />
+          <Route path="delivery-slots" element={<DeliverySlots />} />
           <Route path="orders" element={<Orders />} />
           <Route path="orders/:orderId" element={<AdminOrderDetail />} />
+          <Route path="returns" element={<Returns />} />
           <Route path="customers" element={<Customers />} />
           <Route path="delivery-partners" element={<DeliveryPartners />} />
           <Route path="delivery-partners/new" element={<AddDeliveryPartner />} />
@@ -194,6 +200,7 @@ function App() {
           <Route index element={<StoreBoard />} />
           <Route path="orders/:orderId" element={<StoreOrderDetail />} />
           <Route path="handover" element={<StoreHandover />} />
+          <Route path="returns" element={<StoreReturns />} />
           <Route path="stock" element={<StoreStock />} />
           <Route path="settings" element={<StoreSettings />} />
         </Route>
@@ -209,6 +216,7 @@ function App() {
           <Route path="/partner/orders/:assignmentId/deliver" element={<PartnerDeliver />} />
           <Route path="/partner/orders/:assignmentId/confirm" element={<PartnerConfirm />} />
           <Route path="/partner/orders/:assignmentId/failed" element={<PartnerFailed />} />
+          <Route path="/partner/orders/:assignmentId/collect" element={<PartnerCollect />} />
           <Route path="/partner/handover" element={<PartnerHandover />} />
           <Route path="/partner/history" element={<PartnerHistory />} />
           <Route path="/partner/profile" element={<PartnerProfile />} />

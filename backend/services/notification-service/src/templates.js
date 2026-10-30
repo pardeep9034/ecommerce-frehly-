@@ -13,6 +13,8 @@ const templates = {
   "order.delivered": sms(3, 120, "Freshly: order #{{orderNumber}} has been delivered. Thank you for shopping with us."),
   "order.cancelled": sms(2, 240, "Freshly: order #{{orderNumber}} has been cancelled. Open the app for details."),
   "order.delivery_failed": sms(2, 120, "Freshly: we couldn't deliver order #{{orderNumber}}. Open the app to see what happens next."),
+  // A step of a return the customer asked for; intake's RETURN_WORDS fill {{update}}.
+  "order.return_update": sms(2, 240, "Freshly: your return on order #{{orderNumber}}: {{update}}. Open the app for details."),
 
   // Partner and store, moved word for word from delivery-service's notify.js (onboarding design §6.7).
   "partner.invite": sms(3, 1440, "Freshly: we've started your delivery partner application. Finish signing up here: {{appUrl}}/partner/apply?phone={{phone}}"),
@@ -23,11 +25,18 @@ const templates = {
   "partner.rejected": sms(3, 1440, "Freshly: we couldn't approve FR-P-{{ref}}. You can apply again after {{date}}."),
   "store.delivery_failed": sms(1, 60, "Freshly: order #{{order}} could not be delivered (attempt {{n}} of {{max}}): {{reason}}. Reassign or cancel it in the admin panel."),
   "store.delivery_failed_final": sms(1, 60, "Freshly: order #{{order}} could not be delivered (attempt {{n}} of {{max}}): {{reason}}. No attempts left, please cancel or return it."),
+  "store.return_overdue": sms(1, 120, "Freshly: {{partner}} ({{partnerPhone}}) has goods from order #{{order}} for 2+ hrs, not returned yet."),
+  "store.return_requested": sms(2, 240, "Freshly: a customer asked to return items from order #{{order}}. Review it on the store Returns page."),
 
   "alert.warehouse_status": {
     version: 1, channel: "EMAIL", category: "ALERT", priority: 3, staleAfterMin: 120, preference: "warehousePauses",
     subject: "Freshly: {{warehouseName}} is {{status}}",
     text: "{{warehouseName}} is now {{status}} (was {{oldStatus}}).\nChanged by: {{changedBy}}\nWhen: {{when}} IST\n\n{{appUrl}}/admin/warehouses/{{warehouseId}}",
+  },
+  "alert.warehouse_location": {
+    version: 1, channel: "EMAIL", category: "ALERT", priority: 3, staleAfterMin: 120, preference: "warehousePauses",
+    subject: "Freshly: {{warehouseName}} location changed",
+    text: "{{warehouseName}}'s location was changed. This can change which customers it serves.\n{{changes}}\nChanged by: {{changedBy}}\nWhen: {{when}} IST\n\n{{appUrl}}/admin/warehouses/{{warehouseId}}",
   },
   "alert.partner_application": {
     version: 1, channel: "EMAIL", category: "ALERT", priority: 3, staleAfterMin: 120, preference: "partnerApplies",

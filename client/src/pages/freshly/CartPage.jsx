@@ -19,6 +19,7 @@ import { removeFromCart, updateQuantity } from "@/redux/cartSlice";
 import AddressFormModal from "@/components/freshly/AddressFormModal";
 import useAddress from "@/hooks/use-address";
 import AddressCard from "@/components/freshly/AddressCard";
+import AuthDialog from "@/components/freshly/AuthDialog";
 import { useQuery } from "@tanstack/react-query";
 import { getProfile } from '@/apis/authApi';
 import {increaseQuantityMutation, decreaseQuantityMutation} from "@/hooks/use-addToCart"; 
@@ -34,6 +35,7 @@ const CartPage = () => {
   const { addresses, isLoading: addressLoading } = useAddress();
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [step, setStep] = useState(1); // 1: Cart, 2: Address, 3: Payment
+  const [authOpen, setAuthOpen] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const increaseQuantity = increaseQuantityMutation();
   const decreaseQuantity = decreaseQuantityMutation();
@@ -365,7 +367,8 @@ const CartPage = () => {
                 <div className="mt-8 space-y-4">
                   {step === 1 && (
                     <button 
-                      onClick={() => setStep(2)}
+                      // signed out: log in or sign up in a popup, then carry on to the address step
+                      onClick={() => (token ? setStep(2) : setAuthOpen(true))}
                       className="w-full flex h-14 items-center justify-center gap-3 rounded-full bg-primary px-8 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-success/20 transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-95 group"
                     >
                       Checkout Now
@@ -417,6 +420,14 @@ const CartPage = () => {
           // Optionally, you can refetch addresses here if needed
         }}
         userId={profile?.id}
+      />
+      <AuthDialog
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        onSignedIn={() => {
+          setAuthOpen(false);
+          setStep(2);
+        }}
       />
     </div>
     

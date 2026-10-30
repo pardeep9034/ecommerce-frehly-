@@ -18,14 +18,14 @@ const ProductApi = {
         const response = await api.get("/product", { params: { page, limit, status, ...filters } });
         return response.data;
     },
+    // Home page strips: storefront rules (ACTIVE products with their ACTIVE variants).
     async getProductsByType(type, page = 1, limit = 10) {
-        const response = await api.get(`/product?page=${page}&limit=${limit}`);
+        const response = await api.get(`/product?page=${page}&limit=${limit}&storefront=true`);
         return response.data;
     },
-    async getProductById(id) {
-        const response = await api.get(`/product/${id}`);
-        console.log("product by id",response.data);
-        
+    // storefront: 404 unless the product is ACTIVE with an ACTIVE variant; only those variants come back.
+    async getProductById(id, { storefront } = {}) {
+        const response = await api.get(`/product/${id}`, { params: { storefront: storefront || undefined } });
         return response.data;
     },
     async getProductByCategory(catId,page,limit){

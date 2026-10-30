@@ -1,6 +1,7 @@
 import DeliveryPartnerService from "./deliveryPartner.service.js";
 import PartnerMeService from "../partnerMe/partnerMe.service.js";
 import ResponseUtil from "../../utils/response.js";
+import { ownStore } from "../../utils/ownStore.js";
 
 class DeliveryPartnerController {
   async createDeliveryPartner(req, res, next) {
@@ -28,7 +29,8 @@ class DeliveryPartnerController {
   }
   async getAvalableDeliveryPartners(req, res, next){
     try{
-      const warehouseId = req.headers["x-warehouse-id"];
+      // Store accounts get their own store (from the token); the super admin picks one with the header.
+      const warehouseId = ownStore(req.user) ?? req.headers["x-warehouse-id"];
       const result = await DeliveryPartnerService.getAvalableDeliveryPartners(warehouseId);
       return ResponseUtil.success(res, result, "Available delivery partners fetched");
 

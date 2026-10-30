@@ -64,15 +64,8 @@ class VariantRepository extends BaseRepository {
         return await this.deleteById(id);
     }
     async findExistingVariant(sku, barcode) {
-           return await this.findOne(
-     {
-        [Op.or]: [
-          { sku },
-          { barcode }
- ]
-        
-      
-        });
+           // No barcode: only the SKU can clash ({ barcode: null } would match every variant without one).
+           return await this.findOne({ [Op.or]: barcode ? [{ sku }, { barcode }] : [{ sku }] });
     }
 }
 

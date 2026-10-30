@@ -11,39 +11,38 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import useOrder from "@/hooks/use-order";
+import { getToken } from "@/lib/tokenStorage";
+import { customerStatus } from "@/lib/customerStatus";
 
 const MyOrders = () => {
   const { orders, isLoading, isError } = useOrder();
   const orderHistory=orders.orders
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case "delivered":
-        return "bg-success text-success border-success";
-      case "shipped":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "pending":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "cancelled":
-        return "bg-destructive text-destructive border-destructive";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
 
-  const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
-      case "delivered":
-        return <CheckCircle2 className="h-4 w-4" />;
-      case "shipped":
-        return <Truck className="h-4 w-4" />;
-      case "pending":
-        return <Clock className="h-4 w-4" />;
-      case "cancelled":
-        return <XCircle className="h-4 w-4" />;
-      default:
-        return <Package className="h-4 w-4" />;
-    }
+  // Checks the token, not state.auth: that is only filled once the profile call returns, so a logged-in refresh would see this.
+  if (!getToken()) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16 text-center">
+        <div className="mb-4 rounded-full bg-gray-50 p-6 text-gray-400">
+          <Package className="h-12 w-12" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900">Log in to see your orders</h3>
+        <p className="mt-2 text-gray-500">Your orders show up here once you're logged in.</p>
+        <Link
+          to="/phone-login"
+          className="mt-8 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90"
+        >
+          Log in
+        </Link>
+      </div>
+    );
+  }
+  const TONE_COLOR = {
+    done: "bg-success/10 text-success border-success/30",
+    moving: "bg-blue-100 text-blue-700 border-blue-200",
+    waiting: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    stopped: "bg-destructive/10 text-destructive border-destructive/30",
   };
+  const TONE_ICON = { done: CheckCircle2, moving: Truck, waiting: Clock, stopped: XCircle };
 
   if (isLoading) {
     return (
@@ -121,10 +120,16 @@ const MyOrders = () => {
                         </p>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
-                      {getStatusIcon(order.status)}
-                      {order.status}
-                    </div>
+                    {(() => {
+                      const { label, tone } = customerStatus(order.status);
+                      const Icon = TONE_ICON[tone];
+                      return (
+                        <div className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${TONE_COLOR[tone]}`}>
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

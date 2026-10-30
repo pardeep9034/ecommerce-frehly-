@@ -1,13 +1,12 @@
 // Forward-only status transitions a partner can trigger themselves.
-// DELIVERY_FAILED is separate since it always needs a reason.
+// DELIVERY_FAILED is separate since it always needs a reason. ASSIGNED -> PICKED_UP is the
+// store's step: it enters the pickup code the Pickup screen shows.
 export const NEXT_STATUS = {
-  ASSIGNED: "PICKED_UP",
   PICKED_UP: "OUT_FOR_DELIVERY",
   OUT_FOR_DELIVERY: "DELIVERED",
 };
 
 export const NEXT_LABEL = {
-  ASSIGNED: "Confirm pickup",
   PICKED_UP: "Start delivery",
   OUT_FOR_DELIVERY: "Mark delivered",
 };
@@ -21,6 +20,28 @@ export const STEP_LABEL = {
   DELIVERY_FAILED: "Failed",
   TRANSFERRED: "Transferred",
   CANCELLED: "Cancelled",
+  // Return pickups (kind RETURN_PICKUP).
+  RETURN_PICKUP: "Return pickup",
+  COLLECTED: "Collected",
+  NOT_COLLECTED: "Not collected",
+};
+
+// The screen a job belongs on now (a GET /delivery-partners/me/assignments/:id row).
+export const jobPath = (a) =>
+  a.assignment_status !== "ACTIVE" ? "/partner/home"
+    : a.kind === "RETURN_PICKUP" ? `/partner/orders/${a.id}/collect`
+      : a.status === "ASSIGNED" ? `/partner/orders/${a.id}/pickup`
+        : `/partner/orders/${a.id}/deliver`;
+
+// Why the rider is being moved: the job was already finished, or is already on another step.
+export const jobNote = (a) => {
+  const pickup = a.kind === "RETURN_PICKUP";
+  return {
+    COMPLETED: pickup ? "Already marked collected" : "This order was already delivered",
+    FAILED: pickup ? "Already marked not collected" : "This order was already marked not delivered",
+    TRANSFERRED: "This order was handed to another rider",
+    CANCELLED: "This order was cancelled",
+  }[a.assignment_status] ?? `This order is already ${(STEP_LABEL[a.status] ?? "moved on").toLowerCase()}`;
 };
 
 // Position of an open step in the Stepper (Assigned, Picked up, On the way, Delivered).
@@ -32,6 +53,36 @@ export const FAILED_REASONS = [
   { code: "REFUSED", label: "Customer refused order" },
   { code: "OTHER", label: "Other" },
 ];
+
+// Why the customer turned an item away at the door. Same codes as DOOR_REJECT_REASONS there. OTHER needs a note.
+export const DOOR_REJECT_REASONS = [
+  { code: "NOT_WANTED", label: "Didn't want it" },
+  { code: "WRONG_ITEM", label: "Wrong item" },
+  { code: "DAMAGED", label: "Damaged" },
+  { code: "BAD_QUALITY", label: "Bad quality" },
+  { code: "OTHER", label: "Other" },
+];
+
+// Why a customer asks to return an item after delivery (order-service CUSTOMER_RETURN_REASONS).
+export const CUSTOMER_RETURN_REASONS = [
+  { code: "DAMAGED", label: "Damaged" },
+  { code: "BAD_QUALITY", label: "Bad quality" },
+  { code: "WRONG_ITEM", label: "Wrong item sent" },
+  { code: "MISSING", label: "Missing from the bag" },
+  { code: "OTHER", label: "Something else" },
+];
+// The store's internal reason for turning a return down. Never shown to the customer.
+export const RETURN_REJECT_REASONS = [
+  { code: "OUTSIDE_WINDOW", label: "Asked too late" },
+  { code: "NO_PROOF", label: "Photo doesn't show the problem" },
+  { code: "NOT_AS_REPORTED", label: "Not as reported" },
+  { code: "QUANTITY", label: "Quantity doesn't add up" },
+  { code: "OTHER", label: "Other" },
+];
+
+// "₹1,250" / "₹99.50".
+export const rupees = (value) =>
+  `₹${Number(value ?? 0).toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 export const STEP_INDEX ={ ASSIGNED: 0, PICKED_UP: 1, OUT_FOR_DELIVERY: 2, DELIVERED: 3 };
 

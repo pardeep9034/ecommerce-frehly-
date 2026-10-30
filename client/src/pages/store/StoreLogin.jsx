@@ -61,9 +61,10 @@ const StoreLogin = () => {
   };
 
   return (
-    <main className="min-h-screen bg-muted p-4 sm:p-8">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-5xl overflow-hidden rounded-3xl bg-card shadow-[0_24px_60px_-24px_hsl(var(--primary)/0.32)] lg:grid-cols-[1.05fr_0.95fr] sm:min-h-[calc(100vh-4rem)]">
-        <section className="hidden flex-col justify-between bg-primary p-10 text-white lg:flex">
+    <main className="min-h-screen bg-card lg:bg-muted lg:p-8">
+      {/* Phone: green band on top, form sheet overlapping it. Web: two columns in a card. */}
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden bg-card lg:grid lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:rounded-3xl lg:shadow-[0_24px_60px_-24px_hsl(var(--primary)/0.32)]">
+        <section className="flex flex-col gap-5 bg-primary px-6 pb-10 pt-12 text-white lg:justify-between lg:p-10">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-warning shadow-lg">
               <Leaf className="h-5 w-5" />
@@ -74,25 +75,18 @@ const StoreLogin = () => {
 
           <div>
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-accent/70">Store Operations</p>
-            <h1 className="max-w-sm text-4xl font-bold leading-tight">Pick, pack and hand over fresh.</h1>
-            <p className="mt-5 max-w-sm text-base leading-7 text-white/75">
+            <h1 className="max-w-sm text-3xl font-bold leading-tight lg:text-4xl">Pick, pack and hand over fresh.</h1>
+            <p className="mt-3 max-w-sm text-[15px] leading-6 text-white/75 lg:mt-5 lg:text-base lg:leading-7">
               Same account as the store app. Everything you do here shows up there too.
             </p>
           </div>
 
-          <p className="text-sm text-white/55">Freshly Store Management</p>
+          <p className="hidden text-sm text-white/55 lg:block">Freshly Store Management</p>
         </section>
 
-        <section className="flex items-center justify-center p-6 sm:p-10">
+        <section className="-mt-4 flex flex-1 justify-center rounded-t-3xl bg-card px-6 py-7 lg:mt-0 lg:items-center lg:rounded-none lg:p-10">
           <div className="w-full max-w-sm">
-            <div className="mb-9 lg:hidden">
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white">
-                <Leaf className="h-5 w-5" />
-              </div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-warning">Store console</p>
-            </div>
-
-            <div className="mb-8">
+            <div className="mb-6 lg:mb-8">
               <h2 className="text-3xl font-bold tracking-tight text-foreground">Sign in</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">Store staff and managers.</p>
             </div>

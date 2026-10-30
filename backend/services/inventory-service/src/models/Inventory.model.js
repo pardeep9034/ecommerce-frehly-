@@ -13,7 +13,6 @@ export default (sequelize) => {
       variant_id: {
         type: DataTypes.BIGINT,
         allowNull: false,
-        unique: true,
       },
 
       warehouse_id: {
@@ -53,6 +52,8 @@ export default (sequelize) => {
       timestamps: true,
       createdAt: "created_at",
       updatedAt: "updated_at",
+      // One row per item per store (the DB's inventory_variant_warehouse_unique); a variant can be in many stores.
+      indexes: [{ name: "inventory_variant_warehouse_unique", unique: true, fields: ["variant_id", "warehouse_id"] }],
     }
   );
 

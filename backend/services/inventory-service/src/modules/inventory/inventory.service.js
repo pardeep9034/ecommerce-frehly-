@@ -1,4 +1,6 @@
 import InventoryRepository from "../repository/inventory.repository.js";
+import StockMovementRepository from "../repository/stockMovement.repository.js";
+import initializeModels from "../../models/index.js";
 import ResponseUtil from "../../utils/response.js";
 import AppError from "../../utils/AppError.js";
 import { consumer } from "../../messaging/index.js";
@@ -190,6 +192,17 @@ class InventoryServices {
   return inventories;
   }
 
+  // [{ variant_id, available }] for the variants this store carries; a variant it doesn't carry is left out, so the
+  // shop hides it, while a carried one at 0 shows as Out of stock. Whether it is on sale (ACTIVE) is the catalog's.
+  async getStoreStock(variantIds, warehouseId) {
+    if (!variantIds.length) return [];
+    const inventories = await inventoryRepository.findAll({ variant_id: variantIds, warehouse_id: warehouseId });
+    return inventories.map((inv) => ({
+      variant_id: Number(inv.variant_id),
+      available: Math.max(0, inv.current_stock - inv.reserved_stock),
+    }));
+  }
+
   async getInStockVariantIds(variantIds, warehouseId) {
     if (!variantIds?.length) return [];
     if (!warehouseId) {
@@ -201,31 +214,55 @@ class InventoryServices {
       .map((inv) => inv.variant_id);
   }
 
-  async createInventory(inventoryData) {
+  // Adds a catalog variant to a store. Only an ACTIVE variant of an ACTIVE product can be added. The row starts at 0
+  // and the opening count is recorded as a STOCK_IN movement by `createdBy`, in one transaction.
+  async createInventory({ variant_id, warehouse_id, opening_stock = 0, low_stock_threshold }, createdBy) {
     try {
-      if (inventoryData.variant_id) {
-        const variantexists = await fetchVariantDetails(
-          inventoryData.variant_id,
-        );
-        const existingInventory =
-          await InventoryRepository.getInventoryByVariantIdAndWarehouseId(
-            inventoryData.variant_id,
-            inventoryData.warehouse_id
-           
-          );
-
-        if (!variantexists) {
-          throw new AppError("Variant does not exist", 404);
-        }
-        if (existingInventory ) {
-          throw new AppError("Inventory for this variant already exists", 400);
-        }
-
-        const inventory = await InventoryRepository.createInventory(
-          inventoryData,
-        );
-        return inventory;
+      const variant = await fetchVariantDetails(variant_id);
+      if (!variant) {
+        throw new AppError("Variant does not exist", 404);
       }
+      if (variant.status !== "ACTIVE" || variant.product?.status !== "ACTIVE") {
+        throw new AppError("Only an active product and variant can be added to a store", 409);
+      }
+      if (await InventoryRepository.getInventoryByVariantIdAndWarehouseId(variant_id, warehouse_id)) {
+        throw new AppError("This item is already in this store", 409);
+      }
+      if (opening_stock > 0 && !createdBy) {
+        throw new AppError("created_by is required to record opening stock", 400);
+      }
+
+      const db = await initializeModels();
+      return await db.sequelize.transaction(async (transaction) => {
+        const now = new Date();
+        const inventory = await InventoryRepository.createInventory(
+          {
+            variant_id,
+            warehouse_id,
+            current_stock: opening_stock,
+            reserved_stock: 0,
+            ...(low_stock_threshold !== undefined && { low_stock_threshold }),
+            last_stock_update_at: now,
+          },
+          { transaction },
+        );
+        if (opening_stock > 0) {
+          await StockMovementRepository.createStockMovement(
+            {
+              variant_id,
+              warehouse_id,
+              movement_type: "STOCK_IN",
+              quantity: opening_stock,
+              before_stock: 0,
+              after_stock: opening_stock,
+              reason: "Opening stock",
+              created_by: createdBy,
+            },
+            { transaction },
+          );
+        }
+        return inventory;
+      });
     } catch (error) {
         if (error instanceof AppError) throw error;
             throw new AppError(error.message || "Failed to create inventory", 500);
@@ -237,13 +274,6 @@ class InventoryServices {
       if (!id) {
         throw new AppError("Inventory id is required", 400);
       }
-
-      const variantExists = await fetchVariantDetails(inventoryData.variant_id);
-
-      if (!variantExists) {
-        throw new AppError("Variant does not exist", 404);
-      }
-      const existingInventory = await InventoryRepository.getInventoryByVariantIdAndWarehouseId(id,inventoryData.warehouse_id);
 
       const updated = await InventoryRepository.updateInventory(
         id,

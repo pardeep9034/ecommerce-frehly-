@@ -1,5 +1,6 @@
 import StockReservationServices from "./stockReservation.service.js";
 import ResponseUtil from "../../utils/response.js";
+import { ownStore, assertOwnStore, assertEveryStore } from "../warehouse/warehouse.access.js";
 
 class StockReservationController {
   async getAllStockReservations(req, res, next) {
@@ -13,7 +14,7 @@ class StockReservationController {
         offset,
         {
           status: req.query.status,
-          warehouse_id: req.query.warehouse_id,
+          warehouse_id: ownStore(req) ?? req.query.warehouse_id,
           search: req.query.search,
         },
       );
@@ -33,6 +34,7 @@ class StockReservationController {
       const result = await StockReservationServices.getStockReservationById(
         req.params.id,
       );
+      assertOwnStore(req, result.warehouse_id);
 
       return ResponseUtil.success(
         res,
@@ -46,6 +48,7 @@ class StockReservationController {
 
   async getStockReservationsByVariantId(req, res, next) {
     try {
+      assertEveryStore(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
@@ -69,6 +72,7 @@ class StockReservationController {
 
   async getStockReservationsByOrderId(req, res, next) {
     try {
+      assertEveryStore(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;

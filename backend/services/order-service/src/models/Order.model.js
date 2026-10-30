@@ -42,7 +42,8 @@ export default (sequelize) => {
           // Final
           "DELIVERED",
           "CANCELLED",
-          "DELIVERY_FAILED"
+          "DELIVERY_FAILED",
+          "RETURNED_TO_STORE"
         ),
         allowNull: false,
         defaultValue: "PLACED"
@@ -86,6 +87,32 @@ export default (sequelize) => {
         type: DataTypes.BIGINT,
         allowNull: true // the staff user who finalized the items; owned by auth-service, so no FK
       },
+      // Set by store staff when they pack the order (packOrder); packed_at is the "packed" flag.
+      packed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      bag_count: {
+        type: DataTypes.SMALLINT,
+        allowNull: true
+      },
+      rack_label: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+      },
+      // What the rider took at the door on a COD order (CASH or UPI); null until delivered.
+      collected_amount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: true
+      },
+      collected_method: {
+        type: DataTypes.STRING(10),
+        allowNull: true
+      },
+      collected_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
       placed_at: {
         type: DataTypes.DATE
       }
@@ -117,6 +144,11 @@ export default (sequelize) => {
     Order.hasMany(models.Payment, {
       foreignKey: "order_id",
       as: "payments"
+    });
+
+    Order.hasMany(models.OrderReturn, {
+      foreignKey: "order_id",
+      as: "returns"
     });
   };
 

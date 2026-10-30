@@ -109,11 +109,11 @@ const Navbar = () => {
     { to: '/', label: 'Home', icon: HomeIcon, end: true },
     { to: '/shop', label: 'Shop', icon: Store },
     { to: '/cart', label: 'Cart', icon: ShoppingCart, count: cartCount },
-    { to: '/orders', label: 'Orders', icon: ClipboardList },
+    isAuthenticated && { to: '/orders', label: 'Orders', icon: ClipboardList },
     isAuthenticated
       ? { to: '/profile', label: 'Account', icon: User }
       : { to: '/phone-login', label: 'Log in', icon: User },
-  ];
+  ].filter(Boolean);
 
   return (
     <>
@@ -131,7 +131,7 @@ const Navbar = () => {
 
           <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
             <NavLink to="/shop" className={desktopLink}>Shop</NavLink>
-            <NavLink to="/orders" className={desktopLink}>Orders</NavLink>
+            {isAuthenticated && <NavLink to="/orders" className={desktopLink}>Orders</NavLink>}
           </nav>
 
           <Link
@@ -195,7 +195,7 @@ const Navbar = () => {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.06)] lg:hidden"
       >
-        <ul className="grid grid-cols-5">
+        <ul className={`grid ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {tabs.map((tab) => (
             <li key={tab.label}>
               <NavLink

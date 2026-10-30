@@ -1,33 +1,60 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import WarehousesTable from "@/components/dashboard/WarehousesTable";
 import SummaryTile from "@/components/dashboard/SummaryTile";
 import DemoBadge from "@/components/dashboard/DemoBadge";
 import Pagination from "@/components/common/Pagination";
-import useWarehouse from "@/hooks/use-warehouse";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import useWarehouse, { useWarehouseCities } from "@/hooks/use-warehouse";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import useStaff from "@/hooks/use-staff";
-import { demoOrdersToday } from "@/lib/demoData";
 import { fullName } from "@/lib/staffRole";
 import { WAREHOUSE_STATUS, shortWarehouseName, warehouseStatus, zoneLabel } from "@/lib/warehouseStatus";
+import { currentStaff } from "@/lib/warehouseAccess";
 
-const selectClass = "h-9 rounded-[10px] border border-border bg-white px-2.5 text-[13px] text-foreground";
+// The same Select as the Products filters. Radix items can't have an empty value, so "All" stands for "" (no filter).
+const FilterSelect = ({ label, allLabel, value, onChange, options }) => (
+  <Select value={value || "All"} onValueChange={(next) => onChange(next === "All" ? "" : next)}>
+    <SelectTrigger className="w-auto min-w-37.5 py-2.5" aria-label={label}>
+      <SelectValue>{options.find((option) => option.value === value)?.label ?? allLabel}</SelectValue>
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="All">{allLabel}</SelectItem>
+      {options.map((option) => (
+        <SelectItem key={option.value} value={option.value}>
+          {option.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+);
 
+// Only the super admin sees every store; a store manager or store staff goes straight to their own.
 const WarehousePage = () => {
+  const { isSuperAdmin, ownWarehouseId } = currentStaff();
+  if (isSuperAdmin) return <WarehouseList />;
+  if (ownWarehouseId) return <Navigate to={`/admin/warehouses/${ownWarehouseId}`} replace />;
+  return <p className="text-sm text-muted-foreground">No store is assigned to your account yet. Ask the super admin to assign you to one.</p>;
+};
+
+const WarehouseList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [zoneFilter, setZoneFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
 
-  const { warehouses, pagination, isLoading } = useWarehouse(currentPage, 100);
+  // City is filtered by the server (it covers every warehouse); the tiles below then count that city's stores.
+  const { warehouses, pagination, isLoading } = useWarehouse(currentPage, 100, cityFilter ? { city: cityFilter } : {});
+  const { cities } = useWarehouseCities();
   const { deliveryZonesData } = useDeliveryZone(1, 100);
   const { allStaff, isDemo: staffIsDemo } = useStaff(1, 100);
   const zones = useMemo(() => deliveryZonesData?.data?.deliveryZones ?? [], [deliveryZonesData]);
 
   const rows = useMemo(() => {
     const zonesById = new Map(zones.map((zone) => [String(zone.id), zone]));
-    return warehouses.map((warehouse, index) => {
+    return warehouses.map((warehouse) => {
       const team = allStaff.filter((user) => String(user.warehouse_id) === String(warehouse.id));
       const manager = team.find((user) => user.role === "ADMIN");
       return {
@@ -36,7 +63,6 @@ const WarehousePage = () => {
         zone: zoneLabel(zonesById.get(String(warehouse.zone_id))),
         manager: manager ? fullName(manager) : null,
         staffCount: team.length,
-        ordersToday: demoOrdersToday(warehouse, index),
       };
     });
   }, [warehouses, zones, allStaff]);
@@ -45,8 +71,9 @@ const WarehousePage = () => {
     const byStatus = (...statuses) => rows.filter((row) => statuses.includes(row.status));
     const paused = byStatus("PAUSED", "MAINTENANCE");
     return {
-      live: rows.length - byStatus("DRAFT").length,
+      live: rows.length - byStatus("DRAFT", "DEACTIVATED").length,
       draft: byStatus("DRAFT").length,
+      deactivated: byStatus("DEACTIVATED").length,
       open: byStatus("OPEN").length,
       paused: paused.length,
       pausedNames: paused.map((row) => shortWarehouseName(row.warehouse.name)).join(" · "),
@@ -82,7 +109,7 @@ const WarehousePage = () => {
         <SummaryTile
           label="Warehouses"
           value={pagination?.totalItems ?? rows.length}
-          note={`${counts.live} live · ${counts.draft} setting up`}
+          note={`${counts.live} live · ${counts.draft} setting up${counts.deactivated ? ` · ${counts.deactivated} deactivated` : ""}`}
         />
         <SummaryTile label="Open now" value={counts.open} note="Taking orders" valueClassName="text-primary" />
         <SummaryTile
@@ -116,29 +143,31 @@ const WarehousePage = () => {
             />
           </label>
           <span className="flex-1" />
-          <DemoBadge
-            title={
-              staffIsDemo
-                ? "Manager, Staff and Orders today use sample data until the staff and order APIs exist."
-                : "Orders today uses sample data until order-service reports per-warehouse counts."
-            }
+          {staffIsDemo && <DemoBadge title="Manager and Staff use sample people until the staff API answers." />}
+          <FilterSelect
+            label="Filter by city"
+            allLabel="All cities"
+            value={cityFilter}
+            onChange={(city) => {
+              setCityFilter(city);
+              setCurrentPage(1);
+            }}
+            options={cities.map((city) => ({ value: city, label: city }))}
           />
-          <select aria-label="Filter by zone" value={zoneFilter} onChange={(event) => setZoneFilter(event.target.value)} className={selectClass}>
-            <option value="">All zones</option>
-            {zones.map((zone) => (
-              <option key={zone.id} value={String(zone.id)}>
-                {zoneLabel(zone)}
-              </option>
-            ))}
-          </select>
-          <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}>
-            <option value="">All statuses</option>
-            {Object.entries(WAREHOUSE_STATUS).map(([value, config]) => (
-              <option key={value} value={value}>
-                {config.label}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            label="Filter by zone"
+            allLabel="All zones"
+            value={zoneFilter}
+            onChange={setZoneFilter}
+            options={zones.map((zone) => ({ value: String(zone.id), label: zoneLabel(zone) }))}
+          />
+          <FilterSelect
+            label="Filter by status"
+            allLabel="All statuses"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={Object.entries(WAREHOUSE_STATUS).map(([value, config]) => ({ value, label: config.label }))}
+          />
         </div>
 
         <WarehousesTable rows={filteredRows} isLoading={isLoading} />

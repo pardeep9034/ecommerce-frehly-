@@ -18,6 +18,7 @@ import {
   Clock,
   Building2,
   Map,
+  CalendarClock,
   Bike,
   UserCog,
   Settings,
@@ -26,6 +27,7 @@ import {
   Leaf,
   Sparkles,
   ScrollText,
+  Undo2,
 } from "lucide-react";
 import { usePartnerSummary } from "@/hooks/use-partnerReview";
 import { ACTIVITY_ADMIN_ROLES } from "@/lib/activityLog";
@@ -42,6 +44,7 @@ const navigationSections = [
     label: "Sales",
     items: [
       { title: "Orders", path: "/admin/orders", icon: ShoppingCart },
+      { title: "Returns", path: "/admin/returns", icon: Undo2 },
       { title: "Customers", path: "/admin/customers", icon: Users },
       { title: "Promotions", path: "/admin/promotions", icon: BadgePercent },
       { title: "Assigned Promos", path: "/admin/assign-promotions", icon: Tag },
@@ -72,6 +75,7 @@ const navigationSections = [
     items: [
       { title: "Warehouses", path: "/admin/warehouses", icon: Building2 },
       { title: "Delivery zones", path: "/admin/delivery-zones", icon: Map },
+      { title: "Delivery slots", path: "/admin/delivery-slots", icon: CalendarClock, adminOnly: true },
       { title: "Delivery partners", path: PARTNERS_PATH, icon: Bike },
       { title: "Staff", path: "/admin/staff", icon: UserCog },
     ],

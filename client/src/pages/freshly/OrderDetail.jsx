@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { 
   ArrowLeft, 
   MapPin, 
@@ -11,15 +12,35 @@ import {
   XCircle,
   Receipt,
   Download,
-  ShoppingCart
+  ShoppingCart,
+  Undo2,
+  HelpCircle
 } from "lucide-react";
+import ReturnForm, { RETURN_TERMS } from "@/components/freshly/ReturnForm";
 import { Link, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrderDetail, useConfirmPartialOrder, useRetryPayment } from "@/hooks/use-order";
 import { openRazorpayCheckout } from "@/lib/razorpay";
+import { customerStatus } from "@/lib/customerStatus";
 import { toast } from "@/components/ui/sonner";
 
 const RETRYABLE_STATUSES = ["PENDING_PAYMENT", "PAYMENT_FAILED", "PAYMENT_EXPIRED"];
+
+// A returned line's refund, as the customer sees it. NOT_NEEDED: paid at the door, so nothing was taken for it.
+const REFUND_TEXT = {
+  PENDING: "Refund once the store checks it",
+  SENT: "Refunded",
+  DUE: "Refund on its way",
+  FAILED: "Refund on its way",
+  NOT_NEEDED: "Not charged",
+};
+// A customer's return before the refund step. REJECTED never shows the store's internal reason.
+const REVIEW_TEXT = {
+  REQUESTED: "Waiting for review",
+  APPROVED: "A rider will collect it",
+  REJECTED: "Doesn't comply with our return terms",
+};
+const RETURN_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const OrderDetail = () => {
   const { orderId } = useParams();
@@ -27,6 +48,8 @@ const OrderDetail = () => {
   const { order, isLoading, isError } = useOrderDetail(orderId);
   const confirmPartialOrder = useConfirmPartialOrder(orderId);
   const retryPayment = useRetryPayment(orderId);
+  // null = closed; otherwise the item to preselect ("" = none).
+  const [returnItemId, setReturnItemId] = useState(null);
 
   const handleRetryPayment = () => {
     retryPayment.mutate({}, {
@@ -60,16 +83,6 @@ const OrderDetail = () => {
     });
   };
 
-  const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
-      case "delivered": return <CheckCircle2 className="h-5 w-5 text-success" />;
-      case "shipped": return <Truck className="h-5 w-5 text-blue-500" />;
-      case "pending": return <Clock className="h-5 w-5 text-yellow-500" />;
-      case "cancelled": return <XCircle className="h-5 w-5 text-destructive" />;
-      default: return <Package className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-muted py-12">
@@ -100,6 +113,30 @@ const OrderDetail = () => {
     );
   }
 
+  // Returns: open for 24 h from the first DELIVERED row (the server checks the same).
+  const returns = order.returns || [];
+  // Return events are logged as DELIVERED -> DELIVERED rows; the Returns card shows those, so the timeline skips them.
+  const timeline = (order.statusHistory || []).filter((step) => step.old_status !== step.new_status);
+  const deliveredAt = (order.statusHistory || [])
+    .filter((step) => step.new_status === "DELIVERED")
+    .map((step) => new Date(step.created_at).getTime())
+    .sort((a, b) => a - b)[0];
+  const canReturn = order.status === "DELIVERED" && deliveredAt && Date.now() - deliveredAt < RETURN_WINDOW_MS;
+  const returnable = (order.items || [])
+    .map((item) => ({
+      ...item,
+      remaining: Number(item.quantity) - returns
+        .filter((row) => String(row.order_item_id) === String(item.id) && row.status !== "REJECTED")
+        .reduce((sum, row) => sum + Number(row.quantity), 0),
+    }))
+    .filter((item) => item.status !== "NOT_AVAILABLE" && item.remaining > 0);
+  const openReturns = returns.filter((row) => row.status !== "REJECTED");
+  const refunded = openReturns
+    .filter((row) => ["SENT", "DUE"].includes(row.refund_status))
+    .reduce((sum, row) => sum + Number(row.refund_amount || 0), 0);
+  const returnBadge = order.status === "DELIVERED" && openReturns.length > 0 &&
+    `${returnable.length === 0 ? "Fully returned" : "Partly returned"}${refunded > 0 ? ` · ₹${refunded.toFixed(2)} refunded` : ""}`;
+
   return (
     <div className="min-h-screen bg-muted py-12">
       <div className="mx-auto max-w-5xl px-4">
@@ -113,6 +150,9 @@ const OrderDetail = () => {
             <div>
               <h1 className="text-2xl font-extrabold text-foreground">Order Details</h1>
               <p className="text-sm text-gray-500">Order ID: {order.id}</p>
+              {returnBadge && (
+                <span className="mt-1 inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">{returnBadge}</span>
+              )}
             </div>
           </div>
           <button 
@@ -186,6 +226,48 @@ const OrderDetail = () => {
           </div>
         )}
 
+        {/* Only sent while the order is on its way, and only to the customer: the rider asks for it at the door. */}
+        {order.delivery_code && (
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-white p-6 shadow-sm">
+            <div>
+              <h3 className="flex items-center gap-2 font-bold text-gray-900">
+                <Truck className="h-5 w-5 text-primary" />
+                Your delivery code
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">Share it with the delivery partner when they hand over your order.</p>
+            </div>
+            <p className="font-mono text-3xl font-extrabold tracking-[0.4em] text-primary">{order.delivery_code}</p>
+          </div>
+        )}
+
+        {returns.length > 0 && (
+          <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="flex items-center gap-2 font-bold text-gray-900">
+              <Undo2 className="h-5 w-5 text-primary" />
+              {order.status === "CANCELLED" ? "Returned to the store" : "Returns"}
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm text-gray-700">
+              {returns.map((row) => {
+                const item = (order.items || []).find((i) => String(i.id) === String(row.order_item_id));
+                return (
+                  <li key={row.id} className="flex flex-wrap justify-between gap-2">
+                    <span>
+                      <span className="font-semibold">{item?.product_name ?? "Item"}</span> × {Number(row.quantity)}
+                    </span>
+                    <span className="text-gray-500">{REVIEW_TEXT[row.status] ?? REFUND_TEXT[row.refund_status] ?? ""}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            {returns.some((row) => row.status === "REJECTED") && (
+              <details className="mt-3 text-xs text-gray-500">
+                <summary className="cursor-pointer font-medium text-primary">Our return terms</summary>
+                <p className="mt-1">{RETURN_TERMS}</p>
+              </details>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
 
           {/* Main Content */}
@@ -201,28 +283,31 @@ const OrderDetail = () => {
               </div>
               <div className="p-8">
                 <div className="relative">
-                  {order.statusHistory.map((step, index) => (
+                  {/* Every history row has already happened, so each is shown done; a stop (failed, cancelled) gets a red X. */}
+                  {timeline.map((step, index) => {
+                    const { label, tone } = customerStatus(step.new_status);
+                    const stopped = tone === "stopped";
+                    return (
                     <div key={index} className="flex gap-4 pb-8 last:pb-0">
                       <div className="relative flex flex-col items-center">
-                         <div className={`z-10 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white shadow-sm ${
-                           step.new_status === 'completed' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400'
+                         <div className={`z-10 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white text-white shadow-sm ${
+                           stopped ? 'bg-destructive' : 'bg-primary'
                          }`}>
-                           {step.new_status === 'completed' ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                           {stopped ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                          </div>
-                         {index !== order.statusHistory.length - 1 && (
-                            <div className={`absolute top-8 h-full w-0.5 ${
-                              step.new_status === 'completed' ? 'bg-primary' : 'bg-gray-200'
-                            }`} />
+                         {index !== timeline.length - 1 && (
+                            <div className="absolute top-8 h-full w-0.5 bg-primary" />
                          )}
                       </div>
                       <div className="flex flex-col">
-                        <p className={`text-sm font-bold ${step.new_status === 'completed' ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {step.new_status}
+                        <p className={`text-sm font-bold ${stopped ? 'text-destructive' : 'text-gray-900'}`}>
+                          {label}
                         </p>
                         <p className="text-xs text-gray-500">{new Date(step.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -245,6 +330,12 @@ const OrderDetail = () => {
                       <h4 className="font-bold text-gray-900">{item.product_name}</h4>
                       <p className="text-sm text-gray-500">Unit: {item.unit}</p>
                       <p className="mt-1 text-xs font-medium text-gray-400">Qty: {Number(item.quantity)}</p>
+                      {canReturn && returnable.some((i) => i.id === item.id) && (
+                        <button type="button" onClick={() => setReturnItemId(item.id)}
+                          className="mt-1 self-start text-xs font-bold text-primary hover:underline no-print">
+                          Report a problem
+                        </button>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-primary">₹{item.line_total}</p>
@@ -258,7 +349,33 @@ const OrderDetail = () => {
 
           {/* Sidebar Info */}
           <div className="space-y-6">
-            
+
+            {/* Help: returns now; "Talk to us" is the support ticket (later). */}
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm no-print">
+              <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
+                <h3 className="flex items-center gap-2 font-bold text-gray-900">
+                  <HelpCircle className="h-5 w-5 text-primary" />
+                  Help
+                </h3>
+              </div>
+              <div className="space-y-2 p-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Order related</p>
+                {canReturn && returnable.length > 0 ? (
+                  <button type="button" onClick={() => setReturnItemId("")}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-left text-sm font-bold text-gray-700 hover:bg-gray-50">
+                    Return the item
+                  </button>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    {order.status === "DELIVERED" ? "Returns close 24 hours after delivery." : "Returns open once the order is delivered."}
+                  </p>
+                )}
+                <button type="button" disabled className="w-full rounded-lg border border-gray-200 px-4 py-2 text-left text-sm font-bold text-gray-400">
+                  Talk to us · coming soon
+                </button>
+              </div>
+            </div>
+
             {/* Payment Summary */}
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
               <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
@@ -289,7 +406,7 @@ const OrderDetail = () => {
                   <span className="text-xl font-extrabold text-primary">₹{order.total_amount}</span>
                 </div>
                 <div className="mt-4 rounded-lg bg-success p-3 text-center">
-                  <p className="text-xs font-bold text-primary">You saved ₹{order.discount_amount} on this order!</p>
+                  <p className="text-xs font-bold text-yellow-300">You saved ₹{order.discount_amount} on this order!</p>
                 </div>
               </div>
             </div>
@@ -337,17 +454,18 @@ const OrderDetail = () => {
 
       </div>
 
-      {/* Hidden Printable Invoice Section */}
+      {returnItemId !== null && (
+        <ReturnForm orderId={orderId} items={returnable} itemId={returnItemId || undefined} onClose={() => setReturnItemId(null)} />
+      )}
+
+      {/* Hidden Printable Invoice Section. A direct child of <body>, so printing can drop everything else with
+          display: none (visibility: hidden kept the page's height and printed blank pages after the invoice). */}
+      {createPortal(
       <div className="printable-invoice hidden print:block">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            body * { visibility: hidden; }
-            .printable-invoice, .printable-invoice * { visibility: visible; }
-            .printable-invoice { 
-              position: absolute; 
-              left: 0; 
-              top: 0; 
-              width: 100%; 
+            body > *:not(.printable-invoice) { display: none !important; }
+            .printable-invoice {
               padding: 40px;
               color: #000;
               background: #fff;
@@ -372,7 +490,7 @@ const OrderDetail = () => {
              <div className="mt-4 text-sm">
                 <p><span className="font-bold">Order ID:</span> {order.id}</p>
                 <p><span className="font-bold">Date:</span> {new Date(order.created_at).toLocaleDateString()}</p>
-                <p><span className="font-bold">Status:</span> {order.status}</p>
+                <p><span className="font-bold">Status:</span> {customerStatus(order.status).label}</p>
              </div>
           </div>
         </div>
@@ -451,7 +569,9 @@ const OrderDetail = () => {
            <p className="text-[10px] font-bold uppercase text-gray-400">THANK YOU FOR SHOPPING ORGANIC!</p>
            <p className="text-[10px] text-gray-400 mt-1">This is a computer generated invoice and does not require a physical signature.</p>
         </div>
-      </div>
+      </div>,
+      document.body
+      )}
     </div>
   );
 };

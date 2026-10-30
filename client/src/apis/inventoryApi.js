@@ -59,6 +59,12 @@ const InventoryApi = {
     return response.data;
   },
 
+  // Storefront: [{ variant_id, available }] for the variants the customer's store (x-warehouse-id) carries.
+  async fetchStoreStock(variantIds) {
+    const response = await api.post("/inventory/store-stock", { variantIds });
+    return response.data.data;
+  },
+
   async fetchAllVariants() {
     const response = await api.get("/variants");
     return response.data;

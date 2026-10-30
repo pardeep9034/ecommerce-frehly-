@@ -20,13 +20,16 @@ export const clearToken = () => {
   sessionStorage.removeItem(KEY);
 };
 
-// The role claim of a JWT, or null. Reads the payload only; the services are what verify the signature.
-export const getTokenRole = (token) => {
+// The claims of a JWT ({ user_id, role, warehouse_id, ... }), or null. Reads the payload only; the services are
+// what verify the signature.
+export const getTokenClaims = (token) => {
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return payload.role || null;
+    return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
   } catch {
     return null;
   }
 };
+
+// The role claim of a JWT, or null.
+export const getTokenRole = (token) => getTokenClaims(token)?.role || null;

@@ -25,7 +25,10 @@ const variantSchema = z.object({
   mrp: z.coerce.number({ invalid_type_error: "Enter an MRP" }).min(0, "Enter an MRP"),
   barcode: z.string().optional().default(""),
   status: z.string().optional().default(""),
-});
+}).refine((values) => values.price <= values.mrp, { message: "Selling price can't be above MRP", path: ["price"] });
+
+// Marks the fields the server requires.
+const Required = () => <span className="text-destructive">*</span>;
 
 const EMPTY_VARIANT = {
   unitType: "",
@@ -37,7 +40,8 @@ const EMPTY_VARIANT = {
   status: "",
 };
 
-const VariantModal = ({ open, onClose, variant, onSave }) => {
+// The parent closes the modal once the save succeeds; saving disables the button meanwhile.
+const VariantModal = ({ open, onClose, variant, onSave, saving = false }) => {
   const isEditMode = Boolean(variant);
   const { unitsData } = useUnits();
   const units = unitsData?.data?.units || [];
@@ -90,10 +94,9 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
       mrp: values.mrp,
       measurement_unit_id: Number.parseInt(values.measurement_unit_id, 10),
       status: values.status || "ARCHIVED",
-      barcode: values.barcode,
+      // Empty means no barcode: the server takes null, not "".
+      barcode: values.barcode.trim() || null,
     });
-
-    onClose();
   };
 
   return (
@@ -128,7 +131,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
                 name="unitType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit type</FormLabel>
+                    <FormLabel>Unit type <Required /></FormLabel>
                     <Select
                       value={field.value}
                       onValueChange={(value) => {
@@ -158,7 +161,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
                 name="measurement_unit_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit</FormLabel>
+                    <FormLabel>Unit <Required /></FormLabel>
                     <Select
                       value={field.value}
                       onValueChange={(value) => {
@@ -193,7 +196,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
               name="quantity"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Value</FormLabel>
+                  <FormLabel>Value <Required /></FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -214,7 +217,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Selling price</FormLabel>
+                    <FormLabel>Selling price <Required /></FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
@@ -228,7 +231,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
                 name="mrp"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>MRP</FormLabel>
+                    <FormLabel>MRP <Required /></FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
@@ -244,7 +247,7 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
               name="barcode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Barcode</FormLabel>
+                  <FormLabel>Barcode <span className="font-normal text-muted-foreground">(optional)</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter barcode" {...field} />
                   </FormControl>
@@ -306,7 +309,9 @@ const VariantModal = ({ open, onClose, variant, onSave }) => {
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit">{isEditMode ? "Save changes" : "Add variant"}</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : isEditMode ? "Save changes" : "Add variant"}
+              </Button>
             </div>
           </form>
         </Form>

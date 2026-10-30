@@ -2,8 +2,8 @@ import { Info, X } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
-import { Card, LoadNote, StatusPill } from "@/components/partner/PartnerBits";
-import { usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
+import { Card, LoadNote, SavingNote, StatusPill } from "@/components/partner/PartnerBits";
+import { useJobAction, usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
 import { FAILED_REASONS, STEP_LABEL, timeOf } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
 
@@ -12,6 +12,7 @@ const Failed = () => {
   const navigate = useNavigate();
   const { assignment: a, error } = usePartnerAssignment(assignmentId);
   const update = useUpdateAssignmentStatus();
+  const job = useJobAction(a);
   const [reason, setReason] = useState(FAILED_REASONS[0].code);
   const [remarks, setRemarks] = useState("");
 
@@ -34,17 +35,17 @@ const Failed = () => {
     }
     // mutateAsync, not mutate's callbacks: the guard above unmounts this screen as soon as the refetch shows the job
     // finished, and mutate's own callbacks do not run after that.
-    try {
-      await update.mutateAsync({
+    const saved = await job.run(() =>
+      update.mutateAsync({
         assignmentId: a.id,
         status: "DELIVERY_FAILED",
         reason_code: reason,
         ...(note ? { note } : {}),
-      });
+      }),
+    );
+    if (saved) {
       notify.success("Failed attempt reported");
       navigate("/partner/home", { replace: true });
-    } catch (e) {
-      notify.apiError(e);
     }
   };
 
@@ -97,9 +98,10 @@ const Failed = () => {
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 shrink-0" /> The store sees this and decides whether to reschedule or reassign.
           </p>
-          <button type="submit" disabled={update.isPending} className="h-12 w-full rounded-xl bg-destructive text-sm font-bold text-white disabled:opacity-60">
+          <button type="submit" disabled={job.busy} className="h-12 w-full rounded-xl bg-destructive text-sm font-bold text-white disabled:opacity-60">
             Report failed attempt
           </button>
+          <SavingNote phase={job.phase} />
         </form>
       </Card>
     </MobileShell>

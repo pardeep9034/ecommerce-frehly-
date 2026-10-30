@@ -43,6 +43,21 @@ export const usePartnerWork = (partnerId) => {
   return { work: data, isLoading, error };
 };
 
+// Edit details and suspend / reactivate from the partner page. The page, the partners list and the Active / Suspended
+// cards ("partnerSummary") all show the partner row, so each refetches.
+export const useUpdatePartner = (partnerId) => {
+  const queryClient = useQueryClient();
+  const onSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["partner-onboarding", partnerId] });
+    queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
+    queryClient.invalidateQueries({ queryKey: ["partnerSummary"] });
+  };
+
+  const update = useMutation({ mutationFn: (payload) => DeliveryApi.updatePartner(partnerId, payload), onSuccess });
+  const setSuspended = useMutation({ mutationFn: (suspend) => DeliveryApi.setPartnerSuspended(partnerId, suspend), onSuccess });
+  return { update, setSuspended };
+};
+
 export const useOrderAssignment = (orderId, enabled) => {
   const { data, isLoading } = useQuery({
     queryKey: ["order-assignment", orderId],
@@ -61,6 +76,20 @@ export const useDeliverySlots = (enabled) => {
   });
 
   return { slots: data?.data || [], isLoading };
+};
+
+// Admin slot list (active and switched off). Saving also refetches the assign screen's active list.
+export const useSlotAdmin = () => {
+  const queryClient = useQueryClient();
+  const { data, isLoading, error } = useQuery({ queryKey: ["delivery-slots-all"], queryFn: DeliveryApi.fetchAllSlots });
+  const onSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["delivery-slots-all"] });
+    queryClient.invalidateQueries({ queryKey: ["delivery-slots"] });
+  };
+
+  const create = useMutation({ mutationFn: DeliveryApi.createSlot, onSuccess });
+  const update = useMutation({ mutationFn: ({ id, payload }) => DeliveryApi.updateSlot(id, payload), onSuccess });
+  return { slots: data ?? [], isLoading, error, create, update };
 };
 
 export const useAssignDelivery = (orderId) => {

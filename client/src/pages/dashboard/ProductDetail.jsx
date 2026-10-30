@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ArrowLeft, Plus, Trash2, Star, ImagePlus, Edit2, Check } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
+import { invalidateProductLists } from "@/hooks/use-product";
 import productAttributeApi from "@/apis/productAttributeApi";
 import useVariant from "@/hooks/use-variant";
 import useProductImage from "@/hooks/use-productImage";
@@ -96,7 +97,7 @@ const ProductDetail = () => {
   const updateProductMutation = useMutation({
     mutationFn: (data) => ProductApi.updateProduct(productId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      invalidateProductLists(queryClient);
       toast.success("Product saved");
     },
   });
@@ -118,14 +119,17 @@ const ProductDetail = () => {
   const [editingVariant, setEditingVariant] = useState(null);
   const [stockVariantId, setStockVariantId] = useState(null);
 
+  // The modal stays open until the server accepts, so a rejected save keeps what was typed.
   const saveVariant = (payload) => {
+    const done = {
+      onSuccess: () => { setIsVariantModalOpen(false); setEditingVariant(null); },
+      onError: (error) => toast.error(error?.response?.data?.message || "Couldn't save the variant"),
+    };
     if (editingVariant) {
-      updateVariantMutation.mutate({ id: editingVariant.id, data: { ...payload, product_id: Number(productId) } });
+      updateVariantMutation.mutate({ id: editingVariant.id, data: { ...payload, product_id: Number(productId) } }, done);
     } else {
-      createVariantMutation.mutate({ ...payload, product_id: Number(productId) });
+      createVariantMutation.mutate({ ...payload, product_id: Number(productId) }, done);
     }
-    setIsVariantModalOpen(false);
-    setEditingVariant(null);
   };
 
   // Images tab
@@ -591,6 +595,7 @@ const ProductDetail = () => {
         onClose={() => { setIsVariantModalOpen(false); setEditingVariant(null); }}
         variant={editingVariant}
         onSave={saveVariant}
+        saving={createVariantMutation.isPending || updateVariantMutation.isPending}
       />
       <StockModal open={Boolean(stockVariantId)} variantId={stockVariantId} onClose={() => setStockVariantId(null)} />
       <ProductAttributeModal

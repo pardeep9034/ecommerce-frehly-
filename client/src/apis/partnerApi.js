@@ -30,6 +30,30 @@ const PartnerApi = {
     );
     return response.data;
   },
+  // A return pickup at the customer's: collected (then take it to the store) or not.
+  async finishPickup(assignmentId, collected) {
+    const response = await api.patch(`/delivery-partners/me/assignments/${assignmentId}/pickup`, { collected });
+    return response.data;
+  },
+  // The photo of what the customer turned away. Needed before "Delivered" with any item turned away.
+  async uploadDoorPhoto(assignmentId, file) {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await api.post(`/delivery-partners/me/assignments/${assignmentId}/door-photo`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  // Pay on delivery by UPI. method: "POST" makes a QR for what is due (a second POST is "Retry": the old one is closed),
+  // "GET" checks whether it was paid, "DELETE" closes it (switching to cash). Each answers { paid, amount, qr }.
+  async doorQr(assignmentId, method, rejectedItems) {
+    const response = await api.request({
+      url: `/delivery-partners/me/assignments/${assignmentId}/door-qr`,
+      method,
+      ...(method === "POST" ? { data: { rejected_items: rejectedItems } } : {}),
+    });
+    return response.data;
+  },
   // dir: "in" (handed to me) or "out" (handed on by me). Open ones plus today's finished ones.
   async getHandovers(dir) {
     const response = await api.get("/delivery-partners/me/handovers", { params: { dir } });

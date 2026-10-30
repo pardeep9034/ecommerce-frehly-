@@ -3,21 +3,20 @@ import joi from "joi";
 const MOVEMENT_TYPES=["STOCK_IN","SALE","ADJUSTMENT","DAMAGE","RETURN"];
 
 const schemas={
+    // Adding an item to a store. The opening count is recorded as a STOCK_IN movement, so stock always has a trail;
+    // after that, stock only changes through movements.
     createInventorySchema:joi.object({
-        variant_id:joi.number().integer().required(),
-        current_stock:joi.number().integer().required(),
-        warehouse_id:joi.number().integer().required(),
-        reserved_stock:joi.number().integer().optional(),
-        low_stock_threshold:joi.number().integer().optional(),
-        last_stock_update_at:joi.date().optional(),
+        variant_id:joi.number().integer().positive().required(),
+        warehouse_id:joi.number().integer().positive().required(),
+        opening_stock:joi.number().integer().min(0).default(0),
+        low_stock_threshold:joi.number().integer().min(0).optional(),
     }),
+    storeStockSchema:joi.object({
+        variantIds:joi.array().items(joi.number().integer().positive()).max(500).required(),
+    }),
+    // Only the low-stock level; stock counts change through /stock-movements.
     updateInventorySchema:joi.object({
-        variant_id:joi.number().integer().required(),
-        current_stock:joi.number().integer().optional(),
-        reserved_stock:joi.number().integer().optional(),
-        low_stock_threshold:joi.number().integer().optional(),
-        last_stock_update_at:joi.date().optional(),
-        warehouse_id:joi.number().integer().required()
+        low_stock_threshold:joi.number().integer().min(0).required(),
     }),
     deleteInventorySchema:joi.object({
         id:joi.number().integer().required(),
@@ -77,10 +76,18 @@ const schemas={
         zone_id:joi.number().optional(),
         latitude:joi.number().optional(),
         longitude:joi.number().optional(),
-        contact_person:joi.string().optional(),
-        contact_phone:joi.string().optional(),
+        // null: auth-service clears them when a warehouse is left without a store manager.
+        contact_person:joi.string().allow(null).optional(),
+        contact_phone:joi.string().allow(null).optional(),
         is_active:joi.boolean().optional(),
-        operational_status:joi.string().valid("OPEN","PAUSED","MAINTENANCE","SETTING_UP").optional()
+        operational_status:joi.string().valid("OPEN","PAUSED","MAINTENANCE","SETTING_UP").optional(),
+        pincode:joi.string().pattern(/^\d{6}$/).allow(null).optional(),
+        store_open_time:joi.string().pattern(/^\d{2}:\d{2}(:\d{2})?$/).allow(null).optional(),
+        store_close_time:joi.string().pattern(/^\d{2}:\d{2}(:\d{2})?$/).allow(null).optional(),
+        pack_by_minutes:joi.number().integer().min(1).max(240).allow(null).optional(),
+        pause_reason:joi.string().trim().max(255).allow(null,"").optional(),
+        paused_until:joi.date().iso().allow(null).optional(),
+        maintenance_message:joi.string().trim().max(255).allow(null,"").optional()
     })
     
 };

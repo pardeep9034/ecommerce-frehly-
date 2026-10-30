@@ -11,7 +11,7 @@ import { send } from "../../utils/sms/index.js";
 import { env } from "../../config/env.js";
 import { STAFF_ROLES } from "../../constants/roles.js";
 
-// Admin and ops-staff accounts for the admin Staff pages (super admins only; see adminUser.routes.js).
+// Admin and ops-staff accounts for the admin Staff pages (super admins only, bar the own-store list; see adminUser.routes.js).
 // Passwords an admin types are never echoed back, and a generated one goes out only by SMS.
 
 const ROLE_LABELS = { SUPER_ADMIN: "super admin", ADMIN: "store admin", OPS_STAFF: "ops staff" };
@@ -151,18 +151,54 @@ const signOut = async (userId, reason, transaction) => {
 const audit = (userId, eventType, details, transaction) =>
   AuditRepository.logEvent({ user_id: userId, event_type: eventType, status: "SUCCESS", details }, { transaction });
 
+// A warehouse's contact person and phone are its store manager's (null when it has none). Warehouses live in
+// inventory-service, so this runs after the save and never throws: a failed call is logged and the staff change stands.
+const setWarehouseContact = async (warehouseId, manager) => {
+  if (!env.INTERNAL_API_KEY) return;
+  try {
+    const response = await fetch(`${env.API_GATEWAY_URL}/warehouses/${warehouseId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-internal-key": env.INTERNAL_API_KEY },
+      body: JSON.stringify({ contact_person: manager ? fullName(manager) : null, contact_phone: manager?.phone ?? null }),
+    });
+    if (!response.ok) logger.warn(`Warehouse ${warehouseId} contact not updated: HTTP ${response.status}`);
+  } catch (error) {
+    logger.warn(`Warehouse ${warehouseId} contact not updated: ${error.message}`);
+  }
+};
+
+// After a store manager is added, moved, renamed or made ops staff: the warehouse they were at and the one they are
+// at now each get their current manager (someone else left there, or nobody).
+const syncManagerContacts = async (before, after) => {
+  const atWarehouse = (user) => user?.role === "ADMIN" && user.warehouse_id != null;
+  const ids = new Set([before, after].filter(atWarehouse).map((user) => Number(user.warehouse_id)));
+  for (const warehouseId of ids) {
+    const manager = atWarehouse(after) && Number(after.warehouse_id) === warehouseId
+      ? after
+      : await userRepository.findOne({ role: "ADMIN", warehouse_id: warehouseId, is_active: true, deleted_at: null });
+    await setWarehouseContact(warehouseId, manager);
+  }
+};
+const CONTACT_FIELDS = ["role", "warehouse_id", "first_name", "last_name", "phone"];
+
 class StaffService {
   // The Staff page list: role / status / warehouse ("none" = unassigned) / search, paged, plus summary counts.
   // ponytail: loads every staff account and filters in memory (staff is tens of rows); move the filters to SQL if it reaches thousands.
-  async listStaff(query) {
+  // The super admin lists every store. A store manager or store staff (the warehouse Team tab, read only) lists only
+  // their own store's team, summary counts included; with no store assigned they get a 403.
+  async listStaff(query, caller) {
     // The Staff page sends an unset filter as an empty string (`role=`).
     const given = Object.fromEntries(Object.entries(query ?? {}).filter(([, value]) => value !== ""));
+    const own = caller?.role === "SUPER_ADMIN" ? null : Number(caller?.warehouse_id);
+    if (own !== null && !(Number.isInteger(own) && own > 0)) throw new AppError("No store is assigned to this account", 403);
+    if (own !== null) given.warehouse_id = own;
     const { page, limit, role: roleFilter, status, warehouse_id: warehouseId, search } = parse(listSchema, given);
     const now = new Date();
-    const all = (await userRepository.findAllStaff(STAFF_ROLES, SAFE_COLUMNS)).map((user) => {
+    const staffRows = (await userRepository.findAllStaff(STAFF_ROLES, SAFE_COLUMNS)).map((user) => {
       const staff = toStaff(user);
       return { ...staff, status: statusOf(staff, now) };
     });
+    const all = own === null ? staffRows : staffRows.filter((u) => u.warehouse_id === own);
 
     const term = search?.toLowerCase();
     const matches = all.filter((u) =>
@@ -220,6 +256,7 @@ class StaffService {
       throw error;
     }
 
+    await syncManagerContacts(null, user);
     return { ...toStaff(user), invite_sent: link ? await sendLogin(user, temporary) : false };
   }
 
@@ -241,6 +278,7 @@ class StaffService {
     if (!Object.keys(changes).length) return toStaff(user);
 
     const from = user.role;
+    const before = { role: user.role, warehouse_id: user.warehouse_id };
     const db = await initializeModels();
     try {
       await db.sequelize.transaction(async (transaction) => {
@@ -256,6 +294,7 @@ class StaffService {
       if (error.name === "SequelizeUniqueConstraintError") throw new AppError("This phone number or email is already registered", 409);
       throw error;
     }
+    if (CONTACT_FIELDS.some((key) => key in changes)) await syncManagerContacts(before, user);
     return toStaff(user);
   }
 

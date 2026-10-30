@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import BaseRepository from "./baseRepository.js";
+import { notHoldingReturns } from "../../utils/returnHold.js";
 
 class DeliveryPartnerRepository extends BaseRepository {
   constructor() {
@@ -95,15 +96,16 @@ class DeliveryPartnerRepository extends BaseRepository {
     return await Model.findByPk(id, { include: [{ association: "zone", attributes: ["id", "name"] }] });
   }
 
-  // Names and phones of the partners on the other side of a partner's handovers (partner "me" routes only).
+  // Names and phones of the partners on the other side of a partner's handovers (partner "me" routes), and the
+  // names on the staff-only available-riders list.
   async findContacts(ids) {
     if (ids.length === 0) return [];
     const Model = (await this.getModel()).unscoped();
     return await Model.findAll({ where: { id: ids }, attributes: ["id", "name", "phone"] });
   }
 
-  // Who a partner can hand an order to: same zone, active, online, room for one more, never themselves; least busy first.
-  // The same filter handOver() applies to the receiver. Name only, no phone.
+  // Who a partner can hand an order to: same zone, active, online, room for one more, not holding goods owed to a store,
+  // never themselves; least busy first. The same filter handOver() applies to the receiver. Name only, no phone.
   async findHandoverCandidates(zoneId, excludeId) {
     const Model = (await this.getModel()).unscoped();
     return await Model.findAll({
@@ -111,7 +113,7 @@ class DeliveryPartnerRepository extends BaseRepository {
         zone_id: zoneId,
         status: "ACTIVE",
         is_online: true,
-        id: { [Op.ne]: excludeId },
+        id: { [Op.ne]: excludeId, ...notHoldingReturns().id },
         current_active_orders: { [Op.lt]: Model.sequelize.col("max_active_orders") },
       },
       attributes: ["id", "name", "vehicle_type", "current_active_orders", "max_active_orders"],

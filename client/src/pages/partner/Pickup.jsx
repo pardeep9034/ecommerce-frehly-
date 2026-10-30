@@ -2,14 +2,13 @@ import { Check, Navigation, Phone } from "lucide-react";
 import { Navigate, useParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
 import { Card, LoadNote, RoundLink, Stepper, StatusPill } from "@/components/partner/PartnerBits";
-import { usePartnerAssignment, useUpdateAssignmentStatus } from "@/hooks/use-partner";
-import { NEXT_LABEL, NEXT_STATUS, STEP_INDEX, STEP_LABEL, mapsUrl, timeOf } from "@/lib/assignmentStatus";
-import { notify } from "@/lib/notify";
+import { usePartnerAssignment } from "@/hooks/use-partner";
+import { STEP_INDEX, STEP_LABEL, mapsUrl, timeOf } from "@/lib/assignmentStatus";
 
 const Pickup = () => {
   const { assignmentId } = useParams();
-  const { assignment: a, error } = usePartnerAssignment(assignmentId);
-  const update = useUpdateAssignmentStatus();
+  // Polls: the store's handover flips a.status to PICKED_UP, and the guard below moves on to Deliver.
+  const { assignment: a, error } = usePartnerAssignment(assignmentId, 5000);
 
   if (!a) {
     return (
@@ -21,10 +20,6 @@ const Pickup = () => {
   // A stale link (back button, old tab): send the partner to where this job is now.
   if (a.assignment_status !== "ACTIVE") return <Navigate to="/partner/home" replace />;
   if (a.status !== "ASSIGNED") return <Navigate to={`/partner/orders/${a.id}/deliver`} replace />;
-
-  // No navigate here: the refetch after the move flips a.status, and the guard above sends the partner on to Deliver.
-  const confirm = () =>
-    update.mutate({ assignmentId: a.id, status: NEXT_STATUS[a.status] }, { onError: (e) => notify.apiError(e) });
 
   return (
     <MobileShell
@@ -68,14 +63,11 @@ const Pickup = () => {
         )}
       </Card>
 
-      <button
-        type="button"
-        disabled={update.isPending}
-        onClick={confirm}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60"
-      >
-        <Check className="h-4 w-4" /> {NEXT_LABEL[a.status]}
-      </button>
+      <Card className="text-center">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Pickup code</p>
+        <p className="my-2 font-display text-4xl font-bold tracking-[0.3em] text-foreground">{a.pickup_code ?? "----"}</p>
+        <p className="text-sm text-muted-foreground">Show this code at the store. The order moves on once they hand it over.</p>
+      </Card>
     </MobileShell>
   );
 };

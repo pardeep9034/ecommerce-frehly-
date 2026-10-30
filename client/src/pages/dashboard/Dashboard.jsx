@@ -157,7 +157,7 @@ const Dashboard = () => {
         <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-display text-base font-semibold text-foreground">Warehouses</h2>
-            <Link to="/admin/inventory/warehouses" className="text-sm font-semibold text-primary hover:underline">
+            <Link to="/admin/warehouses" className="text-sm font-semibold text-primary hover:underline">
               Manage
             </Link>
           </div>

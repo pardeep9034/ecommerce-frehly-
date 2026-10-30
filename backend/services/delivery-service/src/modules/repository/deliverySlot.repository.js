@@ -17,8 +17,12 @@ class DeliverySlotRepository extends BaseRepository {
     return await this.findAndCountAll({}, {
       limit,
       offset,
-      order: [["created_at", "DESC"]]
+      order: [["start_time", "ASC"], ["name", "ASC"]]
     });
+  }
+
+  async updateDeliverySlot(id, data, options = {}) {
+    return await this.updateById(id, data, options);
   }
 }
 

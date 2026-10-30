@@ -1,6 +1,7 @@
 import { Search, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import useDeliveryZone from "@/hooks/use-deliveryZone";
+import { useState } from "react";
+import useDeliveryZone, { useDeliveryZoneCities } from "@/hooks/use-deliveryZone";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import ZoneTable from "@/components/dashboard/ZoneTable";
 import DeliveryZonePanel from "@/components/dashboard/DeliveryZonePanel";
 import Pagination from "@/components/common/Pagination";
@@ -15,25 +16,24 @@ const Zones = () => {
   const [editingZone, setEditingZone] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
 
+  // The server filters and pages, so a city or search covers every zone, not just the page on screen.
+  const search = useDebouncedValue(searchTerm.trim());
   const { deliveryZonesData, isLoading, createMutation, updateMutation, deleteMutation } = useDeliveryZone(
     currentPage,
-    10
+    10,
+    { ...(cityFilter !== "All" && { city: cityFilter }), ...(search && { search }) }
   );
+  const { cities } = useDeliveryZoneCities();
 
   const zones = deliveryZonesData?.data?.deliveryZones ?? EMPTY;
   const pagination = deliveryZonesData?.data?.pagination ?? {};
 
-  const cities = useMemo(() => ["All", ...new Set(zones.map((zone) => zone.city).filter(Boolean))], [zones]);
-
-  const filteredZones = useMemo(() => {
-    return zones.filter((zone) => {
-      const matchesSearch =
-        zone.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        zone.code?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCity = cityFilter === "All" || zone.city === cityFilter;
-      return matchesSearch && matchesCity;
-    });
-  }, [zones, searchTerm, cityFilter]);
+  // A new filter starts again from page 1.
+  const [lastFilter, setLastFilter] = useState({ cityFilter, search });
+  if (lastFilter.cityFilter !== cityFilter || lastFilter.search !== search) {
+    setLastFilter({ cityFilter, search });
+    setCurrentPage(1);
+  }
 
   const saveZone = (payload) => {
     if (editingZone) {
@@ -101,9 +101,10 @@ const Zones = () => {
                 onChange={(event) => setCityFilter(event.target.value)}
                 className="h-[38px] rounded-lg border border-border bg-white px-3 text-sm text-foreground outline-none"
               >
+                <option value="All">All cities</option>
                 {cities.map((city) => (
                   <option key={city} value={city}>
-                    {city === "All" ? "All cities" : city}
+                    {city}
                   </option>
                 ))}
               </select>
@@ -111,7 +112,7 @@ const Zones = () => {
           </div>
 
           <ZoneTable
-            zones={filteredZones}
+            zones={zones}
             onEdit={editZone}
             onDelete={handleDelete}
             isLoading={isLoading}

@@ -50,7 +50,7 @@ const DeliveryProgress = ({ status }) => {
         })}
       </div>
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Progresses automatically once a delivery partner is assigned — no further action needed.
+        The store hands the order over with the rider's pickup code, then it moves on by itself.
       </p>
     </div>
   );

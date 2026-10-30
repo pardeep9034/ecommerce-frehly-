@@ -7,8 +7,18 @@ import { useSelectedWarehouse } from "@/hooks/use-selected-warehouse";
 // Dropdown to switch the active warehouse (same Select as the Products filters). No "All" option on purpose —
 // see use-selected-warehouse.js.
 export const WarehouseSelect = ({ className = "" }) => {
-  const { warehouseId, setWarehouseId } = useSelectedWarehouse();
+  const { warehouseId, setWarehouseId, locked } = useSelectedWarehouse();
   const { warehouses } = useWarehouse(1, 100);
+
+  // A store account works in its own store only: show it, nothing to switch.
+  if (locked) {
+    return (
+      <span className={`inline-flex items-center gap-2 text-sm font-medium text-foreground ${className}`}>
+        <Warehouse className="h-4 w-4 text-primary" aria-hidden="true" />
+        {warehouses.find((warehouse) => String(warehouse.id) === warehouseId)?.name ?? "Your store"}
+      </span>
+    );
+  }
 
   return (
     <Select value={warehouseId} onValueChange={setWarehouseId}>
@@ -30,8 +40,10 @@ export const WarehouseSelect = ({ className = "" }) => {
 
 // Blocking popup shown while no warehouse is chosen; it can't be dismissed without picking one.
 export const WarehousePickerDialog = () => {
-  const { warehouseId, setWarehouseId } = useSelectedWarehouse();
-  const { warehouses, isLoading } = useWarehouse(1, 100);
+  const { warehouseId, setWarehouseId, locked } = useSelectedWarehouse();
+  const { warehouses: allWarehouses, isLoading } = useWarehouse(1, 100);
+  // Locked with no store: the account isn't assigned to one yet, so there is nothing to pick.
+  const warehouses = locked ? [] : allWarehouses;
 
   return (
     <Dialog open={!warehouseId}>
@@ -46,7 +58,8 @@ export const WarehousePickerDialog = () => {
         </DialogHeader>
         <div className="space-y-2">
           {isLoading && <p className="text-sm text-muted-foreground">Loading warehouses...</p>}
-          {!isLoading && warehouses.length === 0 && <p className="text-sm text-muted-foreground">No warehouses found. Create one first.</p>}
+          {locked && <p className="text-sm text-muted-foreground">No store is assigned to your account yet. Ask the super admin to assign you to one.</p>}
+          {!locked && !isLoading && warehouses.length === 0 && <p className="text-sm text-muted-foreground">No warehouses found. Create one first.</p>}
           {warehouses.map((warehouse) => (
             <button
               key={warehouse.id}

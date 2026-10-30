@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   Star, 
   ShoppingCart, 
@@ -18,19 +18,21 @@ import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 import useVariant from "@/hooks/use-variant";
 import useProduct from "@/hooks/use-product";
-import useInventory from "@/hooks/use-inventory";
+import { useStoreStock, applyStoreStock } from "@/hooks/use-inventory";
 import { useAddToCartMutation } from "@/hooks/use-addToCart";
 import ShopProductCard from "@/components/freshly/ShopProductCard";
+
+const NO_VARIANTS = [];
 
 const ShopProductDetail = () => {
   const { productId } = useParams();
   const dispatch = useDispatch();
-  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const addToCartMutation = useAddToCartMutation();
 
   const handleAddToCart = () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || !selectedVariant.in_stock) return;
     addToCartMutation.mutate(
       { variant_id: selectedVariant.id, quantity },
       {
@@ -44,7 +46,7 @@ const ShopProductDetail = () => {
               variant_id: selectedVariant.id,
               product_name: product.name,
               image: product.image,
-              variant_name: `${selectedVariant.value}${selectedVariant.unit}`,
+              variant_name: selectedVariant.variant_name,
               quantity: quantity,
               price: selectedVariant.price
             })
@@ -54,52 +56,45 @@ const ShopProductDetail = () => {
     );
   };
 
-  // Fetch Product Data
+  // Storefront read: 404 unless the product is ACTIVE; only its ACTIVE variants, maybe none (own key, the admin page
+  // caches all variants).
   const { data: productResponse, isLoading: productLoading, error: productError } = useQuery({
-    queryKey: ["product", productId],
-    queryFn: () => ProductApi.getProductById(productId),
+    queryKey: ["product", productId, "storefront"],
+    queryFn: () => ProductApi.getProductById(productId, { storefront: true }),
     enabled: !!productId,
+    retry: (count, error) => error?.response?.status !== 404 && count < 3,
   });
 
-  const product =productResponse?.data;
-  const variant=product?.variants|| [];
-  const variantIds=variant.map((variant)=>
-    variant.id
-  )
-  console.log("variants ids",variantIds)
+  const product = productResponse?.data;
+  const productVariants = product?.variants || NO_VARIANTS;
+  const variantIds = productVariants.map((v) => v.id);
 
-  // Fetch Variants
-  const { variants,variantInfo, isLoading: variantsLoading } = useVariant({ productId, variantIds });
-  console.log("variant info",variantInfo)
+  // Pack names from by-ids; stock from the customer's store.
+  const { variantInfo } = useVariant({ variantIds });
+  const { stock, isLoading: stockLoading } = useStoreStock(variantIds);
 
-  // Only offer variants currently in stock
-  const { inStockVariantIds } = useInventory(undefined, undefined, undefined, variantIds);
-  const inStockVariants = useMemo(() => {
-    const all = variantInfo || [];
-    if (!inStockVariantIds) return all; // not resolved yet, show unfiltered rather than flash empty
-    const inStockSet = new Set(inStockVariantIds.map(Number));
-    return all.filter((v) => inStockSet.has(Number(v.id)));
-  }, [variantInfo, inStockVariantIds]);
+  // Every ACTIVE pack; one the store doesn't carry, or has at 0, is Out of stock.
+  const shownVariants = useMemo(() => {
+    const infoById = new Map((variantInfo || []).map((v) => [Number(v.id), v]));
+    return applyStoreStock(
+      productVariants.map((v) => ({ ...v, ...infoById.get(Number(v.id)) })),
+      stock
+    );
+  }, [productVariants, variantInfo, stock]);
 
-  // Default selection for variant
-  useEffect(() => {
-    if (inStockVariants?.length > 0 && !selectedVariant) {
-      setSelectedVariant(inStockVariants[0]);
-    }
-  }, [inStockVariants, selectedVariant]);
-console.log("---",selectedVariant)
-  // Fetch Related Products (same category)
-  const categoryName = product?.Category?.name || product?.category || "All";
-  console.log("category",product?.category_id)
-  const { products: allProductsData ,catProducts} = useProduct({ page: 1, limit: 20, catId: product?.category_id });
-  
-  // const relatedProducts = useMemo(() => {
-  
-  //   return catProducts
-    
-  // }, [allProductsData, product, categoryName]);
+  // The picked pack, else the first in stock, else the first (shown as Out of stock).
+  const selectedVariant =
+    shownVariants.find((v) => v.id === selectedId) ||
+    shownVariants.find((v) => v.in_stock) ||
+    shownVariants[0] ||
+    null;
 
-  const isLoading = productLoading || variantsLoading;
+  // Related products: same category, storefront rules. storefront also keeps the hook's list query (which runs while
+  // there is no category yet) to ACTIVE products.
+  const { catProducts } = useProduct({ page: 1, limit: 20, catId: product?.category_id, storefront: true });
+  const allOutOfStock = !shownVariants.some((v) => v.in_stock);
+
+  const isLoading = productLoading || stockLoading;
 
   if (isLoading) {
     return (
@@ -110,12 +105,13 @@ console.log("---",selectedVariant)
     );
   }
 
+  // 404 = not on sale (draft, inactive, archived). An ACTIVE product with no pack to sell here shows as Out of stock.
   if (productError || !product) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
         <ArrowLeft className="mb-4 h-12 w-12 text-muted-foreground" />
-        <h2 className="text-xl font-bold text-foreground">Can't find this product</h2>
-        <p className="mt-2 text-muted-foreground">The product might have been removed or link is broken.</p>
+        <h2 className="text-xl font-bold text-foreground">This product isn't available</h2>
+        <p className="mt-2 text-muted-foreground">It may have been removed, or the link is broken.</p>
         <Link to="/shop" className="mt-6 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary/20 hover:bg-primary/90">
           Back to Shop
         </Link>
@@ -151,11 +147,16 @@ console.log("---",selectedVariant)
                    Organic
                 </div>
             )}
-            <img 
-              src={product.image} 
-              alt={product.name} 
-              className="h-full w-full rounded-xl object-cover"
+            <img
+              src={product.image}
+              alt={product.name}
+              className={`h-full w-full rounded-xl object-cover ${allOutOfStock ? "grayscale" : ""}`}
             />
+            {allOutOfStock && (
+              <div className="absolute inset-4 flex items-center justify-center rounded-xl bg-white/65 backdrop-blur-[1px]">
+                <span className="rounded-full bg-foreground px-4 py-1.5 text-sm font-bold uppercase text-white">Out of stock</span>
+              </div>
+            )}
           </div>
 
           {/* Details Section */}
@@ -180,10 +181,16 @@ console.log("---",selectedVariant)
                 <span className="ml-2 text-sm font-bold text-foreground">{product.rating || 4}</span>
               </div>
               <span className="text-sm text-muted-foreground">({product.reviews || 0} Reviews)</span>
-              <div className="h-4 w-px bg-border" />
-              <span className={`text-sm font-semibold ${product.status ? "text-success" : "text-destructive"}`}>
-                {product.status ? "In Stock" : "Out of Stock"}
-              </span>
+              {/* Stock of the selected pack at the customer's store; no store chosen yet, no stock state unless there is
+                  no pack at all. */}
+              {(stock || !selectedVariant) && (
+                <>
+                  <div className="h-4 w-px bg-border" />
+                  <span className={`text-sm font-semibold ${selectedVariant?.in_stock ? "text-success" : "text-destructive"}`}>
+                    {selectedVariant?.in_stock ? "In Stock" : "Out of Stock"}
+                  </span>
+                </>
+              )}
             </div>
 
             <p className="mb-8 text-lg leading-relaxed text-muted-foreground">
@@ -211,28 +218,29 @@ console.log("---",selectedVariant)
                       Select Pack Size
                     </label>
                     <div className="flex flex-wrap gap-3">
-                      {inStockVariants.map((v) => (
+                      {shownVariants.map((v) => (
                         <button
                           key={v.id}
-                          onClick={() => setSelectedVariant(v)}
+                          onClick={() => setSelectedId(v.id)}
                           className={`flex flex-col items-center justify-center rounded-xl border-2 px-5 py-3 transition-all ${
-                            selectedVariant.id === v.id 
-                              ? "border-primary bg-primary/5 text-primary" 
+                            selectedVariant.id === v.id
+                              ? "border-primary bg-primary/5 text-primary"
                               : "border-border bg-white text-muted-foreground hover:border-primary/30"
-                          }`}
+                          } ${v.in_stock ? "" : "opacity-60"}`}
                         >
                           <span className="text-sm font-bold">{v.variant_name} </span>
-                          <span className="text-xs font-medium opacity-70">₹{v.price}</span>
+                          <span className="text-xs font-medium opacity-70">
+                            {v.in_stock ? `₹${v.price}` : "Out of stock"}
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="mb-6 flex flex-col gap-2">
-                   <div className="h-10 w-32 skeleton-shimmer rounded" />
-                   <div className="h-14 w-full skeleton-shimmer rounded" />
-                </div>
+                <p className="mb-6 text-base font-semibold text-muted-foreground">
+                  Currently out of stock. Check back soon.
+                </p>
               )}
 
               {/* Quantity */}
@@ -253,12 +261,13 @@ console.log("---",selectedVariant)
                   </button>
                 </div>
 
-                <button 
+                <button
                   onClick={handleAddToCart}
-                  className="flex-1 min-w-[200px] flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary/90"
+                  disabled={!selectedVariant?.in_stock || addToCartMutation.isPending}
+                  className="flex-1 min-w-[200px] flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary/90 disabled:pointer-events-none disabled:bg-muted-foreground disabled:shadow-none"
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  Add to Cart
+                  {selectedVariant?.in_stock ? "Add to Cart" : "Out of stock"}
                 </button>
               </div>
             </div>

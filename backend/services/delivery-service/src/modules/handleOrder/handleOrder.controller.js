@@ -4,8 +4,7 @@ import ResponseUtil from "../../utils/response.js";
 class HandleOrderController {
   async assignOrder(req, res, next) {
     try {
-      const warehouse_id = req.headers["x-warehouse-id"];
-      const result = await HandleOrderService.assignOrder({ ...req.body, warehouse_id }, req.user, req.headers.authorization);
+      const result = await HandleOrderService.assignOrder(req.body, req.user, req.headers.authorization);
       return ResponseUtil.success(res, result, "Order assigned successfully", 201);
     } catch (error) {
       return next(error);
@@ -81,11 +80,49 @@ next(error)
       if(!Number.isInteger(orderId)||orderId<=0){
         return ResponseUtil.error(res,"Invalid order ID",400);
       }
-      const result=await HandleOrderService.getAssignmentByOrder(orderId);
+      const result=await HandleOrderService.getAssignmentByOrder(orderId, req.user);
       return ResponseUtil.success(res,result,"assignment fetched")
     }
     catch(error){
       next(error)
+    }
+  }
+
+  async listReturnsDue(req, res, next) {
+    try {
+      const result = await HandleOrderService.listReturnsDue(req.user);
+      return ResponseUtil.success(res, result, "Returns due fetched");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async assignPickup(req, res, next) {
+    try {
+      const result = await HandleOrderService.assignPickup(req.body, req.user, req.headers.authorization);
+      return ResponseUtil.success(res, result, "Rider sent to collect the return", 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async receiveReturn(req, res, next) {
+    try {
+      const result = await HandleOrderService.receiveReturn(req.params.assignmentId, req.body, req.user);
+      return ResponseUtil.success(res, result, "Goods taken back");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // The bytes, read with the caller's bearer token (the client shows them as a blob URL).
+  async getDoorPhoto(req, res, next) {
+    try {
+      const { bytes, mime } = await HandleOrderService.getDoorPhoto(req.params.assignmentId, req.user);
+      res.set({ "Content-Type": mime, "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" });
+      return res.send(bytes);
+    } catch (error) {
+      next(error);
     }
   }
 }

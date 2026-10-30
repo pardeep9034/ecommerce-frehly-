@@ -19,6 +19,7 @@ const STATUS_STYLES = {
   DELIVERED: "bg-primary/10 text-primary",
   CANCELLED: "bg-destructive/10 text-destructive",
   DELIVERY_FAILED: "bg-destructive/10 text-destructive",
+  RETURNED_TO_STORE: "bg-amber/10 text-amber",
 };
 
 const PAYMENT_STATUS_STYLES = {

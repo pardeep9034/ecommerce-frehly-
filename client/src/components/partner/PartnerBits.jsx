@@ -36,7 +36,15 @@ export const RoundLink = ({ href, label, icon }) => {
 };
 
 // Shown until a screen's data has loaded (or when it can't: someone else's assignment and a missing one both answer 404).
-export const LoadNote = ({ error, what = "this order" }) => (
+// Under an action's buttons while it runs (useJobAction's phase, or "saving" for a plain pending mutation).
+export const SavingNote = ({ phase }) =>
+  phase && phase !== "idle" ? (
+    <p role="status" className="text-center text-xs font-semibold text-muted-foreground">
+      {phase === "checking" ? "Still saving. Checking whether it went through…" : "Saving… don’t close the app"}
+    </p>
+  ) : null;
+
+export const LoadNote =({ error, what = "this order" }) => (
   <p className={`text-sm ${error ? "text-destructive" : "text-muted-foreground"}`}>
     {error ? `Couldn’t load ${what}. Go back and try again.` : "Loading…"}
   </p>

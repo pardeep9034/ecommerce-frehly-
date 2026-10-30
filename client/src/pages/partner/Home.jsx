@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, MapPin } from "lucide-react";
+import { Bell, ChevronRight, MapPin, Undo2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
 import { Avatar, Card, StatusPill } from "@/components/partner/PartnerBits";
@@ -82,6 +82,32 @@ const Home = () => {
         <Stat label="Last 7 days" value={partner?.stats.delivered_7d ?? "–"} />
       </div>
 
+      {/* Goods owed back to a store. While any are, the store can't give this partner new orders. */}
+      {partner?.returns_due?.length > 0 && (
+        <section className="space-y-2.5">
+          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
+            <Undo2 className="h-4 w-4" /> Take back to the store
+          </h2>
+          <p className="text-xs text-muted-foreground">You can't get new orders until these are back. Show the code to the store staff.</p>
+          {partner.returns_due.map((r) => (
+            <Card key={r.assignment_id} className="space-y-2 border-warning/40">
+              <div className="flex items-center justify-between">
+                <p className="font-display font-semibold text-foreground">Order #{r.order_id}</p>
+                <span className="text-xs text-muted-foreground">
+                  {{ DOORSTEP: "Turned away at the door", CUSTOMER: "Customer return" }[r.kind] || "Not delivered"}
+                </span>
+              </div>
+              <Row label="Store" value={[r.store_name, r.store_address].filter(Boolean).join(", ")} />
+              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
+                <span className="text-xs font-semibold uppercase text-muted-foreground">Return code</span>
+                <span className="font-display text-2xl font-bold tracking-[0.3em] text-foreground">{r.return_code}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Since {timeOf(r.due_since)}</p>
+            </Card>
+          ))}
+        </section>
+      )}
+
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-base font-semibold text-foreground">Your orders</h2>
         <span className="text-xs text-muted-foreground">{assignments.length} active</span>
@@ -95,23 +121,27 @@ const Home = () => {
         </p>
       )}
 
-      {assignments.map((a) => (
-        <Card key={a.id} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-display font-semibold text-foreground">Order #{a.order_id}</p>
-            <StatusPill status={STEP_LABEL[a.status]} />
-          </div>
-          <Row label="Pickup" value={a.pickup_name} />
-          <Row label="Drop" value={`${a.customer_name}, ${a.delivery_address}`} />
-          <p className="text-xs text-muted-foreground">Assigned {timeOf(a.assigned_at)}</p>
-          <Link
-            to={a.status === "ASSIGNED" ? `/partner/orders/${a.id}/pickup` : `/partner/orders/${a.id}/deliver`}
-            className="flex h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-bold text-white"
-          >
-            {a.status === "ASSIGNED" ? "Start pickup" : "Continue delivery"} <ChevronRight className="h-4 w-4" />
-          </Link>
-        </Card>
-      ))}
+      {assignments.map((a) => {
+        // A return pickup runs the other way: from the customer, back to the store.
+        const returnJob = a.kind === "RETURN_PICKUP";
+        return (
+          <Card key={a.id} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="font-display font-semibold text-foreground">Order #{a.order_id}</p>
+              <StatusPill status={STEP_LABEL[a.status]} />
+            </div>
+            <Row label={returnJob ? "Collect" : "Pickup"} value={returnJob ? `${a.customer_name}, ${a.delivery_address}` : a.pickup_name} />
+            <Row label={returnJob ? "Return" : "Drop"} value={returnJob ? a.pickup_name : `${a.customer_name}, ${a.delivery_address}`} />
+            <p className="text-xs text-muted-foreground">Assigned {timeOf(a.assigned_at)}</p>
+            <Link
+              to={`/partner/orders/${a.id}/${returnJob ? "collect" : a.status === "ASSIGNED" ? "pickup" : "deliver"}`}
+              className="flex h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-bold text-white"
+            >
+              {returnJob ? "Collect the return" : a.status === "ASSIGNED" ? "Start pickup" : "Continue delivery"} <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Card>
+        );
+      })}
     </MobileShell>
   );
 };

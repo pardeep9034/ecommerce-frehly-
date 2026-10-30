@@ -29,6 +29,11 @@ export default [
     queue: queues.NOTIFICATION_QUEUE.name,
     routingKey: 'warehouse.status.changed',
   },
+  {
+    exchange: exchanges.INVENTORY_EVENTS.name,
+    queue: queues.NOTIFICATION_QUEUE.name,
+    routingKey: 'warehouse.location.changed',
+  },
 
   // Every service-specific queue's dead-letter routing key binds into the
   // single shared dead_letter_queue, so all failures land in one place.

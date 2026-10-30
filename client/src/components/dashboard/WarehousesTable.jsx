@@ -9,11 +9,11 @@ const HEADERS = [
   { label: "Status" },
   { label: "Manager" },
   { label: "Staff", align: "text-right" },
-  { label: "Orders today", align: "text-right" },
+
   { label: "", srLabel: "Actions" },
 ];
 
-// rows: [{ warehouse, status, zone, manager, staffCount, ordersToday }]
+// rows: [{ warehouse, status, zone, manager, staffCount }]
 const WarehousesTable = ({ rows = [], isLoading }) => {
   if (isLoading) return <TableSkeleton rows={5} columns={7} />;
 
@@ -34,7 +34,7 @@ const WarehousesTable = ({ rows = [], isLoading }) => {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ warehouse, status, zone, manager, staffCount, ordersToday }) => (
+          {rows.map(({ warehouse, status, zone, manager, staffCount }) => (
             <tr key={warehouse.id} className="border-t border-border">
               <td className="px-4 py-3.5">
                 <span className="flex flex-col gap-0.5">
@@ -54,7 +54,6 @@ const WarehousesTable = ({ rows = [], isLoading }) => {
                 )}
               </td>
               <td className="px-4 py-3.5 text-right tabular-nums text-foreground">{staffCount}</td>
-              <td className="px-4 py-3.5 text-right tabular-nums text-foreground">{ordersToday ?? "—"}</td>
               <td className="px-4 py-3.5 text-right">
                 {status === "DRAFT" ? (
                   <Link

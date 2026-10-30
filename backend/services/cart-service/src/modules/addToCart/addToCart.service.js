@@ -8,8 +8,8 @@ import { env } from "../../config/env.js";
 import AppError from "../../utils/AppError.js";
 import cartRepository from "../repository/cart.repository.js";
 import cartItemRepository from "../repository/cartItem.repository.js";
-import { number } from "zod";
 import logger from "../../utils/Logger.js";
+import { assertOnSale, availableStock } from "./cartRules.js";
 // import inventoryController from "../../../../inventory-service/src/modules/nventory/inventory.controller.js";
 
 class addToCartService {
@@ -59,11 +59,8 @@ class addToCartService {
     //     }
     // })
     // const inventory=await variantResponse.json();
-    if (data.quantity > serviceValidation.data.inventory.quantity) {
-      throw new AppError("inventoryu is not available");
-    }
 
-    // create new cart item
+    // create new cart item (createCartItem checks quantity against available stock)
     return await this.createCartItem(
       cart,
       serviceValidation.data.inventory,
@@ -87,16 +84,21 @@ class addToCartService {
 
   // validate product + inventory
   async validateProductAndInventory(data, warehouseId) {
+    // a 404 (unknown variant / store doesn't carry it) becomes a readable failure, not a raw axios error
+    const notFound = (message) => (error) => {
+      if (error.response?.status === 404) return { data: { success: false, message } };
+      throw error;
+    };
     const [productResponse, inventoryResponse] = await Promise.all([
       axios.get(
         `${env.API_GATEWAY_URL}/product-variant/variants/${data.variant_id}`,
-      ),
+      ).catch(notFound("Item not found")),
 
       axios.get(`${env.API_GATEWAY_URL}/inventory/variant/${data.variant_id}`, {
         headers: {
           "x-warehouse-id": warehouseId,
         },
-      }),
+      }).catch(notFound("Not available at your store")),
     ]);
     logger.debug("productResponse", { data: productResponse.data.data });
     logger.debug("inventoryResponse", { data: inventoryResponse.data.data });
@@ -108,6 +110,9 @@ class addToCartService {
           productResponse?.data?.message || "product service unavailable",
       };
     }
+
+    // only an ACTIVE variant of an ACTIVE product can be bought (409)
+    assertOnSale(productResponse.data.data);
 
     // inventory validation
     if (!inventoryResponse.data.data || !inventoryResponse.data.success) {
@@ -159,8 +164,8 @@ class addToCartService {
       };
     }
 
-    // inventory validation
-    if (finalQuantity > inventory.current_stock) {
+    // inventory validation (current_stock - reserved_stock)
+    if (finalQuantity > availableStock(inventory)) {
       throw new AppError("inventory not available", 400);
     }
 
@@ -195,8 +200,8 @@ class addToCartService {
   // create cart item
   async createCartItem(cart, inventory, data) {
     logger.debug("createCartItem", { inventory, data, cart });
-    // inventory validation
-    if (data.quantity > inventory.current_stock) {
+    // inventory validation (current_stock - reserved_stock)
+    if (data.quantity > availableStock(inventory)) {
       throw new AppError("inventory not available", 400);
     }
 
@@ -354,8 +359,7 @@ class addToCartService {
     }
 
     const cartItem = await cartItemRepository.findOne({
-      id: cartItemId,
-      cart_id: cart.id,
+      where: { id: cartItemId, cart_id: cart.id },
     });
 
     if (!cartItem) {
@@ -371,18 +375,20 @@ class addToCartService {
     );
     const vaiantInventory = await variantInventoryResponse.json();
     if (!variantInventoryResponse.ok) {
+      if (variantInventoryResponse.status === 404) {
+        throw new AppError("Not available at your store", 404);
+      }
       throw new AppError("item not in inventory");
     }
     if (!vaiantInventory.success) {
       throw new AppError("item not in inventory");
     }
-    const remainingStock =
-      number(vaiantInventory.current_stock) -
-      number(vaiantInventory.reserved_stock);
-    if (remainingStock >= 1) {
-      cartItem.quantity += 1;
-      await cartItem.save();
+    // the inventory row is in .data; available = current_stock - reserved_stock
+    if (cartItem.quantity + 1 > availableStock(vaiantInventory.data)) {
+      throw new AppError("inventory not available", 400);
     }
+    cartItem.quantity += 1;
+    await cartItem.save();
 
     return cartItem;
   }
@@ -393,34 +399,14 @@ class addToCartService {
       throw new AppError("Cart not found", 404);
     }
 
-    let cartItem = await cartItemRepository.findOne({
-      id: cartItemId,
-      cart_id: cart.id,
+    // only this user's cart; taking one off needs no stock check, so it works even when the item is out of stock
+    const cartItem = await cartItemRepository.findOne({
+      where: { id: cartItemId, cart_id: cart.id },
     });
-
-    const cartItemData = cartItem.toJSON();
 
     if (!cartItem) {
       throw new AppError("Cart item not found", 404);
     }
-    const variantInventoryResponse = await fetch(
-      `${env.API_GATEWAY_URL}/inventory/variant/${cartItemData.variant_id}`,{
-        method:"GET",
-        headers:{
-            "x-warehouse-id":warehouseId
-        }
-      }
-    );
-    const vaiantInventory = await variantInventoryResponse.json();
-    if (!variantInventoryResponse.ok) {
-      throw new AppError("item not in inventory");
-    }
-    if (!vaiantInventory.success) {
-      throw new AppError("item not in inventory");
-    }
-    const remainingStock =
-      number(vaiantInventory.current_stock) -
-      number(vaiantInventory.reserved_stock);
 
     cartItem.quantity -= 1;
     if (cartItem.quantity == 0) {

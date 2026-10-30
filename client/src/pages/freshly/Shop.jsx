@@ -12,8 +12,9 @@ import {
 import useProduct from "@/hooks/use-product";
 import useCategory from "@/hooks/use-category";
 import useVariant from "@/hooks/use-variant";
-import useInventory from "@/hooks/use-inventory";
+import { useStoreStock, applyStoreStock } from "@/hooks/use-inventory";
 import ShopProductCard from "@/components/freshly/ShopProductCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const EMPTY = [];
 
@@ -56,14 +57,15 @@ const Shop = () => {
 
   const {
     products: productsData,
-    isLoading: productsLoading,
+    isLoading: productListLoading,
     error: productsError,
-  } = useProduct({ page: currentPage, limit: pageSize, status: "ACTIVE" });
+  } = useProduct({ page: currentPage, limit: pageSize, storefront: true });
   const { categories: categoriesData } = useCategory();
 
   const productsList = productsData?.data?.products || productsData?.products || EMPTY;
   const pagination = productsData?.data?.pagination || productsData?.pagination || {};
   const categoriesList = categoriesData?.data?.categories || categoriesData?.categories || EMPTY;
+console.log("Products List:", productsList);
 
   const searched = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -79,38 +81,36 @@ const Shop = () => {
     () => new Map((variantInfo || []).map((variant) => [Number(variant.id), variant])),
     [variantInfo]
   );
-  const { inStockVariantIds } = useInventory(undefined, undefined, undefined, variantIds);
-  const inStockSet = useMemo(
-    () => (inStockVariantIds ? new Set(inStockVariantIds.map(Number)) : null),
-    [inStockVariantIds]
-  );
+  const { stock, isLoading: stockLoading } = useStoreStock(variantIds);
+  // Skeleton until the store's stock is in, so cards never flash "in stock" first.
+  const productsLoading = productListLoading || stockLoading;
 
-  // Variants merged with price info and stock, plus the values the filters read.
-  // inStockSet is null while the stock check is loading -> treat all as in stock.
+  // Variants merged with price info and the store's stock, plus the values the filters read.
+  // Every ACTIVE product stays: no active pack, or none in stock at this store, shows as Out of stock.
   const merged = useMemo(
     () =>
-      searched.map((product) => {
-        const variants = (product.variants || []).map((variant) => {
-          const info = variantInfoMap.get(Number(variant.id));
+      searched
+        .map((product) => {
+          const variants = applyStoreStock(
+            (product.variants || []).map((variant) => {
+              const info = variantInfoMap.get(Number(variant.id));
+              return { ...variant, ...info, variant_name: info?.variant_name || null };
+            }),
+            stock
+          );
+          const first = variants.find((v) => v.in_stock) || variants[0] || {};
+          // null when the product has no pack, so price filters skip it
+          const price = first.price ?? product.price ?? null;
+          const mrp = Number(first.mrp || product.oldPrice || 0);
           return {
-            ...variant,
-            ...info,
-            variant_name: info?.variant_name || null,
-            in_stock: !inStockSet || inStockSet.has(Number(variant.id)),
+            product: { ...product, variants },
+            category: product.Category?.name || product.category?.name || product.category || "",
+            price,
+            discount: price !== null && mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0,
+            inStock: variants.some((v) => v.in_stock),
           };
-        });
-        const first = variants.find((v) => v.in_stock) || variants[0] || {};
-        const price = Number(first.price || product.price || 0);
-        const mrp = Number(first.mrp || product.oldPrice || 0);
-        return {
-          product: { ...product, variants },
-          category: product.Category?.name || product.category?.name || product.category || "",
-          price,
-          discount: mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0,
-          inStock: variants.length === 0 || variants.some((v) => v.in_stock),
-        };
-      }),
-    [searched, variantInfoMap, inStockSet]
+        }),
+    [searched, variantInfoMap, stock]
   );
 
   // ponytail: filters run on the current page of 12 only; pass them to the
@@ -120,7 +120,7 @@ const Shop = () => {
     const result = merged.filter(
       (row) =>
         (!cats.length || cats.includes(row.category)) &&
-        (!prices.length || PRICE_RANGES.some((r) => prices.includes(r.id) && r.test(row.price))) &&
+        (!prices.length || (row.price !== null && PRICE_RANGES.some((r) => prices.includes(r.id) && r.test(row.price)))) &&
         row.discount >= minDiscount &&
         (!inStockOnly || row.inStock)
     );
@@ -192,7 +192,7 @@ const Shop = () => {
       options: PRICE_RANGES.map((r) => ({
         key: r.id,
         label: r.label,
-        count: merged.filter((row) => r.test(row.price)).length,
+        count: merged.filter((row) => row.price !== null && r.test(row.price)).length,
         checked: prices.includes(r.id),
         onChange: () => setPrices(toggle(prices, r.id)),
       })),
@@ -338,18 +338,18 @@ const Shop = () => {
                   <span className="rounded-full bg-primary px-1.5 text-[10px] text-white">{activeCount}</span>
                 )}
               </button>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                aria-label="Sort products"
-                className={`${chip(false)} outline-none lg:order-last lg:ml-auto`}
-              >
-                {SORTS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    Sort: {s.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger aria-label="Sort products" className={`${chip(false)} w-auto gap-1 lg:order-last lg:ml-auto`}>
+                  <SelectValue>Sort: {SORTS.find((s) => s.id === sortBy)?.label}</SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {SORTS.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <button onClick={() => setInStockOnly(!inStockOnly)} aria-pressed={inStockOnly} className={chip(inStockOnly)}>
                 In stock
               </button>

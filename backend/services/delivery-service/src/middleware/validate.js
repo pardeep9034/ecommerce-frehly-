@@ -3,7 +3,16 @@ import ResponseUtil from "../utils/response.js";
 import {
     ACTIVITY_GROUPS, ACTIVITY_HOURS, DOC_TYPES, FIELD_ITEMS, LISTED_STATUSES, MAX_ORDERS, REASON_CODES, VEHICLE_TYPES,
 } from "../modules/partnerApplication/partnerApplicationRules.js";
-import { FAILURE_REASONS } from "../constants/deliveryFailure.js";
+import { DOOR_REJECT_REASONS, FAILURE_REASONS } from "../constants/deliveryFailure.js";
+
+// Items the customer turned away at the door (order item ids from the order the rider was given).
+const doorRejections = joi.array().max(50).items(joi.object({
+    order_item_id:joi.number().integer().positive().required(),
+    quantity:joi.number().integer().min(1).required(),
+    reason:joi.string().valid(...Object.keys(DOOR_REJECT_REASONS)).required(),
+    note:joi.string().trim().max(500).allow("")
+        .when("reason", { is:"OTHER", then:joi.string().min(3).required() })
+}));
 
 // A real calendar day as "YYYY-MM-DD". joi.date().iso() also lets 2026-02-31 and full timestamps through, and a DATEONLY
 // column then fails with a 500.
@@ -15,7 +24,27 @@ const dateOnly = joi.string().custom((value, helpers) => {
 // Decisions carry the version the reviewer was looking at; a stale one is a 409.
 const expectedVersion = joi.number().integer().min(0).required();
 
+// "09:00" or "09:00:00", 24-hour.
+// One spelling per city, so the zone city filter doesn't list "mohali " and "MOHALI" apart: trimmed, single spaces,
+// each word capitalised ("new delhi" -> "New Delhi").
+const cityName = joi.string().trim().max(100)
+    .custom((value) => value.replace(/\s+/g, " ").toLowerCase().replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase()));
+
+const clockTime = joi.string().pattern(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).messages({ "string.pattern.base": "{#label} must be a time like 09:00" });
+
 const schema={
+    createDeliverySlotSchema:joi.object({
+        name:joi.string().trim().min(2).max(50).required(),
+        start_time:clockTime.required(),
+        end_time:clockTime.required(),
+        is_active:joi.boolean().optional()
+    }),
+    updateDeliverySlotSchema:joi.object({
+        name:joi.string().trim().min(2).max(50).optional(),
+        start_time:clockTime.optional(),
+        end_time:clockTime.optional(),
+        is_active:joi.boolean().optional()
+    }).min(1),
     createDeliverySchema:joi.object({
         order_id:joi.number().integer().positive().optional(),
         delivery_partner_id:joi.string().uuid().optional(),
@@ -49,7 +78,8 @@ const schema={
         vehicle_type:joi.string().optional(),
         vehicle_number:joi.string().optional(),
         max_active_orders:joi.number().integer().min(1).optional(),
-        status:joi.string().optional()
+        status:joi.string().optional(),
+        zone_id:joi.number().integer().positive().optional()
     }).min(1),
     updateDeliveryPartnerLocationSchema:joi.object({
         current_latitude:joi.number().required(),
@@ -58,7 +88,7 @@ const schema={
     createDeliveryZoneSchema:joi.object({
         code:joi.string().max(50).required(),
         name:joi.string().max(150).required(),
-        city:joi.string().max(100).required(),
+        city:cityName.required(),
         state:joi.string().max(100).optional(),
         country:joi.string().max(100).optional(),
         postal_codes:joi.string().optional(),
@@ -73,7 +103,7 @@ const schema={
     updateDeliveryZoneSchema:joi.object({
         code:joi.string().max(50).optional(),
         name:joi.string().max(150).optional(),
-        city:joi.string().max(100).optional(),
+        city:cityName.optional(),
         state:joi.string().max(100).optional(),
         country:joi.string().max(100).optional(),
         postal_codes:joi.string().optional(),
@@ -85,6 +115,13 @@ const schema={
         estimated_delivery_time:joi.number().integer().min(0).optional(),
         is_active:joi.boolean().optional()
     }).min(1),
+    // The zone list: one page, optionally one city (exact, any case) and a name/code search.
+    listDeliveryZonesQuerySchema:joi.object({
+        page:joi.number().integer().min(1).default(1),
+        limit:joi.number().integer().min(1).max(100).default(10),
+        city:joi.string().trim().max(100).allow(""),
+        search:joi.string().trim().max(100).allow("")
+    }),
     // A pincode, a point, or both. lat and lng only come as a pair.
     serviceabilityQuerySchema:joi.object({
         pincode:joi.string().trim().pattern(/^\d{6}$/).messages({ "string.pattern.base": "pincode must be 6 digits" }),
@@ -104,8 +141,8 @@ const schema={
     assignOrderSchema:joi.object({
         order_id:joi.number().integer().positive().required(),
         delivery_partner_id:joi.string().uuid().required(),
-        delivery_slot_id:joi.string().uuid().required(),
-        assignment_source:joi.string().optional()
+        delivery_slot_id:joi.string().uuid().optional(), // the store panel assigns without one
+        assignment_source:joi.string().valid("AUTO","MANUAL").optional()
     }),
     // Partner app ("me" routes). Query of the assignment list: ACTIVE is open work, HISTORY is anything finished.
     partnerAssignmentsQuerySchema:joi.object({
@@ -125,7 +162,28 @@ const schema={
             .when("status", { is:"DELIVERY_FAILED", then:joi.required(), otherwise:joi.forbidden() }),
         note:joi.string().trim().max(200).allow("")
             .when("reason_code", { is:"OTHER", then:joi.string().min(3).required() })
-            .when("status", { not:"DELIVERY_FAILED", then:joi.forbidden() })
+            .when("status", { not:"DELIVERY_FAILED", then:joi.forbidden() }),
+        // DELIVERED only: the customer's code, what they turned away, and how the rest was paid (pay on delivery).
+        delivery_code:joi.string().trim().pattern(/^\d{4}$/)
+            .when("status", { is:"DELIVERED", then:joi.required(), otherwise:joi.forbidden() }),
+        rejected_items:doorRejections
+            .when("status", { not:"DELIVERED", then:joi.forbidden() }),
+        payment_method:joi.string().valid("CASH","UPI")
+            .when("status", { not:"DELIVERED", then:joi.forbidden() })
+    }),
+    partnerDoorQrSchema:joi.object({
+        rejected_items:doorRejections
+    }),
+    // The store taking goods back from a rider: the code the rider's app shows.
+    assignPickupSchema:joi.object({
+        order_id:joi.number().integer().positive().required(),
+        delivery_partner_id:joi.string().uuid().required()
+    }),
+    partnerPickupSchema:joi.object({
+        collected:joi.boolean().strict().required()
+    }),
+    returnReceivedSchema:joi.object({
+        return_code:joi.string().trim().pattern(/^\d{4}$/).required()
     }),
     // An explicit state, never a flip, so a retry or a double tap lands in the same place. strict: a real boolean, not "true".
     partnerOnlineSchema:joi.object({

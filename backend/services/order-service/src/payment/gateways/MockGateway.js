@@ -62,9 +62,38 @@ export default class MockGateway extends IPaymentGateway {
       orderId: event.order_id,
       transactionId: event.transaction_id,
       amount: event.amount,
+      qrCodeId: event.qr_code_id || null,
       raw: event
     };
   }
+
+  // Door QRs: the image is a placeholder, and nothing pays it on its own. A signed { event: "door_qr.credited",
+  // order_id, qr_code_id, transaction_id, amount } webhook (signEvent) is the "customer paid"; markDoorQrPaid stands
+  // in for the payment a status poll would find.
+  async createDoorQr({ orderId, amount }) {
+    const qrId = `mock_qr_${crypto.randomBytes(8).toString("hex")}`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#fff" stroke="#111" stroke-width="8"/><text x="120" y="110" font-size="18" text-anchor="middle" font-family="sans-serif">MOCK UPI QR</text><text x="120" y="140" font-size="22" text-anchor="middle" font-family="sans-serif">&#8377;${Number(amount).toFixed(2)}</text></svg>`;
+    this.doorQrs ??= new Map();
+    this.doorQrs.set(qrId, { paid: false, paymentId: null, amount: Number(amount) });
+    return {
+      qrId,
+      imageUrl: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`,
+      raw: { qrId, orderId, amount }
+    };
+  }
+
+  markDoorQrPaid(qrId, paymentId = `mock_pay_${crypto.randomBytes(8).toString("hex")}`) {
+    const qr = this.doorQrs?.get(qrId);
+    if (qr) Object.assign(qr, { paid: true, paymentId });
+    return paymentId;
+  }
+
+  async getDoorQr(qrId) {
+    const qr = this.doorQrs?.get(qrId);
+    return { paid: Boolean(qr?.paid), paymentId: qr?.paymentId || null, amount: qr?.paid ? qr.amount : 0 };
+  }
+
+  async closeDoorQr() {}
 
   async refund({ transactionId, amount }) {
     return {

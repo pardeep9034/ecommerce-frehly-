@@ -47,8 +47,8 @@ class DeliveryZoneService {
     });
   }
 
-  async getAllDeliveryZones(limit, offset) {
-    const { count, rows } = await DeliveryZoneRepository.getAllDeliveryZones(limit, offset);
+  async getAllDeliveryZones(limit, offset, filters) {
+    const { count, rows } = await DeliveryZoneRepository.getAllDeliveryZones(limit, offset, filters);
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(count / limit);
 
@@ -63,6 +63,10 @@ class DeliveryZoneService {
         hasPrevPage: currentPage > 1
       }
     };
+  }
+
+  async getCities() {
+    return { cities: await DeliveryZoneRepository.getCities() };
   }
 
   async getDeliveryZoneById(id) {

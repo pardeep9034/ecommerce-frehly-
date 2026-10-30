@@ -24,7 +24,8 @@ class OrderRepository extends BaseRepository {
         { association: "items" },
         { association: "address" },
         { association: "payments" },
-        { association: "statusHistory" }
+        { association: "statusHistory" },
+        { association: "returns" }
       ],
       ...options
     });
@@ -64,7 +65,7 @@ class OrderRepository extends BaseRepository {
     const whereWarehouse = warehouseId ? "AND warehouse_id = :warehouseId" : "";
     const since = "((now() AT TIME ZONE :tz)::date - (:days - 1))::timestamp AT TIME ZONE :tz";
 
-    const [byStatus, perDay, delivery] = await Promise.all([
+    const [byStatus, perDay, delivery, pack] = await Promise.all([
       run(`SELECT status, COUNT(*)::int AS count FROM orders WHERE true ${whereWarehouse} GROUP BY status`),
       // One row per calendar day (empty days included) so the chart has no gaps.
       run(`
@@ -92,23 +93,29 @@ class OrderRepository extends BaseRepository {
         FROM orders o
         JOIN LATERAL (SELECT MIN(created_at) AS at FROM order_status_history WHERE order_id = o.id AND new_status = 'PICKED_UP') p ON true
         JOIN LATERAL (SELECT MIN(created_at) AS at FROM order_status_history WHERE order_id = o.id AND new_status = 'DELIVERED') d ON true
-        WHERE p.at IS NOT NULL AND d.at IS NOT NULL AND d.at >= ${since} ${whereWarehouse.replace("warehouse_id", "o.warehouse_id")}`)
+        WHERE p.at IS NOT NULL AND d.at IS NOT NULL AND d.at >= ${since} ${whereWarehouse.replace("warehouse_id", "o.warehouse_id")}`),
+      // Placed -> packed, for orders packed today (the store's pick + pack time).
+      run(`
+        SELECT ROUND(AVG(EXTRACT(EPOCH FROM (packed_at - placed_at)) / 60))::int AS minutes
+        FROM orders
+        WHERE packed_at >= (now() AT TIME ZONE :tz)::date::timestamp AT TIME ZONE :tz AND placed_at IS NOT NULL ${whereWarehouse}`)
     ]);
 
-    return { byStatus, perDay, avgDeliveryMinutes: delivery[0]?.minutes ?? null };
+    return { byStatus, perDay, avgDeliveryMinutes: delivery[0]?.minutes ?? null, avgPackMinutesToday: pack[0]?.minutes ?? null };
   }
 
   // Per-customer numbers for the admin Customers page. Orders that never got paid/placed
   // (pending, failed, expired payment) don't count. Spent = paid, not cancelled, net of refunds
   // (same rule as the dashboard revenue).
-  async getCustomerStats({ userIds, tz }) {
+  // `warehouseId` (a store manager's store) limits every figure to that store's orders; null = all stores.
+  async getCustomerStats({ userIds, tz, warehouseId = null }) {
     const Model = await this.getModel();
     const run = (sql) =>
       Model.sequelize.query(sql, {
-        replacements: { userIds, tz },
+        replacements: { userIds, tz, warehouseId },
         type: Model.sequelize.QueryTypes.SELECT
       });
-    const placed = "status NOT IN ('PENDING_PAYMENT', 'PAYMENT_FAILED', 'PAYMENT_EXPIRED')";
+    const placed = `status NOT IN ('PENDING_PAYMENT', 'PAYMENT_FAILED', 'PAYMENT_EXPIRED')${warehouseId ? " AND warehouse_id = :warehouseId" : ""}`;
     const monthStart = "(date_trunc('month', now() AT TIME ZONE :tz)) AT TIME ZONE :tz";
 
     const [perUser, recent, summary] = await Promise.all([

@@ -3,14 +3,16 @@ import { Minus, Plus, ShoppingBasket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart, updateQuantity } from "@/redux/cartSlice";
-import useProduct from "@/hooks/use-product";
 import useVariant from "@/hooks/use-variant";
-import useInventory from "@/hooks/use-inventory";
+import { useStoreStock, applyStoreStock } from "@/hooks/use-inventory";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useAddToCartMutation,
   increaseQuantityMutation,
   decreaseQuantityMutation,
 } from "@/hooks/use-addToCart";
+
+const NO_VARIANTS = [];
 
 // Same markup on every screen; only sizes change at lg (design B).
 const ShopProductCard = ({ product }) => {
@@ -20,39 +22,35 @@ const ShopProductCard = ({ product }) => {
   const increaseMutation = increaseQuantityMutation();
   const decreaseMutation = decreaseQuantityMutation();
 
-  // Parent (Shop.jsx) may already pass merged variants annotated with `in_stock`.
-  // When it hasn't (e.g. ShopProductDetail's related-products strip), self-fetch.
-  const preloadedVariants =
-    Array.isArray(product.variants) && product.variants.every((v) => "in_stock" in v)
-      ? product.variants
-      : null;
+  // Parent (Shop.jsx) may already pass the store's variants annotated with `in_stock`.
+  // Otherwise (home strips, related products) the storefront list's ACTIVE variants are
+  // checked here: names from by-ids, stock from the customer's store.
+  const listVariants = product.variants || NO_VARIANTS;
+  const preloadedVariants = listVariants.every((v) => "in_stock" in v) ? listVariants : null;
 
-  const fallbackProductId = preloadedVariants ? null : product?.id;
-  const { productById } = useProduct({ id: fallbackProductId });
-  const fallbackVariantIds = preloadedVariants
-    ? []
-    : (productById?.data?.variants || []).map((v) => v.id);
+  const fallbackVariantIds = preloadedVariants ? [] : listVariants.map((v) => v.id);
   const { variantInfo } = useVariant({ variantIds: fallbackVariantIds });
-  const { inStockVariantIds } = useInventory(undefined, undefined, undefined, fallbackVariantIds);
+  const { stock, isLoading: stockLoading } = useStoreStock(fallbackVariantIds);
 
-  const variantData = useMemo(() => {
-    if (preloadedVariants) return preloadedVariants.filter((v) => v.in_stock);
-    const all = variantInfo || [];
-    if (!inStockVariantIds) return all; // not resolved yet, show unfiltered rather than flash empty
-    const inStockSet = new Set(inStockVariantIds.map(Number));
-    return all.filter((v) => inStockSet.has(Number(v.id)));
-  }, [preloadedVariants, variantInfo, inStockVariantIds]);
+  // Every ACTIVE pack; one the store doesn't carry, or has at 0, is Out of stock.
+  const shownVariants = useMemo(() => {
+    if (preloadedVariants) return preloadedVariants;
+    const infoById = new Map((variantInfo || []).map((v) => [Number(v.id), v]));
+    return applyStoreStock(
+      listVariants.map((v) => ({ ...v, ...infoById.get(Number(v.id)) })),
+      stock
+    );
+  }, [preloadedVariants, listVariants, variantInfo, stock]);
 
-  const totalVariantCount = preloadedVariants
-    ? preloadedVariants.length
-    : (productById?.data?.variants?.length || 0);
-  const isOutOfStock = totalVariantCount > 0 && variantData.length === 0;
-
-  // Out-of-stock products still show their first pack's price.
-  const shownVariants = isOutOfStock ? (preloadedVariants || variantInfo || []) : variantData;
-  const [pickedIndex, setSelectedIndex] = useState(0);
-  const selectedIndex = shownVariants[pickedIndex] ? pickedIndex : 0;
+  // Start on the first pack in stock; out-of-stock packs stay pickable so their price shows.
+  const [pickedIndex, setSelectedIndex] = useState(null);
+  const firstInStock = Math.max(0, shownVariants.findIndex((v) => v.in_stock));
+  const selectedIndex = shownVariants[pickedIndex] ? pickedIndex : firstInStock;
   const selectedVariant = shownVariants[selectedIndex] || {};
+  const hasPacks = shownVariants.length > 0;
+  // No active pack, or none in stock at this store: the whole card is Out of stock.
+  const allOutOfStock = !hasPacks || shownVariants.every((v) => !v.in_stock);
+  const isOutOfStock = allOutOfStock || selectedVariant.in_stock === false;
 
   const currentPrice = Number(selectedVariant.price || price || 0);
   const currentMrp = Number(selectedVariant.mrp || oldPrice || 0);
@@ -121,12 +119,14 @@ const ShopProductCard = ({ product }) => {
             alt={name}
             loading="lazy"
             onError={(e) => e.currentTarget.remove()}
-            className={`absolute inset-0 h-full w-full bg-muted object-contain p-2 ${isOutOfStock ? "opacity-50 grayscale" : ""}`}
+            className={`absolute inset-0 h-full w-full bg-muted object-contain p-2 ${allOutOfStock ? "grayscale" : ""}`}
           />
         )}
-        {isOutOfStock && (
-          <span className="absolute rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase text-white">
-            Out of stock
+        {allOutOfStock && (
+          <span className="absolute inset-0 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
+            <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase text-white lg:text-[11px]">
+              Out of stock
+            </span>
           </span>
         )}
       </Link>
@@ -138,31 +138,39 @@ const ShopProductCard = ({ product }) => {
         {name}
       </Link>
 
-      {shownVariants.length > 1 && !isOutOfStock ? (
-        <select
-          value={selectedIndex}
-          onChange={(e) => setSelectedIndex(Number(e.target.value))}
-          aria-label={`Pack size for ${name}`}
-          className="mt-1.5 w-full rounded-md border border-border bg-white px-2 py-1 text-xs font-medium text-muted-foreground outline-none focus:border-primary"
-        >
-          {shownVariants.map((v, index) => (
-            <option key={v.id ?? index} value={index}>
-              {v.variant_name}
-            </option>
-          ))}
-        </select>
+      {shownVariants.length > 1 ? (
+        <Select value={String(selectedIndex)} onValueChange={(value) => setSelectedIndex(Number(value))}>
+          <SelectTrigger
+            aria-label={`Pack size for ${name}`}
+            className="mt-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {shownVariants.map((v, index) => (
+              <SelectItem key={v.id ?? index} value={String(index)} className="text-xs">
+                {v.variant_name}
+                {!v.in_stock && " · Out of stock"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
         <p className="mt-1.5 px-0.5 py-1 text-xs font-medium text-muted-foreground">
           {selectedVariant.variant_name || " "}
         </p>
       )}
 
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-[15px] font-extrabold text-foreground lg:text-base">₹{currentPrice}</span>
-        {currentMrp > currentPrice && (
-          <span className="text-xs text-muted-foreground line-through">₹{currentMrp}</span>
-        )}
-      </div>
+      {hasPacks ? (
+        <div className="mt-2 flex items-baseline gap-1.5">
+          <span className="text-[15px] font-extrabold text-foreground lg:text-base">₹{currentPrice}</span>
+          {currentMrp > currentPrice && (
+            <span className="text-xs text-muted-foreground line-through">₹{currentMrp}</span>
+          )}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs font-medium text-muted-foreground">Currently unavailable</p>
+      )}
 
       <div className="mt-auto pt-2">
         {isOutOfStock ? (
@@ -193,7 +201,7 @@ const ShopProductCard = ({ product }) => {
         ) : (
           <button
             onClick={handleAddToCart}
-            disabled={addToCartMutation.isPending || !selectedVariant.id}
+            disabled={addToCartMutation.isPending || !selectedVariant.id || stockLoading}
             className="h-9 w-full rounded-lg border-[1.5px] border-primary bg-primary/10 text-sm font-extrabold text-primary transition-colors hover:bg-primary hover:text-white disabled:opacity-60"
           >
             ADD

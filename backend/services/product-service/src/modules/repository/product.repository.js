@@ -3,6 +3,10 @@ import BaseRepository from "./baseRepository.js";
 
 import { Op } from "sequelize";
 
+// What a customer may buy of a product: its ACTIVE variants. A product without one still comes back (variants: [])
+// and the shop shows it as Out of stock (changed 2026-10-29, Task 204; was left out).
+const ACTIVE_VARIANTS = { association: "variants", where: { status: "ACTIVE" }, required: false };
+
 class ProductRepository extends BaseRepository{
     constructor(){
         super("Product");
@@ -28,29 +32,35 @@ class ProductRepository extends BaseRepository{
     //         ]
     //     );
     // }
+  // Customers' related products: storefront rules (ACTIVE products with their ACTIVE variants).
   async getProductsBycategory(categoryId, limit, offset) {
      return await this.findAndCountAll(
         {
             category_id:categoryId,
-            status:"DRAFT"
+            status:"ACTIVE"
         },{
+            include: [ACTIVE_VARIANTS],
             limit,
             offset,
+            distinct: true,
             order:[["created_at","DESC"]]
-            
+
         }
      );
 }
-    async getAllProducts(limit = 0, offset = 0, { status, category_id, brand_id, search } = {}) {
+    // storefront: what customers may see. Every ACTIVE product, each with its ACTIVE variants only (maybe none).
+    // Without it (admin lists) every status is returned.
+    async getAllProducts(limit = 0, offset = 0, { status, category_id, brand_id, search, storefront } = {}) {
         const where = {};
         if (status) where.status = status;
+        if (storefront) where.status = "ACTIVE";
         if (category_id) where.category_id = category_id;
         if (brand_id) where.brand_id = brand_id;
         if (search) where.name = { [Op.iLike]: `%${search}%` };
 
         return await this.findAndCountAll(where,{
             include: [
-                { association: "variants" },
+                storefront ? ACTIVE_VARIANTS : { association: "variants" },
                 { association: "category" },
                 { association: "brand", attributes: ["id", "name"] },
                 { association: "productType", attributes: ["id", "name"] },
@@ -95,12 +105,14 @@ class ProductRepository extends BaseRepository{
         });
     }
 
-        async getProductById(id) {
-        
-            return await this.findById(id,{include:[{
-            
+        // storefront: only an ACTIVE product (null otherwise), with only its ACTIVE variants (maybe none: Out of stock).
+        async getProductById(id, { storefront } = {}) {
+
+            const product = await this.findById(id,{include:[{
+
             association:"variants",
-            attributes:["id","quantity","price","mrp","status"]
+            attributes:["id","quantity","price","mrp","status"],
+            ...(storefront && { where: { status: "ACTIVE" }, required: false }),
             },
         {
             association:"category",
@@ -117,7 +129,8 @@ class ProductRepository extends BaseRepository{
         association:"productAttributes",
         attributes:["id","attribute_name","attribute_value","data_type","sort_order"]
     }]
-            }); 
+            });
+            return storefront && product?.status !== "ACTIVE" ? null : product;
         };
         
         async createProduct(productData) {

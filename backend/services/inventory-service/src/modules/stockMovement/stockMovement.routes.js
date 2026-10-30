@@ -5,9 +5,10 @@ import { validate } from "../../middleware/validate.js";
 
 const router = express.Router();
 
-router.get("/", validate("listStockMovementsSchema", "query"), StockMovementController.getAllStockMovements);
-router.get("/variant/:variantId", StockMovementController.getStockMovementsByVariantId);
-router.get("/:id", StockMovementController.getStockMovementById);
+// Staff reads are limited to the caller's own store (ownStore).
+router.get("/", staffOrService, validate("listStockMovementsSchema", "query"), StockMovementController.getAllStockMovements);
+router.get("/variant/:variantId", staffOrService, StockMovementController.getStockMovementsByVariantId);
+router.get("/:id", staffOrService, StockMovementController.getStockMovementById);
 router.post(
   "/",
   staffOrService,

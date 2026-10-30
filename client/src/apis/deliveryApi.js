@@ -25,9 +25,31 @@ const DeliveryApi = {
     const response = await api.get(`/handle-orders/assignments/by-order/${orderId}`);
     return response.data.data;
   },
+  // Staff edit of the partner row: name, vehicle_type, vehicle_number, max_active_orders. The route also takes phone and
+  // status, but the login phone lives in auth-service and status goes through suspend / activate, so the page sends neither.
+  async updatePartner(partnerId, payload) {
+    const response = await api.patch(`/delivery-partners/${partnerId}`, payload);
+    return response.data.data;
+  },
+  async setPartnerSuspended(partnerId, suspend) {
+    const response = await api.patch(`/delivery-partners/${partnerId}/${suspend ? "suspend" : "activate"}`);
+    return response.data.data;
+  },
   async fetchDeliverySlots() {
     const response = await api.get("/delivery-slots");
     return response.data;
+  },
+  async fetchAllSlots() {
+    const response = await api.get("/delivery-slots/all");
+    return response.data.data;
+  },
+  async createSlot(payload) {
+    const response = await api.post("/delivery-slots", payload);
+    return response.data.data;
+  },
+  async updateSlot(slotId, payload) {
+    const response = await api.patch(`/delivery-slots/${slotId}`, payload);
+    return response.data.data;
   },
   async assignOrder(payload) {
     const response = await api.post("/handle-orders/assignments/assign", payload);

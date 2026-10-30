@@ -338,7 +338,8 @@ const Settings = () => {
               </p>
             )}
             <Toggle
-              label="A warehouse pauses or enters maintenance"
+              label="A warehouse pauses, reopens or is moved"
+              description="Super admins only"
               checked={notifications.warehousePauses}
               onChange={(v) => setNotifications((n) => ({ ...n, warehousePauses: v }))}
             />

@@ -9,7 +9,8 @@ const staffOnly = requireRole(STAFF_ROLES);
 
 router.post("/", authenticateToken, requireRole([ROLES.SUPER_ADMIN]), validate("createDeliveryPartnerSchema"), DeliveryPartnerController.createDeliveryPartner);
 router.get("/zone", DeliveryPartnerController.getAllDeliveryPartnersByZoneId);
-router.get("/", DeliveryPartnerController.getAvalableDeliveryPartners);
+// Riders free to take an order from a store, nearest first, with names: staff only (it exposes live locations).
+router.get("/", authenticateToken, staffOnly, DeliveryPartnerController.getAvalableDeliveryPartners);
 // Dashboard staff only. Must stay above /:id.
 router.get("/list", authenticateToken, staffOnly, DeliveryPartnerController.listPartners);
 router.get("/:id/onboarding", authenticateToken, staffOnly, uuidParam(), DeliveryPartnerController.getOnboarding);

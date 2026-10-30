@@ -2,8 +2,8 @@ import { Check, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MobileShell from "@/components/partner/MobileShell";
-import { Avatar, Card, LoadNote, RoundLink, StatusPill, Timeline } from "@/components/partner/PartnerBits";
-import { useHandoverCandidates, useHandoverStep, usePartnerAssignments, usePartnerHandovers, useRequestHandover } from "@/hooks/use-partner";
+import { Avatar, Card, LoadNote, RoundLink, SavingNote, StatusPill, Timeline } from "@/components/partner/PartnerBits";
+import { useHandoverAction, useHandoverCandidates, usePartnerAssignments, usePartnerHandovers, useRequestHandover } from "@/hooks/use-partner";
 import { HANDOVER_LABEL, initialsOf, mapsUrl, timeOf } from "@/lib/assignmentStatus";
 import { notify } from "@/lib/notify";
 
@@ -32,12 +32,14 @@ const timelineOf = (h, dir) => {
 
 const HandoverCard = ({ h, dir }) => {
   const navigate = useNavigate();
-  const step = useHandoverStep();
+  const step = useHandoverAction(h, dir);
   const open = OPEN.includes(h.status);
   const other = h.other_partner;
 
-  const run = (name, done) =>
-    step.mutate({ handoverId: h.id, step: name }, { onSuccess: done, onError: (e) => notify.apiError(e) });
+  const run = async (name, done) => {
+    const res = await step.run(name);
+    if (res) done(res);
+  };
   const receive = () => run("confirm-receipt", (res) => navigate(`/partner/orders/${res.data.id}/deliver`));
   const cancel = () => run("cancel", () => notify.success(dir === "in" ? "Handover declined" : "Handover withdrawn"));
   const handedOver = () => run("confirm-handover", () => notify.success(`Waiting for ${other?.name ?? "them"} to confirm`));
@@ -69,20 +71,20 @@ const HandoverCard = ({ h, dir }) => {
       )}
       {open && (
         <div className="grid grid-cols-[1fr_2fr] gap-2.5">
-          <button type="button" disabled={step.isPending} onClick={cancel} className="h-11 rounded-xl border border-border text-sm font-semibold disabled:opacity-60">
+          <button type="button" disabled={step.busy} onClick={cancel} className="h-11 rounded-xl border border-border text-sm font-semibold disabled:opacity-60">
             {dir === "in" ? "Decline" : "Withdraw"}
           </button>
           {dir === "in" ? (
             <button
               type="button"
-              disabled={step.isPending || h.status !== "OLD_PARTNER_CONFIRMED"}
+              disabled={step.busy || h.status !== "OLD_PARTNER_CONFIRMED"}
               onClick={receive}
               className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60"
             >
               <Check className="h-4 w-4" /> {h.status === "OLD_PARTNER_CONFIRMED" ? "Confirm receipt" : "Waiting for hand-over"}
             </button>
           ) : h.status === "PENDING" ? (
-            <button type="button" disabled={step.isPending} onClick={handedOver} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60">
+            <button type="button" disabled={step.busy} onClick={handedOver} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white disabled:opacity-60">
               <Check className="h-4 w-4" /> I’ve handed it over
             </button>
           ) : (
@@ -90,6 +92,7 @@ const HandoverCard = ({ h, dir }) => {
           )}
         </div>
       )}
+      <SavingNote phase={step.busy && "saving"} />
     </Card>
   );
 };

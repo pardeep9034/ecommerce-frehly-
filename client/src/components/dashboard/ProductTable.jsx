@@ -34,6 +34,8 @@ const ProductTable = ({ products, categoriesById = {}, brandsById = {}, productT
               const brand = product.brand?.name || brandsById[product.brand_id]?.name;
               const type = product.productType?.name || productTypesById[product.product_type_id]?.name;
               const variantCount = product.variants?.length ?? product.variantIds?.length ?? 0;
+              // Only ACTIVE variants of an ACTIVE product reach the shop. null when the list carries no variant rows.
+              const activeCount = product.variants ? product.variants.filter((variant) => variant.status === "ACTIVE").length : null;
 
               return (
                 <tr key={product.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted">
@@ -51,7 +53,17 @@ const ProductTable = ({ products, categoriesById = {}, brandsById = {}, productT
                     </div>
                   </td>
                   <td className="px-5 py-4 text-muted-foreground sm:px-6">{type || "—"}</td>
-                  <td className="px-5 py-4 text-right text-foreground sm:px-6">{variantCount}</td>
+                  <td className="px-5 py-4 text-right sm:px-6">
+                    <p className="text-foreground">{variantCount}</p>
+                    {activeCount !== null && variantCount > 0 && (
+                      <p
+                        className={`whitespace-nowrap text-xs ${activeCount > 0 ? "text-success" : "text-amber"}`}
+                        title={activeCount > 0 ? undefined : "No active variant, so the shop can't show this product"}
+                      >
+                        {activeCount} active
+                      </p>
+                    )}
+                  </td>
                   <td className="px-5 py-4 sm:px-6">
                     {product.is_organic ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">

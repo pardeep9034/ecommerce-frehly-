@@ -18,7 +18,9 @@ const toRupees = (paise) => Number(paise) / 100;
 const EVENT_TYPES = {
   "payment.captured": "payment.succeeded",
   "payment.failed": "payment.failed",
-  "refund.processed": "refund.processed"
+  "refund.processed": "refund.processed",
+  // A pay-at-door QR was paid. The order id is in the QR's notes, not the payment's.
+  "qr_code.credited": "door_qr.credited"
 };
 
 /**
@@ -91,14 +93,66 @@ export default class RazorpayGateway extends IPaymentGateway {
     const bodyString = Buffer.isBuffer(rawBody) ? rawBody.toString("utf8") : rawBody;
     const body = JSON.parse(bodyString);
     const payment = body?.payload?.payment?.entity;
+    const qrCode = body?.payload?.qr_code?.entity;
+    const orderId = payment?.notes?.order_id || qrCode?.notes?.order_id;
 
     return {
       type: EVENT_TYPES[body.event] || body.event,
-      orderId: payment?.notes?.order_id ? Number(payment.notes.order_id) : null,
+      orderId: orderId ? Number(orderId) : null,
       transactionId: payment?.id,
       amount: payment ? toRupees(payment.amount) : null,
+      qrCodeId: qrCode?.id || null,
       raw: body
     };
+  }
+
+  // Razorpay QR Codes API (must be enabled on the account). close_by has to be some minutes ahead, so the QR is
+  // made to outlive the rider's on-screen timeout; Retry / Switch to cash close it early.
+  async createDoorQr({ orderId, orderNumber, amount, closeBy }) {
+    const response = await fetch(`${RAZORPAY_API}/payments/qr_codes`, {
+      method: "POST",
+      headers: this.authHeaders(),
+      body: JSON.stringify({
+        type: "upi_qr",
+        name: `Order ${orderNumber}`.slice(0, 40),
+        usage: "single_use",
+        fixed_amount: true,
+        payment_amount: toPaise(amount),
+        description: `Pay on delivery for ${orderNumber}`,
+        close_by: Math.floor(closeBy.getTime() / 1000),
+        notes: { order_id: String(orderId) }
+      })
+    });
+
+    const raw = await response.json();
+    if (!response.ok) {
+      throw new AppError(raw?.error?.description || "Razorpay QR creation failed", response.status);
+    }
+
+    return { qrId: raw.id, imageUrl: raw.image_url, raw };
+  }
+
+  async getDoorQr(qrId) {
+    const response = await fetch(`${RAZORPAY_API}/payments/qr_codes/${qrId}/payments`, { headers: this.authHeaders() });
+    const raw = await response.json();
+    if (!response.ok) {
+      throw new AppError(raw?.error?.description || "Razorpay QR lookup failed", response.status);
+    }
+
+    const paid = (raw.items || []).find((payment) => payment.status === "captured");
+    return { paid: Boolean(paid), paymentId: paid?.id || null, amount: paid ? toRupees(paid.amount) : 0 };
+  }
+
+  async closeDoorQr(qrId) {
+    const response = await fetch(`${RAZORPAY_API}/payments/qr_codes/${qrId}/close`, {
+      method: "POST",
+      headers: this.authHeaders()
+    });
+    const raw = await response.json().catch(() => ({}));
+    // A paid single-use QR closes itself; closing it again is a 400 we don't care about.
+    if (!response.ok && response.status !== 400) {
+      throw new AppError(raw?.error?.description || "Razorpay QR close failed", response.status);
+    }
   }
 
   async refund({ transactionId, amount }) {

@@ -11,19 +11,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+// Adding an item takes an opening count, which inventory-service logs as a Stock in; after that, stock only changes
+// through movements, so editing a row changes just its low-stock level (agreed 2026-10-29, Task 200).
 const inventorySchema = z.object({
   variantId: z.coerce.string().min(1, "Select a variant"),
   warehouseId: z.coerce.string().min(1, "Select a warehouse"),
-  stock: z.coerce.number({ invalid_type_error: "Enter a stock value" }).min(0, "Enter a stock value"),
-  reservedStock: z.coerce.number().min(0).default(0),
-  lowStockAlert: z.coerce.number().min(0).default(5),
+  openingStock: z.coerce.number({ invalid_type_error: "Enter a stock value" }).int("Whole units only").min(0, "Enter a stock value"),
+  lowStockAlert: z.coerce.number().int("Whole units only").min(0).default(5),
 });
 
 const EMPTY_INVENTORY = {
   variantId: "",
   warehouseId: "",
-  stock: 0,
-  reservedStock: 0,
+  openingStock: 0,
   lowStockAlert: 5,
 };
 
@@ -46,8 +46,7 @@ const InventoryModal = ({ open, onClose, inventory, onSave, warehouses = [], sel
       form.reset({
         variantId: String(inventory.variantId || inventory.variant_id || ""),
         warehouseId: String(inventory.warehouse_id || inventory.warehouseId || ""),
-        stock: inventory.stock ?? inventory.current_stock ?? 0,
-        reservedStock: inventory.reservedStock ?? inventory.reserved_stock ?? 0,
+        openingStock: 0,
         lowStockAlert: inventory.lowStockAlert ?? inventory.low_stock_threshold ?? 5,
       });
       setProductSearch(existingVariant?.product?.name || existingVariant?.product_name || "");
@@ -70,13 +69,16 @@ const InventoryModal = ({ open, onClose, inventory, onSave, warehouses = [], sel
   };
 
   const onSubmit = (values) => {
-    onSave({
-      variant_id: Number.parseInt(values.variantId, 10),
-      warehouse_id: Number.parseInt(values.warehouseId, 10),
-      current_stock: values.stock,
-      reserved_stock: values.reservedStock,
-      low_stock_threshold: values.lowStockAlert,
-    });
+    onSave(
+      isEditMode
+        ? { low_stock_threshold: values.lowStockAlert }
+        : {
+            variant_id: Number.parseInt(values.variantId, 10),
+            warehouse_id: Number.parseInt(values.warehouseId, 10),
+            opening_stock: values.openingStock,
+            low_stock_threshold: values.lowStockAlert,
+          }
+    );
     onClose();
   };
 
@@ -185,13 +187,18 @@ const InventoryModal = ({ open, onClose, inventory, onSave, warehouses = [], sel
               />
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            {isEditMode ? (
+              <p className="text-sm text-muted-foreground">
+                {inventory.current_stock ?? 0} in stock, {inventory.reserved_stock ?? 0} reserved. Stock changes are recorded as
+                movements from the store's Stock page.
+              </p>
+            ) : (
               <FormField
                 control={form.control}
-                name="stock"
+                name="openingStock"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current stock</FormLabel>
+                    <FormLabel>Opening stock</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>
@@ -199,21 +206,7 @@ const InventoryModal = ({ open, onClose, inventory, onSave, warehouses = [], sel
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="reservedStock"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reserved stock</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            )}
 
             <FormField
               control={form.control}

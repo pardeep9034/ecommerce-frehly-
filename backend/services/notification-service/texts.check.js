@@ -7,12 +7,12 @@ import crypto from "node:crypto";
 import { env } from "./src/config/env.js";
 import { sequelize, select, selectOne } from "./src/db.js";
 import templates, { render, cleanSmsValue, SMS_VALUE_MAX } from "./src/templates.js";
-import { ORDER_TEXTS, SMS_LIMITS, hashDestination } from "./src/intake.js";
+import { ORDER_TEXTS, SMS_LIMITS, RETURN_WORDS, hashDestination } from "./src/intake.js";
 
 // --- The texts
 
 const smsKeys = Object.keys(templates).filter((key) => templates[key].channel === "SMS");
-assert.equal(smsKeys.length, 14, "6 order texts and 8 partner and store texts");
+assert.equal(smsKeys.length, 17, "7 customer texts and 10 partner and store texts");
 // Values with a known size; order numbers are at most 19 characters (ORD-MVDFSUGC-4F7K2P), the rest get the full 30.
 const ORDER_NO = "ORD-MVDFSUGC-4F7K2P";
 const SHORT = { phone: "9876543210", n: "3", max: "3", order: ORDER_NO, orderNumber: ORDER_NO };
@@ -39,6 +39,16 @@ same("store.delivery_failed", { order: 75, n: 1, max: 3, reason: "Customer not r
   "Freshly: order #75 could not be delivered (attempt 1 of 3): Customer not reachable. Reassign or cancel it in the admin panel.");
 same("store.delivery_failed_final", { order: 75, n: 3, max: 3, reason: "Other" },
   "Freshly: order #75 could not be delivered (attempt 3 of 3): Other. No attempts left, please cancel or return it.");
+same("store.return_overdue", { order: 75, partner: "Ravi", partnerPhone: "6000000004" },
+  "Freshly: Ravi (6000000004) has goods from order #75 for 2+ hrs, not returned yet.");
+same("store.return_requested", { order: ORDER_NO },
+  "Freshly: a customer asked to return items from order #ORD-MVDFSUGC-4F7K2P. Review it on the store Returns page.");
+same("order.return_update", { orderNumber: ORDER_NO, update: RETURN_WORDS.REFUND_SENT(1250.5) },
+  "Freshly: your return on order #ORD-MVDFSUGC-4F7K2P: Rs 1,250.50 refunded. Open the app for details.");
+// Every return step's words fit a variable whole, even with a large amount.
+for (const [step, words] of Object.entries(RETURN_WORDS)) {
+  assert.equal(cleanSmsValue(words(123456.75)), words(123456.75), step);
+}
 
 // What a value may put into a text.
 assert.equal(cleanSmsValue("₹1,250"), "Rs1,250");
@@ -107,6 +117,15 @@ try {
   assert.equal((await post("order.status.changed", { ...order, historyId: 990000004, newStatus: "CANCELLED", changedBy: String(userId) })).created, 0);
   r = await post("order.status.changed", { ...order, historyId: 990000005, newStatus: "CANCELLED", changedBy: 1 });
   assert.equal((await rowsFor(r.eventId))[0].template_key, "order.cancelled");
+
+  // A step of a customer's return texts them whatever the status; a new ask also texts a store with a mobile.
+  r = await post("order.status.changed", { ...order, historyId: 990000006, oldStatus: "DELIVERED", newStatus: "DELIVERED", returnStep: "REQUESTED", storePhone: "+91 60000 00005" });
+  assert.deepEqual((await rowsFor(r.eventId)).map((one) => one.template_key).sort(), ["order.return_update", "store.return_requested"]);
+  r = await post("order.status.changed", { ...order, historyId: 990000007, newStatus: "DELIVERED", returnStep: "REFUND_SENT", returnAmount: 120, storePhone: "12345" });
+  const refundRows = await waitFinal(r.eventId);
+  assert.equal(refundRows.length, 1, "only a new ask texts the store");
+  assert.equal(render(refundRows[0].template_key, refundRows[0].vars).text,
+    "Freshly: your return on order #ORD-CHECK-990001: Rs 120 refunded. Open the app for details.");
 
   // An applicant with no account here: kept as SKIPPED NO_ADDRESS, never sent.
   r = await post("partner.application.approved", { applicationId: crypto.randomUUID(), userId: 991999001, ref: 1001, name: "Ravi" });

@@ -105,6 +105,45 @@ class DeliveryAssignmentRepository extends BaseRepository {
   async deleteDeliveryAssignment(id, options = {}) {
     return await this.deleteById(id, options);
   }
+
+  // Goods back with the store. Only once: the WHERE is the transition, so a double tap takes them back once.
+  // Returns how many rows moved (0 or 1).
+  async markReturned(id, options = {}) {
+    const Model = await this.getModel();
+    const [count] = await Model.update(
+      { returned_at: new Date() },
+      { where: { id, return_due_at: { [Op.ne]: null }, returned_at: null }, ...options },
+    );
+    return count;
+  }
+
+  // Ends an open return pickup. The WHERE is the transition, so a double tap finishes it once. Returns 0 or 1.
+  async finishPickup(id, data, options = {}) {
+    const Model = await this.getModel();
+    const [count] = await Model.update(data, { where: { id, kind: "RETURN_PICKUP", status: "ACTIVE" }, ...options });
+    return count;
+  }
+
+  // Goods riders still owe a store, oldest first. warehouseId: one store's only.
+  async findReturnsDue(warehouseId) {
+    return await this.findAll(
+      { return_due_at: { [Op.ne]: null }, returned_at: null, ...(warehouseId ? { warehouse_id: warehouseId } : {}) },
+      { order: [["return_due_at", "ASC"]], limit: 200 },
+    );
+  }
+
+  // Marks the returns overdue since `before` that nobody was told about yet, and gives them back. One statement, so two
+  // instances of the sweep never flag (and text the store about) the same return twice.
+  async flagOverdueReturns(before) {
+    const Model = await this.getModel();
+    const [rows] = await Model.sequelize.query(
+      `UPDATE delivery_assignments SET return_flagged_at = now()
+       WHERE return_due_at < :before AND returned_at IS NULL AND return_flagged_at IS NULL
+       RETURNING id, order_id, delivery_partner_id, warehouse_id, pickup_contact_phone, return_due_at`,
+      { replacements: { before } },
+    );
+    return rows;
+  }
 }
 
 export default new DeliveryAssignmentRepository();

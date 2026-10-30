@@ -6,6 +6,8 @@ import { validate } from "../../middleware/validate.js";
 const router = express.Router();
 
 router.get("/", WarehouseController.getAllWarehouses);
+// Public like the list above; feeds the Warehouses city filter. Must stay above /:id.
+router.get("/cities", WarehouseController.getCities);
 router.get("/:id", WarehouseController.getWarehouseById);
 router.post(
   "/",

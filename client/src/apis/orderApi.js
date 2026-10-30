@@ -99,6 +99,11 @@ return response.data
   async retryPayment(orderId, payload = {}) {
     const response = await api.post(`/orders/${orderId}/payment/retry`, payload);
     return response.data;
+  },
+  // The customer's own return request: { order_item_id, quantity, reason, note?, photo? (plain base64) }.
+  async requestReturn(orderId, body) {
+    const response = await api.post(`/orders/${orderId}/returns`, body);
+    return response.data;
   }
 };
 

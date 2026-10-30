@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import InventoryApi from "@/apis/inventoryApi";
 import { notify } from "@/lib/notify";
@@ -73,5 +75,28 @@ const useInventory = (page = 1, limit = 10, warehouseId, variantIds = []) => {
     deleteInventory: deleteMutation,
   };
 };
+
+// Storefront stock at the customer's store: Map(variantId -> available) holding only the variants that store
+// carries. stock is null when no store is chosen yet (show every variant, no stock state) or while loading.
+export const useStoreStock = (variantIds = []) => {
+  const warehouseId = useSelector((state) => state.location.current?.warehouse_id);
+  const enabled = Boolean(warehouseId) && variantIds.length > 0;
+  const { data, isLoading } = useQuery({
+    // axiosInstance sends this warehouse as x-warehouse-id.
+    queryKey: ["storeStock", warehouseId, variantIds],
+    queryFn: () => InventoryApi.fetchStoreStock(variantIds),
+    enabled,
+  });
+  const stock = useMemo(
+    () => (data ? new Map(data.map((row) => [Number(row.variant_id), Number(row.available)])) : null),
+    [data]
+  );
+  return { hasStore: Boolean(warehouseId), stock, isLoading: enabled && isLoading };
+};
+
+// Every variant gets in_stock: available > 0 at the customer's store, and a variant the store doesn't carry counts as
+// out of stock (shown, not hidden; changed 2026-10-29, Task 204). Without stock (no store chosen) all are in stock.
+export const applyStoreStock = (variants, stock) =>
+  variants.map((v) => ({ ...v, in_stock: stock ? (stock.get(Number(v.id)) ?? 0) > 0 : true }));
 
 export default useInventory;

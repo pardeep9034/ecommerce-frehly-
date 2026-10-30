@@ -33,8 +33,9 @@ class ProductController  {
     const offset = (page - 1) * limit;
     const { status, category_id, brand_id } = req.query;
     const search = req.query.search?.trim();
+    const storefront = req.query.storefront === "true"; // the shop: ACTIVE products and variants only
 
-    const result = await ProductServices.getAllProducts(limit,offset,{ status, category_id, brand_id, search });
+    const result = await ProductServices.getAllProducts(limit,offset,{ status, category_id, brand_id, search, storefront });
    return ResponseUtil.success(res, result, "Product fetched successfully", 200);
   }catch(error){
     next(error)
@@ -69,7 +70,7 @@ class ProductController  {
   
   async getProductById(req, res,next) {
     try{
-    const result = await ProductServices.getProductById(req.params.id);
+    const result = await ProductServices.getProductById(req.params.id, { storefront: req.query.storefront === "true" });
     return ResponseUtil.success(res, result, "Product fetched successfully", 200);
     }
     catch(error){

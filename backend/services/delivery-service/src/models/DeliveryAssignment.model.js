@@ -80,6 +80,27 @@ export default (sequelize) => {
       // Set by a DB trigger when status leaves ACTIVE; never written from code.
       completed_at: {
         type: DataTypes.DATE
+      },
+      // Goods the rider still owes the store (failed drop, items turned away): due -> returned with the return code.
+      return_due_at: {
+        type: DataTypes.DATE
+      },
+      returned_at: {
+        type: DataTypes.DATE
+      },
+      // The store was told the return is overdue; set once by the overdue sweep.
+      return_flagged_at: {
+        type: DataTypes.DATE
+      },
+      // The rider's photo of the turned-away items (private storage key).
+      door_photo_key: {
+        type: DataTypes.STRING(255)
+      },
+      // RETURN_PICKUP: collect a customer's approved return and bring it to the store (customer first, then the store).
+      kind: {
+        type: DataTypes.ENUM("DELIVERY", "RETURN_PICKUP"),
+        allowNull: false,
+        defaultValue: "DELIVERY"
       }
     },
     {

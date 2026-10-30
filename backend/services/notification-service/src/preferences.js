@@ -21,9 +21,10 @@ export async function savePreferences(userId, patch) {
   );
 }
 
-// Admins (ADMIN, SUPER_ADMIN) whose switch for `preference` is on. A switched-off admin gets no row at all.
-export async function optedInAdmins(preference) {
-  const admins = await contacts({ roles: ADMIN_ROLES });
+// Admins (ADMIN, SUPER_ADMIN, or the `roles` given) whose switch for `preference` is on. A switched-off admin gets
+// no row at all.
+export async function optedInAdmins(preference, roles = ADMIN_ROLES) {
+  const admins = await contacts({ roles });
   const prefs = await preferencesOf(admins.map((admin) => admin.id));
   return admins.filter((admin) => prefs.get(String(admin.id))[preference]);
 }

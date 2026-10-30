@@ -15,6 +15,8 @@ const useOrder = () => {
   } = useQuery({
     queryKey: ["my-orders"],
     queryFn: () => OrderApi.fetchMyOrders(),
+    // signed out (cart page) the call can only 401, and each 401 starts a token refresh
+    enabled: !!localStorage.getItem("token"),
   });
    const placeOrderMutation = useMutation({
     mutationFn: (data) => OrderApi.placeOrder(data),
@@ -48,7 +50,7 @@ export const ORDER_STATUS_GROUPS = [
   { key: "new", label: "New", statuses: ["PLACED"] },
   { key: "store", label: "In store", statuses: ["CONFIRMED", "AWAITING_CUSTOMER_CONFIRMATION", "READY_FOR_ASSIGNMENT"] },
   { key: "delivery", label: "With rider", statuses: ["ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY", "HANDOVER_IN_PROGRESS"] },
-  { key: "done", label: "Completed / cancelled", statuses: ["DELIVERED", "CANCELLED", "DELIVERY_FAILED"] },
+  { key: "done", label: "Completed / cancelled", statuses: ["DELIVERED", "CANCELLED", "DELIVERY_FAILED", "RETURNED_TO_STORE"] },
 ];
 
 // GET /orders/admin/stats: today's orders/revenue, per-day series, counts by status, cancel rate, avg delivery.
@@ -153,7 +155,16 @@ export const useRetryPayment = (orderId) => {
   });
 };
 
-const LIVE_ORDER_STATUSES = new Set(["DELIVERED", "CANCELLED", "PAYMENT_FAILED", "PAYMENT_EXPIRED"]);
+export const useRequestReturn = (orderId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body) => OrderApi.requestReturn(orderId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] }),
+  });
+};
+
+const LIVE_ORDER_STATUSES =new Set(["DELIVERED", "CANCELLED", "PAYMENT_FAILED", "PAYMENT_EXPIRED"]);
 
 export const useOrderDetail = (orderId) => {
   const {

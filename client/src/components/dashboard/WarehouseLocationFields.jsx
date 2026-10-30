@@ -2,6 +2,7 @@ import { ExternalLink, MapPin } from "lucide-react";
 import FormField from "@/components/dashboard/FormField";
 import { inputClass } from "@/lib/formStyles";
 import { zoneCoverage, zoneOptionLabel } from "@/lib/warehouseStatus";
+import { SUPER_ADMIN_HINT } from "@/lib/warehouseAccess";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh", "Delhi", "Goa",
@@ -12,8 +13,8 @@ const INDIAN_STATES = [
 ];
 
 // Address, delivery zone and map pin. Shared by the Add warehouse "Location" step
-// and the warehouse detail "Location" tab.
-const WarehouseLocationFields = ({ form, errors = {}, onChange, zones = [], idPrefix = "loc" }) => {
+// and the warehouse detail "Location" tab. `zoneLocked`: only the super admin moves a store to another zone.
+const WarehouseLocationFields = ({ form, errors = {}, onChange, zones = [], idPrefix = "loc", zoneLocked = false }) => {
   const zone = zones.find((item) => String(item.id) === String(form.zone_id));
   const hasPin = form.latitude !== "" && form.longitude !== "" && Number.isFinite(Number(form.latitude)) && Number.isFinite(Number(form.longitude));
   const field = (name) => ({
@@ -53,8 +54,8 @@ const WarehouseLocationFields = ({ form, errors = {}, onChange, zones = [], idPr
           </FormField>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <FormField id={`${idPrefix}-zone_id`} label="Delivery zone" error={errors.zone_id}>
-            <select {...field("zone_id")}>
+          <FormField id={`${idPrefix}-zone_id`} label="Delivery zone" hint={zoneLocked ? SUPER_ADMIN_HINT : undefined} error={errors.zone_id}>
+            <select {...field("zone_id")} disabled={zoneLocked}>
               <option value="">Pick a zone</option>
               {zones.map((item) => (
                 <option key={item.id} value={String(item.id)}>

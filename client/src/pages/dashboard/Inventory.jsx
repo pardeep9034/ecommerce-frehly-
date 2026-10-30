@@ -9,6 +9,7 @@ import SearchableSelector from "@/components/common/SearchableSelector";
 import WarehouseApi from "@/apis/warehouseApi";
 import useInventory from "@/hooks/use-inventory";
 import { stockLevel } from "@/lib/stockLevel";
+import { currentStaff } from "@/lib/warehouseAccess";
 import { toast } from "@/components/ui/sonner";
 import { Plus, Search, Warehouse, ArrowLeftRight, Lock, AlertCircle } from "lucide-react";
 
@@ -20,7 +21,9 @@ const Inventory = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [warehouseId, setWarehouseId] = useState("");
+    // A store manager or store staff works in their own store only; the super admin picks one.
+    const { isSuperAdmin, ownWarehouseId } = currentStaff();
+    const [warehouseId, setWarehouseId] = useState(isSuperAdmin ? "" : ownWarehouseId ?? "");
     const [stockFilter, setStockFilter] = useState("All");
 
     const pageSize = 10;
@@ -47,9 +50,10 @@ const Inventory = () => {
     });
 
     const warehouseData = warehousesResponse?.data ?? warehousesResponse;
-    const warehouses = Array.isArray(warehouseData)
+    const listedWarehouses = Array.isArray(warehouseData)
         ? warehouseData
         : warehouseData?.warehouses ?? warehouseData?.rows ?? EMPTY;
+    const warehouses = isSuperAdmin ? listedWarehouses : listedWarehouses.filter((warehouse) => String(warehouse.id) === warehouseId);
 
     const inventoryPayload = inventoryData?.data ?? inventoryData;
     const inventoryList = Array.isArray(inventoryPayload)
@@ -196,6 +200,12 @@ const Inventory = () => {
                             />
                         </div>
                         <div className="w-full min-w-60 sm:max-w-sm">
+                            {!isSuperAdmin ? (
+                                <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                                    <Warehouse className="h-4 w-4 text-primary" aria-hidden="true" />
+                                    {warehouses[0]?.name ?? "Your store"}
+                                </span>
+                            ) : (
                             <SearchableSelector
                                 data={warehouses}
                                 labelKey="name"
@@ -208,6 +218,7 @@ const Inventory = () => {
                                 disabled={isWarehousesLoading}
                                 className="w-full disabled:bg-gray-50 disabled:text-gray-500"
                             />
+                            )}
                         </div>
                         <div className="flex gap-1.5">
                             {STOCK_FILTERS.map((filter) => (

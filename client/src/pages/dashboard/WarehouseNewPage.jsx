@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Check, CircleDashed, Info, Rocket, X } from "lucide-react";
+import { Check, CircleDashed, Info, Rocket } from "lucide-react";
 import FormField from "@/components/dashboard/FormField";
 import StaffCheckRow from "@/components/dashboard/StaffCheckRow";
 import StatusPill from "@/components/dashboard/StatusPill";
 import DemoBadge from "@/components/dashboard/DemoBadge";
 import WarehouseLocationFields from "@/components/dashboard/WarehouseLocationFields";
-import { Switch } from "@/components/ui/switch";
 import warehouseApi from "@/apis/warehouseApi";
+import staffApi from "@/apis/staffApi";
 import useWarehouse, { useWarehouseDetail } from "@/hooks/use-warehouse";
 import useDeliveryZone from "@/hooks/use-deliveryZone";
 import useStaff from "@/hooks/use-staff";
 import { notify } from "@/lib/notify";
-import { isApiMissing } from "@/lib/demoData";
 import { assignmentMeta, fullName } from "@/lib/staffRole";
 import { WAREHOUSE_STATUS } from "@/lib/warehouseStatus";
+import { SUPER_ADMIN_HINT, warehouseAccess } from "@/lib/warehouseAccess";
 import { cardClass, inputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/formStyles";
 import {
   EMPTY_WAREHOUSE_FORM,
@@ -43,7 +43,6 @@ const WarehouseNewPage = () => {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(EMPTY_WAREHOUSE_FORM);
   const [errors, setErrors] = useState({});
-  const [newRack, setNewRack] = useState("");
   const [managerId, setManagerId] = useState("");
   const [opsIds, setOpsIds] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,8 +57,14 @@ const WarehouseNewPage = () => {
     if (draft) setForm(formFromWarehouse(draft));
   }, [draft]);
 
+  // Only the super admin adds a warehouse and picks its team; a store manager may finish their own store's draft.
+  const { isSuperAdmin, manages } = warehouseAccess(draftId);
+  const allowed = draftId ? manages : isSuperAdmin;
+
   const admins = allStaff.filter((user) => user.role === "ADMIN" && user.is_active);
   const opsStaff = allStaff.filter((user) => user.role === "OPS_STAFF" && user.is_active);
+  const existingManager = draftId ? admins.find((user) => String(user.warehouse_id) === String(draftId)) : null;
+  const hasManager = Boolean(managerId || existingManager);
 
   const setField = (name, value) => {
     setForm((current) => ({ ...current, [name]: value }));
@@ -71,11 +76,11 @@ const WarehouseNewPage = () => {
     return [
       { label: "Name and code", done: Boolean(form.name.trim() && form.code.trim()) },
       { label: "Map pin inside a delivery zone", done: locationOk },
-      { label: "Store hours and racks", done: Boolean(form.store_open_time && form.store_close_time && form.racks.length) },
-      { label: "A store manager assigned", done: Boolean(managerId) },
+      { label: "Store hours and pack-by target", done: Object.keys(validateOperations(form)).length === 0 },
+      { label: "A store manager assigned", done: hasManager },
       { label: "Stock added in Inventory", done: false, link: "/admin/inventory" },
     ];
-  }, [form, managerId]);
+  }, [form, hasManager]);
 
   // Validates steps [0..upTo]; jumps to the first step with a problem. `quiet` skips
   // the error messages (step-bar jumps shouldn’t flag fields the user hasn’t reached).
@@ -96,24 +101,21 @@ const WarehouseNewPage = () => {
     if (validateThrough(step)) setStep(step + 1);
   };
 
-  const addRack = () => {
-    const label = newRack.trim().toUpperCase();
-    if (!label) return;
-    if (!form.racks.includes(label)) setField("racks", [...form.racks, label]);
-    setNewRack("");
-  };
-
-  // Hours, racks and team go to endpoints that don't exist yet; the warehouse
-  // itself is saved either way, so a missing endpoint only earns a warning.
+  // The create schema takes only the basics, so pincode, hours and pack-by follow as an update. The team is each
+  // person's own warehouse_id on their staff account. The warehouse itself is saved either way.
   const saveExtras = async (warehouseId, live) => {
-    const teamIds = [managerId, ...opsIds].filter((id) => id && Number(id) > 0);
+    const teamIds = isSuperAdmin ? [managerId, ...opsIds].filter((id) => id && Number(id) > 0) : [];
     const results = await Promise.allSettled([
-      warehouseApi.updateWarehouseSettings(warehouseId, { ...settingsPayload(form), operational_status: live ? "OPEN" : undefined }),
-      ...teamIds.map((userId) => warehouseApi.assignWarehouseStaff(warehouseId, Number(userId))),
+      warehouseApi.updateWarehouse(warehouseId, {
+        ...settingsPayload(form),
+        pincode: form.pincode.trim() || null,
+        ...(live && { operational_status: "OPEN" }),
+      }),
+      ...teamIds.map((userId) => staffApi.updateStaff(Number(userId), { warehouse_id: Number(warehouseId) })),
     ]);
     const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
-    if (failures.some(isApiMissing) || (staffIsDemo && (managerId || opsIds.length))) {
-      notify.warning("Warehouse saved. Store hours, racks and team need the backend API before they’re stored.");
+    if (staffIsDemo && (managerId || opsIds.length)) {
+      notify.warning("Warehouse saved. The team needs the staff API before it’s stored.");
     } else if (failures.length) {
       notify.apiError(failures[0], "Warehouse saved, but its settings or team failed to save");
     }
@@ -122,7 +124,7 @@ const WarehouseNewPage = () => {
   const save = async (live) => {
     // The backend needs name, code, zone and coordinates even for a draft.
     if (!validateThrough(live ? STEPS.length - 1 : 1)) return;
-    if (live && !managerId) {
+    if (live && !hasManager) {
       setErrors({ managerId: "Pick a store manager before going live" });
       setStep(3);
       return;
@@ -147,6 +149,14 @@ const WarehouseNewPage = () => {
       setIsSaving(false);
     }
   };
+
+  if (!allowed) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {draftId ? "Only this store's manager or the super admin can finish its setup." : "Only the super admin can add a warehouse."}
+      </p>
+    );
+  }
 
   const current = STEPS[step].key;
   const title = form.name.trim() || "Untitled";
@@ -208,11 +218,11 @@ const WarehouseNewPage = () => {
                 </FormField>
               </div>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <FormField id="wh-contact" label="Contact person">
-                  <input id="wh-contact" type="text" value={form.contact_person} onChange={(event) => setField("contact_person", event.target.value)} className={inputClass} />
+                <FormField id="wh-contact" label="Contact person" hint={isSuperAdmin ? undefined : SUPER_ADMIN_HINT}>
+                  <input id="wh-contact" type="text" value={form.contact_person} onChange={(event) => setField("contact_person", event.target.value)} disabled={!isSuperAdmin} className={inputClass} />
                 </FormField>
-                <FormField id="wh-phone" label="Contact phone">
-                  <input id="wh-phone" type="tel" value={form.contact_phone} onChange={(event) => setField("contact_phone", event.target.value)} placeholder="+91" className={inputClass} />
+                <FormField id="wh-phone" label="Contact phone" hint={isSuperAdmin ? undefined : SUPER_ADMIN_HINT}>
+                  <input id="wh-phone" type="tel" value={form.contact_phone} onChange={(event) => setField("contact_phone", event.target.value)} disabled={!isSuperAdmin} placeholder="+91" className={inputClass} />
                 </FormField>
               </div>
             </section>
@@ -224,15 +234,15 @@ const WarehouseNewPage = () => {
                 <h2 className="font-display text-base font-bold text-foreground">Location</h2>
                 <span className="text-[13px] text-muted-foreground">Customers inside the zone order from here</span>
               </div>
-              <WarehouseLocationFields form={form} errors={errors} onChange={setField} zones={zones} idPrefix="new" />
+              <WarehouseLocationFields form={form} errors={errors} onChange={setField} zones={zones} idPrefix="new" zoneLocked={!isSuperAdmin} />
             </section>
           )}
 
           {current === "ops" && (
             <section className={cardClass}>
               <h2 className="font-display text-base font-bold text-foreground">Operations</h2>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr]">
-                <FormField id="ops-open" label="Store hours" error={errors.store_hours} className="sm:col-span-2 xl:col-span-1">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-[1.6fr_1fr]">
+                <FormField id="ops-open" label="Store hours" hint="Empty = open all day · closing before opening runs past midnight" error={errors.store_hours}>
                   <div className="flex items-center gap-2">
                     <input id="ops-open" aria-label="Opens at" type="time" value={form.store_open_time} onChange={(event) => setField("store_open_time", event.target.value)} className={`${inputClass} min-w-0 px-2.5`} />
                     <span aria-hidden="true">–</span>
@@ -242,63 +252,25 @@ const WarehouseNewPage = () => {
                 <FormField id="ops-packby" label="Pack-by target (min)" error={errors.pack_by_minutes}>
                   <input id="ops-packby" type="number" min={1} value={form.pack_by_minutes} onChange={(event) => setField("pack_by_minutes", event.target.value)} className={inputClass} />
                 </FormField>
-                <FormField id="ops-max" label="Max orders per slot" error={errors.max_orders_per_slot}>
-                  <input id="ops-max" type="number" min={1} value={form.max_orders_per_slot} onChange={(event) => setField("max_orders_per_slot", event.target.value)} className={inputClass} />
-                </FormField>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-foreground">Racks</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {form.racks.map((rack) => (
-                    <span key={rack} className="inline-flex items-center gap-1 rounded-lg bg-muted py-1.5 pl-3 pr-1.5 text-[13px] font-semibold text-foreground">
-                      {rack}
-                      <button
-                        type="button"
-                        aria-label={`Remove rack ${rack}`}
-                        onClick={() => setField("racks", form.racks.filter((item) => item !== rack))}
-                        className="rounded p-0.5 text-muted-foreground hover:bg-border hover:text-foreground"
-                      >
-                        <X className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border py-1 pl-3 pr-1">
-                    <input
-                      aria-label="New rack label"
-                      value={newRack}
-                      onChange={(event) => setNewRack(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          addRack();
-                        }
-                      }}
-                      placeholder="A-1"
-                      className="w-20 bg-transparent text-[13px] font-semibold outline-none placeholder:text-muted-foreground"
-                    />
-                    <button type="button" onClick={addRack} className="rounded-md px-2 py-0.5 text-[13px] font-semibold text-primary hover:bg-secondary">
-                      + Add rack
-                    </button>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex min-h-14 items-center gap-3 border-t border-border pt-3">
-                <span className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-foreground">Auto-assign riders</span>
-                  <span className="text-xs text-muted-foreground">Offer packed orders to the nearest rider in the zone</span>
-                </span>
-                <Switch
-                  aria-label="Auto-assign riders"
-                  checked={form.auto_assign_riders}
-                  onCheckedChange={(checked) => setField("auto_assign_riders", checked)}
-                />
               </div>
             </section>
           )}
 
-          {current === "team" && (
+          {current === "team" && !isSuperAdmin && (
+            <section className={cardClass}>
+              <h2 className="font-display text-base font-bold text-foreground">Team</h2>
+              <p className="text-sm text-foreground">
+                Store manager: {existingManager ? fullName(existingManager) : "none yet"}
+              </p>
+              {errors.managerId && <p className="text-sm text-destructive">{errors.managerId}</p>}
+              <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {SUPER_ADMIN_HINT}
+              </p>
+            </section>
+          )}
+
+          {current === "team" && isSuperAdmin && (
             <section className={cardClass}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">

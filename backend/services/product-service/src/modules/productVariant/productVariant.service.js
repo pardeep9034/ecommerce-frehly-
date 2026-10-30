@@ -70,7 +70,11 @@ const VariantServices = {
     async validateVariant(variantIds){
         logger.debug("validateVariant variant ids", { variantIds });
         try{
-            const variants = await variantRepository.findAll({id:variantIds,status:"ACTIVE"}) 
+            // Sellable only: an ACTIVE variant of an ACTIVE product (cart merge drops the rest).
+            const variants = await variantRepository.findAll(
+                { id: variantIds, status: "ACTIVE" },
+                { include: [{ association: "product", attributes: [], where: { status: "ACTIVE" }, required: true }] },
+            );
             return variants;
 
         }catch(error){
@@ -157,6 +161,8 @@ const VariantServices = {
             return updated;
         } catch (error) {
            if (error instanceof AppError) throw error;
+           // barcode is the only unique column an edit can set.
+           if (error.name === "SequelizeUniqueConstraintError") throw new AppError("Another variant already has this barcode", 409);
            throw new AppError(error.message,400);
         }
     },

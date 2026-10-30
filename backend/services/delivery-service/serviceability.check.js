@@ -1,6 +1,6 @@
 // Run: node serviceability.check.js   (no database, no running service)
 import assert from "node:assert/strict";
-import { pickWarehouse, zoneCovers } from "./src/modules/deliveryZone/serviceability.js";
+import { pickWarehouse, takingOrders, zoneCovers } from "./src/modules/deliveryZone/serviceability.js";
 
 // Mohali zone: centre 30.7046,76.7178, 10 km, three pincodes. Values as strings, like Sequelize DECIMALs.
 const mohali = { id: 1, is_active: true, postal_codes: "160055, 160062,140308", latitude: "30.70464900", longitude: "76.71787300", radius_km: "10.00" };
@@ -31,5 +31,19 @@ assert.equal(byPoint.zone.id, 1);
 // pincode outside every active zone, and a zone with only closed warehouses
 assert.equal(pickWarehouse(zones, warehouses, { pincode: "110001" }), null);
 assert.equal(pickWarehouse(zones, [paused, inactive], { pincode: "160055" }), null);
+
+// store hours (India time) and pauses that run out
+const at = (ist) => new Date(`2026-10-26T${ist}:00+05:30`);
+const day = { ...near, store_open_time: "06:00:00", store_close_time: "22:00:00" };
+const night = { ...near, store_open_time: "22:00", store_close_time: "06:00" };
+assert.ok(takingOrders(day, at("06:00")) && takingOrders(day, at("21:59")), "inside its hours");
+assert.ok(!takingOrders(day, at("22:00")) && !takingOrders(day, at("05:59")), "closed outside them");
+assert.ok(takingOrders(night, at("23:30")) && takingOrders(night, at("02:00")) && !takingOrders(night, at("12:00")), "past midnight");
+assert.ok(takingOrders(near, at("03:00")), "no hours set: all day");
+assert.ok(!takingOrders({ ...paused, paused_until: "2026-10-26T10:00:00+05:30" }, at("09:59")), "paused");
+assert.ok(takingOrders({ ...paused, paused_until: "2026-10-26T10:00:00+05:30" }, at("10:00")), "the pause ran out");
+assert.ok(!takingOrders({ ...paused, paused_until: null }, at("10:00")), "paused until reopened");
+assert.ok(!takingOrders({ ...near, operational_status: "MAINTENANCE" }), "maintenance");
+assert.equal(pickWarehouse(zones, [day, far], { pincode: "160055" }, at("23:00")).warehouse.id, 3, "a closed store is skipped");
 
 console.log("serviceability.check.js: ok");

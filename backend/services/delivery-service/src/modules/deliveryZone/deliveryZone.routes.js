@@ -8,7 +8,9 @@ const router = express.Router();
 const staffOnly = requireRole(STAFF_ROLES);
 
 router.post("/", authenticateToken, staffOnly, validate("createDeliveryZoneSchema"), DeliveryZoneController.createDeliveryZone);
-router.get("/", DeliveryZoneController.getAllDeliveryZones);
+router.get("/", validate("listDeliveryZonesQuerySchema", "query"), DeliveryZoneController.getAllDeliveryZones);
+// Public like the list above; feeds the zone page's city filter. Must stay above /:id.
+router.get("/cities", DeliveryZoneController.getCities);
 // Public: the storefront asks this before login. Must stay above /:id.
 router.get("/serviceability", validate("serviceabilityQuerySchema", "query"), DeliveryZoneController.checkServiceability);
 router.get("/:id", DeliveryZoneController.getDeliveryZoneById);

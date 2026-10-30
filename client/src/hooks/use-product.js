@@ -1,10 +1,16 @@
 import { useQuery, useMutation, useQueryClient, useQueries, keepPreviousData } from "@tanstack/react-query";
 import ProductApi from "@/apis/productApi";
 
-const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => {
+// Every cached product read after a write: the shop's list (products), the admin table (admin-products), its tab counts
+// and the detail pages (product; every id, since some callers key it by the route's string id and some by number).
+export const invalidateProductLists = (queryClient) =>
+  ["products", "admin-products", "admin-product-count", "product"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+
+// storefront: the shop's list (ACTIVE products with their ACTIVE variants); admin callers leave it off.
+const useProduct = ({page = 1, limit = 10,type,catId,search,status,id,storefront} = {}) => {
   const queryClient = useQueryClient();
-  // Callers asking for one product (id) or a type list never read the list/selection queries below.
-  const wantsList = !type && !id;
+  // Callers asking for one product (id), a type list or a category's products never read the list/selection queries below.
+  const wantsList = !type && !id && !catId;
 
   // GET - fetch all products with pagination
   const {
@@ -12,8 +18,8 @@ const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => 
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["products", page, limit, status],
-    queryFn: () => ProductApi.getAllProducts(page, limit, status),
+    queryKey: ["products", page, limit, status, storefront],
+    queryFn: () => ProductApi.getAllProducts(page, limit, status, storefront ? { storefront: true } : undefined),
     enabled: wantsList,
   });
 
@@ -45,7 +51,7 @@ const useProduct = ({page = 1, limit = 10,type,catId,search,status,id} = {}) => 
   }=useQuery({
     queryKey:["productSelection",search,page,limit],
     queryFn:()=>ProductApi.productSelection(search,page,limit),
-    enabled: wantsList,
+    enabled: wantsList && !storefront,
   })
   const {
 data:searchedProduct,
@@ -59,25 +65,19 @@ error:searchedProductError
   // POST - create product
   const createMutation = useMutation({
     mutationFn: (data) => ProductApi.createProduct(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
+    onSuccess: () => invalidateProductLists(queryClient),
   });
 
   // PUT - update product
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => ProductApi.updateProduct(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
+    onSuccess: () => invalidateProductLists(queryClient),
   });
 
   // DELETE - delete product
   const deleteMutation = useMutation({
     mutationFn: (id) => ProductApi.deleteProduct(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
+    onSuccess: () => invalidateProductLists(queryClient),
   });
   //product by promotion type
   const productsByType = useQuery({

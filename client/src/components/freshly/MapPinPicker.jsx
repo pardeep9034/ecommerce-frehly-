@@ -20,6 +20,7 @@ const MapPinPicker = ({ open, start, title, confirmLabel, onConfirm, onClose }) 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const place = useRef(null); // address of the last searched place
   const [onPlace, setOnPlace] = useState(false); // is the pin still on it?
   const [locating, setLocating] = useState(false);
@@ -70,6 +71,7 @@ const MapPinPicker = ({ open, start, title, confirmLabel, onConfirm, onClose }) 
   // Ask Google only after a pause in typing and for 3+ characters.
   useEffect(() => {
     const text = query.trim();
+    setSearchFailed(false);
     if (text.length < 3) {
       setSuggestions([]);
       return undefined;
@@ -82,7 +84,11 @@ const MapPinPicker = ({ open, start, title, confirmLabel, onConfirm, onClose }) 
         const found = await (await session.current).suggest(text, center.current);
         if (!stale) setSuggestions(found);
       } catch {
-        if (!stale) setSuggestions([]);
+        // e.g. Google refused the key (Places API off, no billing): say so instead of an empty list.
+        if (!stale) {
+          setSuggestions([]);
+          setSearchFailed(true);
+        }
       } finally {
         if (!stale) setSearching(false);
       }
@@ -174,6 +180,11 @@ const MapPinPicker = ({ open, start, title, confirmLabel, onConfirm, onClose }) 
               </li>
             ))}
           </ul>
+        )}
+        {searchFailed && (
+          <p role="status" className="mt-2 px-1 text-xs font-bold text-orange-700">
+            Search isn't working right now. Move the map to your spot or use your current location.
+          </p>
         )}
       </div>
 

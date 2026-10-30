@@ -49,14 +49,17 @@ const VariantPage=()=>{
     setEditingVariant(variant);
     setIsVariantModalOpen(true);
   };
+  // Same as ProductDetail: close only once the server accepts.
     const saveVariant = (payload) => {
+    const done = {
+      onSuccess: () => { setIsVariantModalOpen(false); setEditingVariant(null); },
+      onError: (error) => toast.error(error?.response?.data?.message || "Couldn't save the variant"),
+    };
     if (editingVariant) {
-      updateVariant.mutate({ id: editingVariant.id, data: {...payload,product_id:selectedProductId} });
+      updateVariant.mutate({ id: editingVariant.id, data: {...payload,product_id:selectedProductId} }, done);
     } else {
-      createVariant.mutate({...payload, product_id: selectedProductId});
+      createVariant.mutate({...payload, product_id: selectedProductId}, done);
     }
-    setIsVariantModalOpen(false);
-    setEditingVariant(null);
   };
 
   const removeVariant = (variantId) => {
@@ -102,6 +105,7 @@ const VariantPage=()=>{
         }}
         variant={editingVariant}
         onSave={saveVariant}
+        saving={createVariant.isPending || updateVariant.isPending}
       />
            <VariantTable
            variants={variants}

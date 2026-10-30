@@ -1,9 +1,15 @@
 import api from "./axiosInstance";
 
 const WarehouseApi = {
-  async getAllWarehouses(page, limit) {
-    const response = await api.get("/warehouses", { params: { page, limit } });
+  // filters: { city? }, applied by the server before paging.
+  async getAllWarehouses(page, limit, filters = {}) {
+    const response = await api.get("/warehouses", { params: { page, limit, ...filters } });
     return response.data;
+  },
+  // Every city that has a warehouse, A to Z.
+  async getCities() {
+    const response = await api.get("/warehouses/cities");
+    return response.data.data.cities;
   },
   async getWarehouseById(id) {
     const response = await api.get(`/warehouses/${id}`);
@@ -19,22 +25,6 @@ const WarehouseApi = {
   },
   async deleteWarehouse(id) {
     const response = await api.delete(`/warehouses/${id}`);
-    return response.data;
-  },
-  async updateWarehouseSettings(id, data) {
-    const response = await api.patch(`/warehouses/${id}/settings`, data);
-    return response.data;
-  },
-  async getWarehouseTeam(id) {
-    const response = await api.get(`/warehouses/${id}/team`);
-    return response.data;
-  },
-  async assignWarehouseStaff(id, userId) {
-    const response = await api.post(`/warehouses/${id}/team`, { user_id: userId });
-    return response.data;
-  },
-  async removeWarehouseStaff(id, userId) {
-    const response = await api.delete(`/warehouses/${id}/team/${userId}`);
     return response.data;
   },
 };

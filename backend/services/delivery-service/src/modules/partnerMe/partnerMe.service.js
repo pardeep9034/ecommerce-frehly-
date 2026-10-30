@@ -5,11 +5,15 @@ import DeliveryPartnerRepository from "../repository/deliveryPartner.repository.
 import DeliveryPartnerZoneRepository from "../repository/deliveryPartnerZone.repository.js";
 import DeliveryStatusHistoryRepository from "../repository/deliveryStatusHistory.repository.js";
 import HandleOrderService from "../handleOrder/handleOrder.service.js";
-import { literal } from "sequelize";
+import { Op, literal } from "sequelize";
+import * as storage from "../../utils/storage.js";
+import { detectMime } from "../partnerApplication/partnerApplicationRules.js";
 import AppError from "../../utils/AppError.js";
 import logger from "../../utils/Logger.js";
 import { env } from "../../config/env.js";
 import { failureText } from "../../constants/deliveryFailure.js";
+import { pickupCode, pickupCodeMatches } from "../../utils/pickupCode.js";
+import { returnKind } from "../../utils/returnHold.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_MS = 330 * 60 * 1000;
@@ -22,7 +26,10 @@ const FINISHED = ["COMPLETED", "FAILED", "TRANSFERRED", "CANCELLED"];
 // What a finished assignment shows as its step: the delivery words for the assignment's own status.
 const FINISHED_STEP = { COMPLETED: "DELIVERED", FAILED: "DELIVERY_FAILED", TRANSFERRED: "TRANSFERRED", CANCELLED: "CANCELLED" };
 // The one forward move from each open step. DELIVERY_FAILED is allowed from any open step.
-const NEXT_STEP = { ASSIGNED: "PICKED_UP", PICKED_UP: "OUT_FOR_DELIVERY", OUT_FOR_DELIVERY: "DELIVERED" };
+// ASSIGNED has none: the store moves it to PICKED_UP when the rider shows their pickup code (pickupCode.js).
+const NEXT_STEP = { PICKED_UP: "OUT_FOR_DELIVERY", OUT_FOR_DELIVERY: "DELIVERED" };
+// A return pickup has one step: at the customer's, then collected or not (no timeline rows).
+const PICKUP_STEP = { ACTIVE: "RETURN_PICKUP", COMPLETED: "COLLECTED", FAILED: "NOT_COLLECTED" };
 
 // First row per order of a newest-first list.
 const latestByOrder = (rows) => {
@@ -33,9 +40,13 @@ const latestByOrder = (rows) => {
 
 class PartnerMeService {
   async getMe(partner) {
-    const [zones, stats] = await Promise.all([
+    const [zones, stats, returnsDue] = await Promise.all([
       DeliveryPartnerZoneRepository.getZonesByPartner(partner.id),
       this.stats7d(partner.id),
+      DeliveryAssignmentRepository.findAll(
+        { delivery_partner_id: partner.id, return_due_at: { [Op.ne]: null }, returned_at: null },
+        { order: [["return_due_at", "ASC"]] },
+      ),
     ]);
     return {
       id: partner.id,
@@ -51,6 +62,16 @@ class PartnerMeService {
       joined_at: partner.joined_at,
       zones: zones.map((row) => ({ id: row.zone.id, name: row.zone.name, is_primary: row.is_primary })),
       stats,
+      // Goods to take back to the store, with the code the store types in. No new orders until this is empty.
+      returns_due: returnsDue.map((row) => ({
+        assignment_id: row.id,
+        order_id: Number(row.order_id),
+        kind: returnKind(row),
+        store_name: row.pickup_name,
+        store_address: row.pickup_address,
+        due_since: row.return_due_at,
+        return_code: pickupCode(row.id, "return"),
+      })),
     };
   }
 
@@ -108,18 +129,19 @@ class PartnerMeService {
 
   async getAssignment(partner, assignmentId) {
     const assignment = await this.findOwned(partner, assignmentId);
-    const [steps, reasons, timeline, orderItems] = await Promise.all([
+    const [steps, reasons, timeline, order] = await Promise.all([
       this.currentSteps(partner.id, [assignment], [assignment.order_id]),
       this.lastReasons(partner.id, [assignment.order_id]),
       DeliveryStatusHistoryRepository.findAll(
         { order_id: assignment.order_id, delivery_partner_id: partner.id },
         { order: [["created_at", "ASC"]] },
       ),
-      this.fetchOrderItems(assignment.order_id),
+      this.fetchOrder(assignment.order_id),
     ]);
 
     const item = this.toItem(assignment, steps.get(assignment.id), reasons.get(String(assignment.order_id)));
     const open = assignment.status === "ACTIVE";
+    const pickup = assignment.kind === "RETURN_PICKUP";
     return {
       ...item,
       // The phone and the map points are for doing the job; once it is over the partner has no reason to hold them.
@@ -128,9 +150,13 @@ class PartnerMeService {
       pickup_contact_phone: open ? assignment.pickup_contact_phone : null,
       pickup_latitude: assignment.pickup_latitude,
       pickup_longitude: assignment.pickup_longitude,
+      // Shown to the store at pickup; only while the order is still waiting there.
+      pickup_code: open && item.status === "ASSIGNED" ? pickupCode(assignment.id) : null,
       delivery_latitude: assignment.delivery_latitude,
       delivery_longitude: assignment.delivery_longitude,
-      order_items: orderItems,
+      order_items: order ? (pickup ? this.collectList(order, assignment) : this.packList(order)) : null,
+      // At the door, while the job is open: what the customer can turn away and what to collect.
+      door: open && order && !pickup ? this.doorView(order, assignment) : null,
       status_history: timeline.map((row) => ({ status: row.status, remarks: row.remarks, created_at: row.created_at })),
     };
   }
@@ -147,17 +173,30 @@ class PartnerMeService {
     return { id: row.id, is_online: row.is_online };
   }
 
-  async updateAssignmentStatus(partner, user, assignmentId, { status, reason_code, note }) {
+  async updateAssignmentStatus(partner, user, assignmentId, { status, reason_code, note, delivery_code, rejected_items = [], payment_method }) {
     const reason = reason_code ? failureText(reason_code, note) : undefined;
     const assignment = await this.findOwned(partner, assignmentId);
     if (assignment.status !== "ACTIVE") {
       throw new AppError("This delivery is already finished", 409);
+    }
+    if (assignment.kind === "RETURN_PICKUP") {
+      throw new AppError("This is a return pickup: mark it collected or not collected", 409);
+    }
+    // Delivered means the customer was there: they give the rider the code from their order page.
+    if (status === "DELIVERED" && !pickupCodeMatches(assignment.order_id, delivery_code, "delivery")) {
+      throw new AppError("Delivery code doesn't match. Ask the customer for the code on their order page", 400);
+    }
+    if (status === "DELIVERED" && rejected_items.length > 0 && !assignment.door_photo_key) {
+      throw new AppError("Take a photo of the items the customer turned away first", 400);
     }
     // While a handover is open the order is on its way to someone else: withdraw it first, or the two would race.
     if (await DeliveryHandoverRepository.findOpenForAssignment(assignment.id)) {
       throw new AppError("This order has an open handover; withdraw it first", 409);
     }
     const step = (await this.currentSteps(partner.id, [assignment], [assignment.order_id])).get(assignment.id);
+    if (step === "ASSIGNED" && status === "PICKED_UP") {
+      throw new AppError("The store confirms the pickup: show them your pickup code", 409);
+    }
     if (status !== "DELIVERY_FAILED" && NEXT_STEP[step] !== status) {
       throw new AppError(`Cannot move from ${step} to ${status}`, 409);
     }
@@ -166,7 +205,7 @@ class PartnerMeService {
     // move were checked above, and the partner's id goes in as the person who made the change.
     await HandleOrderService.updateStatus(
       assignment.id,
-      { status, reason },
+      { status, reason, reason_code, ...(status === "DELIVERED" ? { door: { rejected_items, payment_method } } : {}) },
       user,
       HandleOrderService.buildSystemAuthorization(),
       Number(user.user_id),
@@ -248,7 +287,8 @@ class PartnerMeService {
       : new Map();
     return new Map(assignments.map((a) => [
       a.id,
-      a.status === "ACTIVE" ? (latest.get(String(a.order_id))?.status ?? "ASSIGNED") : FINISHED_STEP[a.status],
+      a.kind === "RETURN_PICKUP" ? PICKUP_STEP[a.status] ?? a.status
+        : a.status === "ACTIVE" ? (latest.get(String(a.order_id))?.status ?? "ASSIGNED") : FINISHED_STEP[a.status],
     ]));
   }
 
@@ -266,6 +306,7 @@ class PartnerMeService {
     return {
       id: assignment.id,
       order_id: Number(assignment.order_id),
+      kind: assignment.kind,
       status: step,
       assignment_status: assignment.status,
       pickup_name: assignment.pickup_name,
@@ -279,26 +320,106 @@ class PartnerMeService {
     };
   }
 
-  // What to pack, from the order service (only it has the lines). null when it cannot be reached: the screen can still
-  // work the delivery without the list, so this does not fail the request.
-  async fetchOrderItems(orderId) {
+  // The order from the order service (only it has the lines and the payment). null when it cannot be reached: the
+  // screen can still work the delivery without it, so this does not fail the request.
+  async fetchOrder(orderId) {
     try {
       const response = await fetch(`${env.ORDER_SERVICE_URL}/${orderId}`, {
         headers: { Authorization: HandleOrderService.buildSystemAuthorization() },
       });
       if (!response.ok) throw new Error(`order service answered ${response.status}`);
-      const { data } = await response.json();
-      return (data.items ?? [])
-        .filter((item) => item.status !== "NOT_AVAILABLE")
-        .map((item) => ({
-          // variant_name is "<product> - <unit>" today, so the product name and the unit are all a packer needs.
-          name: item.product_name,
-          qty: `${Number(item.quantity)} ${item.unit ?? ""}`.trim(),
-        }));
+      return (await response.json()).data;
     } catch (error) {
-      logger.warn(`Order items for order ${orderId} unavailable: ${error.message}`);
+      logger.warn(`Order ${orderId} unavailable: ${error.message}`);
       return null;
     }
+  }
+
+  // What to pack.
+  packList(order) {
+    return (order.items ?? [])
+      .filter((item) => item.status !== "NOT_AVAILABLE")
+      .map((item) => ({
+        // variant_name is "<product> - <unit>" today, so the product name and the unit are all a packer needs.
+        name: item.product_name,
+        qty: `${Number(item.quantity)} ${item.unit ?? ""}`.trim(),
+      }));
+  }
+
+  // A return pickup: the customer's returns this job collects, as the pack list shows them.
+  collectList(order, assignment) {
+    const items = new Map((order.items ?? []).map((item) => [Number(item.id), item]));
+    return (order.returns ?? [])
+      .filter((row) => row.assignment_id === assignment.id)
+      .map((row) => {
+        const item = items.get(Number(row.order_item_id));
+        return { name: item?.product_name ?? "Item", qty: `${Number(row.quantity)} ${item?.unit ?? ""}`.trim() };
+      });
+  }
+
+  // The rider at the customer's door on a return pickup. Collected: they now owe the goods to the store (Home shows
+  // the return code). Not collected: the store sends someone again.
+  async finishPickup(partner, user, assignmentId, collected) {
+    const assignment = await this.findOwned(partner, assignmentId);
+    if (assignment.kind !== "RETURN_PICKUP") throw new AppError("This job is a delivery", 409);
+    if (assignment.status !== "ACTIVE") throw new AppError("This pickup is already finished", 409);
+    await HandleOrderService.finishPickup(assignment, collected, Number(user.user_id));
+    const fresh = await this.findOwned(partner, assignmentId);
+    return this.toItem(fresh, PICKUP_STEP[fresh.status], null);
+  }
+
+  // What the Confirm screen needs at the door. amount_due is before anything is turned away; the app takes those off
+  // as the rider marks them (order-service works it out again on the way in).
+  doorView(order, assignment) {
+    const payAtDoor = order.latest_payment?.payment_method === "COD" || order.collected_method === "UPI";
+    const toPay = Math.max(0, Math.round((Number(order.total_amount) - Number(order.refunded_amount)) * 100) / 100);
+    return {
+      pay_at_door: payAtDoor,
+      amount_due: payAtDoor ? toPay : 0,
+      paid_by_upi: order.collected_method === "UPI",
+      has_photo: Boolean(assignment.door_photo_key),
+      items: (order.items ?? [])
+        .filter((item) => item.status !== "NOT_AVAILABLE")
+        .map((item) => ({
+          order_item_id: Number(item.id),
+          name: item.product_name,
+          unit: item.unit,
+          quantity: Number(item.quantity),
+          unit_price: Math.round((Number(item.line_total) / Number(item.quantity)) * 100) / 100,
+        })),
+    };
+  }
+
+  // The rider's photo of what the customer turned away. JPEG or PNG only (uploadDocument also lets PDFs through).
+  // A new photo replaces the last one.
+  async uploadDoorPhoto(partner, assignmentId, file) {
+    const assignment = await this.findOwned(partner, assignmentId);
+    if (assignment.status !== "ACTIVE") throw new AppError("This delivery is already finished", 409);
+    const mime = detectMime(file.buffer);
+    if (!["image/jpeg", "image/png"].includes(mime)) throw new AppError("The photo must be a JPEG or PNG", 415);
+
+    const key = `door-photos/${assignment.id}/${Date.now()}.${mime === "image/png" ? "png" : "jpg"}`;
+    await storage.put(key, file.buffer);
+    await DeliveryAssignmentRepository.updateById(assignment.id, { door_photo_key: key });
+    if (assignment.door_photo_key) {
+      storage.remove(assignment.door_photo_key).catch((error) => logger.warn(`Old door photo not removed: ${error.message}`));
+    }
+    return { has_photo: true };
+  }
+
+  // The door QR (pay on delivery by UPI), proxied to order-service as SYSTEM once the rider is known to own the open
+  // job. method: POST shows a new one (also Retry), GET checks it, DELETE closes it (Switch to cash).
+  async doorQr(partner, assignmentId, method, body) {
+    const assignment = await this.findOwned(partner, assignmentId);
+    if (assignment.status !== "ACTIVE") throw new AppError("This delivery is already finished", 409);
+    const response = await fetch(`${env.ORDER_SERVICE_URL}/${assignment.order_id}/door-qr`, {
+      method,
+      headers: { Authorization: HandleOrderService.buildSystemAuthorization(), "Content-Type": "application/json" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new AppError(result.message || "The QR is unavailable right now", response.status || 502);
+    return result.data;
   }
 }
 

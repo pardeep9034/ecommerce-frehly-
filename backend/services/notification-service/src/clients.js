@@ -42,6 +42,16 @@ export async function contacts(query) {
   return data;
 }
 
+// Staff ids → "First Last", for "Changed by" lines. Ids that aren't staff are missing from the map.
+export async function staffNames(ids) {
+  const rows = await call("auth-service", `${env.AUTH_SERVICE_URL}/internal/users/names`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-internal-key": env.INTERNAL_API_KEY },
+    body: JSON.stringify({ ids: ids.map(Number) }),
+  });
+  return new Map((rows ?? []).map((row) => [String(row.id), row.name]));
+}
+
 // Today's numbers for the daily summary, as a SYSTEM caller (the same short-lived token order-service makes for itself).
 export async function todayStats() {
   const token = jwt.sign({ user_id: "system", role: "SYSTEM" }, env.JWT_SECRET, { expiresIn: "5m" });

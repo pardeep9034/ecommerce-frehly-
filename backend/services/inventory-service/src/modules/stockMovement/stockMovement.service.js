@@ -26,10 +26,8 @@ const fetchVariantDetails = async (variantId) => {
   }
 };
 
-const getCreatedBy = (user, fallbackCreatedBy) => {
-
-  return user;
-};
+// The signed-in staff member; a service call (order-service restocking a return) has none and sends created_by.
+const getCreatedBy = (user, fallbackCreatedBy) => user ?? fallbackCreatedBy;
 
 class StockMovementServices {
   async getAllStockMovements(limit, offset, filters = {}) {
@@ -81,7 +79,9 @@ class StockMovementServices {
     );
   }
 
-  async createStockMovement(movementData, user) {
+  // addsMissingItem: a stock increase may create the store's row when it has none (order-service restocking a
+  // return). Staff get a 404 instead and add the item through POST /inventory, which checks it is active.
+  async createStockMovement(movementData, user, { addsMissingItem = false } = {}) {
    
     const {
       variant_id,
@@ -110,8 +110,11 @@ class StockMovementServices {
         await InventoryRepository.getInventoryByVariantIdAndWarehouseId(variant_id, warehouse_id);
       
 
-      if (!inventory && !INCREASE_TYPES.has(movement_type)) {
-        throw new AppError("Inventory not found for this variant", 404);
+      if (!inventory && !(addsMissingItem && INCREASE_TYPES.has(movement_type))) {
+        throw new AppError(
+          addsMissingItem ? "Inventory not found for this variant" : "This item is not in this store yet; add it to the store first",
+          404,
+        );
       }
 
       if (!inventory) {

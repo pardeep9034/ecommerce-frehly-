@@ -2,10 +2,16 @@ import api from "./axiosInstance";
 
 
 const deliveryZoneApi = {
-  async fetchAllDeliveryZones(page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
-    const response = await api.get(`/delivery-zones?limit=${limit}&offset=${offset}`);
+  // filters: { city?, search? }, applied by the server before paging.
+  async fetchAllDeliveryZones(page = 1, limit = 10, filters = {}) {
+    const response = await api.get("/delivery-zones", { params: { page, limit, ...filters } });
     return response.data;
+  },
+
+  // Every city that has a zone, A to Z: { cities: [] }.
+  async fetchCities() {
+    const response = await api.get("/delivery-zones/cities");
+    return response.data.data.cities;
   },
 
   // { pincode } and/or { lat, lng } -> { serviceable, warehouse_id, area, city, estimated_delivery_time, ... }

@@ -19,6 +19,7 @@ const pageTitles = {
   "/admin/orders": "Orders",
   "/admin/customers": "Customers",
   "/admin/delivery-partners": "Delivery partners",
+  "/admin/delivery-slots": "Delivery slots",
   "/admin/discounts": "Discounts",
   "/admin/settings": "Settings",
 };

@@ -45,7 +45,9 @@ const AssignStaffModal = ({ open, onClose, warehouse, staff = [], onAssign, isPe
             {managerOnly ? `Change manager of ${name}` : `Assign staff to ${name}`}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Each person works at one warehouse at a time.
+            {managerOnly
+              ? "The current manager is unassigned from this warehouse."
+              : "Each person works at one warehouse at a time."}
           </DialogDescription>
         </div>
 
